@@ -1,0 +1,6 @@
+target
+.cargohome
+result
+*.pdf
+*.zip
+.~lock.*.ods#
