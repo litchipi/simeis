@@ -1,5 +1,15 @@
 # Compiler
 
 ```
-RUST_LOG=info cargo r
+# Pour seulement compiler
+cargo build
+
+# Pour le lancer
+cargo run
+```
+
+# Tester
+
+```
+cargo test
 ```
