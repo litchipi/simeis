@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 use ntex::web;
 
 use simeis_data::game::Game;
@@ -39,4 +40,10 @@ async fn main() -> std::io::Result<()> {
 
     game.stop(gamethread).await;
     res
+}
+
+#[cfg(feature = "heavy_testing")]
+#[test]
+fn test_heavy_testing() {
+    assert!(false);
 }

@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use scan::ScanResult;
@@ -320,4 +321,10 @@ fn test_compute_sector() {
     assert_eq!(compute_sector(SECTOR_SIZE.0, 0, 0), ((SECTOR_SIZE.0, 2*SECTOR_SIZE.0), (0, SECTOR_SIZE.1), (0, SECTOR_SIZE.2)));
     assert_eq!(compute_sector(0, SECTOR_SIZE.1, 0), ((0, SECTOR_SIZE.0), (SECTOR_SIZE.1, 2*SECTOR_SIZE.1), (0, SECTOR_SIZE.2)));
     assert_eq!(compute_sector(0, 0, SECTOR_SIZE.2), ((0, SECTOR_SIZE.0), (0, SECTOR_SIZE.1), (SECTOR_SIZE.2, 2*SECTOR_SIZE.2)));
+}
+
+#[cfg(feature = "heavy_testing")]
+#[test]
+fn test_heavy_testing() {
+    assert!(false);
 }
