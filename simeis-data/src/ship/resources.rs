@@ -49,10 +49,10 @@ impl Resource {
     #[inline]
     pub const fn base_price(&self) -> f64 {
         match self {
-            Resource::Stone | Resource::Helium => 4.0 * 2.0,
-            Resource::Iron | Resource::Ozone => 16.0 * 2.0,
-            Resource::Copper | Resource::Freon => 46.0 * 2.0,
-            Resource::Gold | Resource::Oxygen => 80.0 * 2.0,
+            Resource::Stone | Resource::Helium => 8.0,
+            Resource::Iron | Resource::Ozone => 32.0,
+            Resource::Copper | Resource::Freon => 92.0,
+            Resource::Gold | Resource::Oxygen => 160.0,
             Resource::Fuel => 1.9,
             Resource::HullPlate => 0.75,
         }
