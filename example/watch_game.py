@@ -7,7 +7,7 @@ import json
 import time
 import urllib.request
 
-# TODO Put names to track in sys.argv
+# TO DO Put names to track in sys.argv
 #      If a player name starts with one of the names in sys.argv, add it even if it's not in the top NMAX players
 
 INIT = False

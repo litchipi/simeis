@@ -11,7 +11,7 @@ def get(path):
 got = get("/ping")
 print(got)
 
-# TODO Créer un meilleur example simple comme celui-ci dans une doc "Getting started"
+# TO DO Créer un meilleur example simple comme celui-ci dans une doc "Getting started"
 # 1 - Créer un joueur
 # 2 - Acheter un vaisseau
 # 3 - Recruter un pilote (et on l'assigne au module)

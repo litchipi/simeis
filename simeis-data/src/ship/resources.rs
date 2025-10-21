@@ -45,7 +45,7 @@ impl Resource {
         matches!(self, Resource::Fuel | Resource::HullPlate)
     }
 
-    // TODO (#24) Get from configuration
+    // TO DO (#24) Get from configuration
     #[inline]
     pub const fn base_price(&self) -> f64 {
         match self {
