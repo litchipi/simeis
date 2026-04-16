@@ -1,0 +1,55 @@
+name: Simeis CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  # --- PARTIE DÉVELOPPEMENT (PR et autres branches) ---
+  # Ces jobs s'exécutent pour satisfaire tes règles de protection
+  
+  lint:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Développement - Check
+        run: make check
+
+  test:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Développement - Tests unitaires
+        run: make test
+
+  build_dev:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Développement - Build simple
+        run: make build
+
+  # --- PARTIE PRODUCTION (Merge dans main) ---
+  # Ce job s'exécute uniquement quand le code arrive sur main
+  
+  release_and_doc:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Installer Typst (pour la doc)
+        run: sudo apt-get update && sudo apt-get install -y typst
+
+      - name: Compilation Release
+        # On utilise la cible release du Makefile qui contient 'cargo build --release' et 'strip'
+        run: make release
+
+      - name: Compilation Documentation
+        # On compile le manuel.typ avec typst via le Makefile
+        run: make doc

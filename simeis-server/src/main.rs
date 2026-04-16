@@ -45,7 +45,7 @@ fn start_game_thread(
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     #[cfg(not(feature = "testing"))]
-    let port = 8080;
+    let port = 8081;
 
     #[cfg(feature = "testing")]
     let port = 9345;
@@ -62,7 +62,7 @@ async fn main() -> std::io::Result<()> {
         .filter_module("ntex_net::tokio", log::LevelFilter::Warn)
         .init();
 
-    log::info!("Running on http://0.0.0.0:{port}");
+    log::info!("Running on http://127.0.0.1:{port}");
     // TODO (#34) Reduce stack size from this task, > 1024
     let (gamethread, state) = Game::init(start_game_thread).await;
     let stop_chan = state.send_sig.clone();
@@ -75,7 +75,7 @@ async fn main() -> std::io::Result<()> {
             .configure(api::configure)
     })
     .workers(64)
-    .bind(("0.0.0.0", port))?
+    .bind(("127.0.0.1", port))?
     .run()
     .await;
 
