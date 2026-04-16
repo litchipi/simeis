@@ -1,7 +1,7 @@
 #![allow(dead_code, unused_variables)]
-use serde_json::Value;
+use serde_json::{Value, json};
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -131,13 +131,26 @@ impl SimeisSDK {
             }
             req.send(&[0u8; 0])
         };
-        let mut got = got.map_err(|err| {
-            serde_json::json!({
-                "status": 0,
-                "error": format!("{err:?}"),
-            })
-        })?;
+        if let Err(ref e) = got {
+            match e {
+                ureq::Error::StatusCode(408) => {
+                    log::warn!("Timeout");
+                    std::thread::sleep(Duration::from_millis(100));
+                    return self.api(path, get);
+                },
+                ureq::Error::StatusCode(101) => {
+                    log::warn!("Network unreachable");
+                    std::thread::sleep(Duration::from_secs(2));
+                    return self.api(path, get);
+                },
+                err => return Err(json!({
+                    "status": 0,
+                    "error": format!("{err:?}"),
+                })),
+            }
+        }
         let data = got
+            .unwrap()
             .body_mut()
             .read_to_string()
             .expect("Non textual data from server");
@@ -507,5 +520,51 @@ impl SimeisSDK {
 
     pub fn upgrade_station_crew(&self, station_id: u64, crew_id: u64) -> ApiResult {
         self.post(format!("/station/{station_id}/crew/upgrade/{crew_id}"))
+    }
+
+    pub fn upgrade_station_cargo(&self, station_id: u64, ncargo: usize) -> ApiResult {
+        self.post(format!("/station/{station_id}/shop/cargo/buy/{ncargo}"))
+    }
+
+    pub fn get_ship_crew_upgrades(&self, station_id: u64, ship_id: u64) -> Result<BTreeMap<u64, Value>, Value> {
+        let mut result = BTreeMap::new();
+        let res = self.get(format!("/station/{station_id}/crew/upgrade/ship/{ship_id}"))?;
+        for (key, val) in res.as_object().unwrap() {
+            let id = key.parse().unwrap();
+            result.insert(id, val.clone());
+        }
+        Ok(result)
+    }
+
+    pub fn get_ship_module_upgrades(&self, station_id: u64, ship_id: u64) -> Result<BTreeMap<u64, Value>, Value> {
+        let mut result = BTreeMap::new();
+        let res = self.get(format!("/station/{station_id}/shop/modules/{ship_id}/upgrade"))?;
+        for (key, val) in res.as_object().unwrap() {
+            let id = key.parse().unwrap();
+            result.insert(id, val.clone());
+        }
+        Ok(result)
+    }
+
+    pub fn list_ship_upgrades(&self, station_id: u64, ship_id: u64) -> Result<HashMap<String, Value>, Value> {
+        let mut result = HashMap::new();
+        let res = self.get(format!("/station/{station_id}/shipyard/upgrade/{ship_id}"))?;
+        for (key, val) in res.as_object().unwrap() {
+            log::warn!("{key} = {val}");
+            result.insert(key.clone(), val.clone());
+        }
+        Ok(result)
+    }
+
+    pub fn upgrade_ship_crew(&self, station_id: u64, ship_id: u64, crew_id: u64) -> ApiResult {
+        self.post(format!("/station/{station_id}/crew/upgrade/ship/{ship_id}/{crew_id}"))
+    }
+
+    pub fn upgrade_ship_module(&self, station_id: u64, ship_id: u64, module_id: u64) -> ApiResult {
+        self.post(format!("/station/{station_id}/shop/modules/{ship_id}/upgrade/{module_id}"))
+    }
+
+    pub fn buy_ship_upgrade(&self, station_id: u64, ship_id: u64, upgtype: &str) -> ApiResult {
+        self.post(format!("/station/{station_id}/shipyard/upgrade/{ship_id}/{upgtype}"))
     }
 }
