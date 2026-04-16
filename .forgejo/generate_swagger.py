@@ -287,6 +287,8 @@ class ApiChecker:
         station = self.prepare_get("/station/{station_id}", station_id=player["stations"][0])
 
         trader = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="trader")
+        self.prepare_post("/station/{station_id}/crew/fire/{crew_id}", crew_id=trader["id"])
+        trader = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}")
         self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/trading", crew_id=trader["id"])
         self.prepare_post("/station/{station_id}/crew/upgrade/{crew_id}")
         self.prepare_post("/market/{station_id}/buy/{resource}/{amnt}", resource="Fuel", amnt=100)
