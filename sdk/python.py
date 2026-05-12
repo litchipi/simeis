@@ -218,14 +218,18 @@ class SimeisSDK:
     def start_extraction(self, ship_id):
         return self.post(f"/ship/{ship_id}/extraction/start")
 
-    # TODO (#33) Unload
-    # TODO (#33) Unload_all
+    def unload(self, sta, ship_id, res, amnt):
+        return self.post(f"/ship/{ship_id}/unload/{sta}/{res}/{amnt}")
+
+    def unload_all(self, sta, ship_id):
+        return self.post(f"/ship/{ship_id}/unload/{sta}/all")
+
     def return_station_and_unload_all(self, sta, ship_id):
         ship = self.get(f"/ship/{ship_id}")
         station = self.get(f"/station/{sta}")
         if ship["position"] != station["position"]:
             self.travel(ship["id"], station["position"])
-        return self.post(f"/ship/{ship_id}/unload/{sta}/all")
+        return self.unload_all(sta, ship_id)
 
     def get_station_resources(self, sta):
         return self.get(f"/station/{sta}")["cargo"]["resources"]
@@ -239,7 +243,13 @@ class SimeisSDK:
     def buy_resource(self, sta, res, amnt):
         return self.post(f"/market/{sta}/buy/{res}/{amnt}")
 
-    # TODO (#33) get_syslogs
-    # TODO (#33) Add resources info
-    # TODO (#33) Get ship wages cost
+    def syslogs(self):
+        return self.get("/syslogs")["events"]
+
+    def resources_info(self):
+        return self.get("/resources")
+
+    def ship_wages_cost(self, ship_id):
+        return self.get(f"/ship/{ship_id}/wages")["wages"]
+
     # TODO (#33) Industry
