@@ -26,7 +26,7 @@ extraspeed = ["simeis-data/extraspeed"]
 
 # Async runtimes
 compio = [ "ntex/compio", "dep:compio" ]
-tokio = [ "ntex/tokio", "dep:tokio" ]
+# tokio = [ "ntex/tokio", "dep:tokio" ]
 
 [profile.release]
 opt-level = 3
