@@ -63,7 +63,7 @@ async fn fire_crew(
     args: Path<(StationId, CrewId)>,
     req: HttpRequest,
 ) -> impl web::Responder {
-    let (station_id, crewid) = args.clone();
+    let (station_id, crewid) = *args;
     let pkey = get_player_key!(req);
     let data = srv
         .map_station(&pkey, &station_id, |pid, station| {

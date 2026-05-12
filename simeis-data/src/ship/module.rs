@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use strum::{EnumIter, EnumString, IntoEnumIterator, IntoStaticStr};
+use strum::{EnumIter, EnumString, IntoStaticStr};
 
 use super::resources::Resource;
 use crate::crew::{Crew, CrewId, CrewMemberType};
@@ -80,22 +80,24 @@ impl ShipModule {
         };
 
         let cm = crew.0.get(opid).unwrap();
-        let all_resources = Resource::iter()
-            .map(|r| (r, planet.resource_density(&r)))
-            .filter(|(_, d)| *d > 0.0);
-
         match self.modtype {
-            ShipModuleType::Miner => all_resources
+            ShipModuleType::Miner => planet
+                .resources_density
+                .iter()
                 .filter(|(r, _)| r.mineable(cm.rank))
-                .map(|(r, density)| (r, self.extraction_rate(&r, cm.rank, density)))
+                .map(|(r, density)| (*r, self.extraction_rate(r, cm.rank, *density)))
                 .collect(),
-            ShipModuleType::GasSucker => all_resources
+            ShipModuleType::GasSucker => planet
+                .resources_density
+                .iter()
                 .filter(|(r, _)| r.suckable(cm.rank))
-                .map(|(r, density)| (r, self.extraction_rate(&r, cm.rank, density)))
+                .map(|(r, density)| (*r, self.extraction_rate(r, cm.rank, *density)))
                 .collect(),
-            ShipModuleType::Pump => all_resources
+            ShipModuleType::Pump => planet
+                .resources_density
+                .iter()
                 .filter(|(r, _)| r.pumpable(cm.rank))
-                .map(|(r, density)| (r, self.extraction_rate(&r, cm.rank, density)))
+                .map(|(r, density)| (*r, self.extraction_rate(r, cm.rank, *density)))
                 .collect(),
         }
     }
