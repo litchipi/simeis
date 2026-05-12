@@ -8,9 +8,6 @@ const REACTOR_UPG_ADD: u16 = 1;
 const HULL_UPG_ADD: f64 = 100.0;
 const SHIELD_UPG_ADD: u16 = 1;
 
-const REACTOR_OPT_DEC_FUELCONS: f64 = 5.0 / 100.0;
-const REACTOR_OPT_PRICE: f64 = 1000.0;
-
 #[derive(
     EnumIter,
     EnumString,

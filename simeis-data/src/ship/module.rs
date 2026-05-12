@@ -6,7 +6,6 @@ use crate::crew::{Crew, CrewId, CrewMemberType};
 use crate::galaxy::planet::Planet;
 
 const MOD_UPG_POWF_DIV: f64 = 75.0;
-const EXTRACTION_RATE_RANK_POWF: f64 = 0.45;
 const EXRATE_DIFF_FACT: f64 = 2.5;
 const EXRATE_FACT: f64 = 0.6;
 

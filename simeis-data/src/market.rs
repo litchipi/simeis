@@ -16,9 +16,9 @@ const UPD_PRICE_PROBA: f64 = 0.80;
 
 // Buying 500000 worth of a resource will increase the price between 10% and 30%
 // After  500000 credits, will be capped at btwn 10 and 30%
-const PRICE_INC_CAP: f64 = 500_000.0;
-const PRICE_INC_RANGE_MAX: f64 = 70.0 / 100.0;
-const PRICE_INC_RANGE_MIN: f64 = 30.0 / 100.0;
+// const PRICE_INC_CAP: f64 = 500_000.0;
+// const PRICE_INC_RANGE_MAX: f64 = 70.0 / 100.0;
+// const PRICE_INC_RANGE_MIN: f64 = 30.0 / 100.0;
 
 #[inline]
 pub fn fee_rate(rank: u8) -> f64 {
