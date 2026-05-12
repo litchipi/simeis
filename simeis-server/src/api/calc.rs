@@ -3,8 +3,11 @@ use std::collections::BTreeMap;
 use ntex::router::IntoPattern;
 use ntex::web::types::Json;
 use ntex::web::{self, scope, ServiceConfig};
+use simeis_data::crew::{CrewMember, CrewMemberType};
 use simeis_data::errors::Errcode;
-use simeis_data::ship::module::{ShipModuleType, calc_extraction_rate};
+use simeis_data::ship::module::{ShipModule, ShipModuleType, calc_extraction_rate};
+use simeis_data::ship::resources::Resource;
+use strum::IntoEnumIterator;
 
 use crate::GameState;
 use crate::api::build_response;
@@ -68,8 +71,62 @@ async fn compute_mining_rate(
     build_response(data)
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct UpgradeComputation {
+    module_type: ShipModuleType,
+    module_start_rank: u8,
+    module_end_rank: u8,
+    crew_start_rank: u8,
+    crew_end_rank: u8,
+}
+
+// @summary Computes the price of an upgraded on a ship module & operator, and its benefits on extraction rates
+// @returns The price of the module upgrade, the crew upgrade, and the diff in extraction rate (for a fixed planet resource density)
+#[web::post("/upgrade")]
+async fn compute_upgrade(
+    body: Json<UpgradeComputation>,
+) -> impl web::Responder {
+    let UpgradeComputation { module_type, module_start_rank, module_end_rank, crew_start_rank, crew_end_rank } = body.0;
+
+    let mut start_module = ShipModule::new(module_type.clone(), module_start_rank);
+    let mut start_operator = CrewMember::from(CrewMemberType::Operator);
+    start_operator.rank = crew_start_rank;
+
+    let mut upg_mod_price = 0.0;
+    for r in module_start_rank..module_end_rank {
+        start_module.rank = r;
+        upg_mod_price += start_module.price_next_rank();
+    }
+
+    let mut upg_crew_price = 0.0;
+    for r in crew_start_rank..crew_end_rank {
+        start_operator.rank = r;
+        upg_crew_price += start_operator.price_next_rank();
+    }
+
+    let mut extraction_rates = BTreeMap::new();
+    for res in Resource::iter() {
+        let start_rate = if res.extractable(&module_type, crew_start_rank) {
+            calc_extraction_rate(&res, module_start_rank, crew_start_rank, 1.0)
+        } else {
+            0.0
+        };
+
+        if res.extractable(&module_type, crew_end_rank) {
+            debug_assert!(start_rate > 0.0);
+            let end_rate = calc_extraction_rate(&res, module_end_rank, crew_end_rank, 1.0);
+            extraction_rates.insert(res, end_rate - start_rate);
+        };
+    }
+
+    build_response(Ok(json!({
+        "diff_extraction_rate": to_value(extraction_rates).unwrap(),
+        "module_upgrade_price": to_value(upg_mod_price).unwrap(),
+        "crew_upgrade_price": to_value(upg_crew_price).unwrap(),
+    })))
+}
+
 // TODO (#36) Endpoints for all kinds of computations
-// - Prices of the upgrade of a module + its operator (from a source level to dest level), returns benefits, price, wages, etc...
 // - Prices of the upgrade of an industry + its operator (from source lvl to dst lvl), returns benefits, price, wages, etc...
 // - Resource requirements / production of an industry at a certain level
 // - Price, wage, benefits on ships stats when upgrading a pilot
@@ -81,5 +138,6 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
             // TODO (#36) Test these, add to SDK
             .service(compute_travel_costs)
             .service(compute_mining_rate)
+            .service(compute_upgrade)
     );
 }

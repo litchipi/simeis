@@ -58,6 +58,14 @@ pub struct ShipModule {
 }
 
 impl ShipModule {
+    pub fn new(modtype: ShipModuleType, rank: u8) -> ShipModule {
+        ShipModule {
+            operator: None,
+            modtype,
+            rank,
+        }
+    }
+
     #[inline]
     pub fn price_next_rank(&self) -> f64 {
         let num = MOD_UPG_POWF_DIV - 1.0 + (self.rank as f64);
