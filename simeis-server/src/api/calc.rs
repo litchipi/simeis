@@ -5,12 +5,12 @@ use ntex::web::types::Json;
 use ntex::web::{self, scope, ServiceConfig};
 use simeis_data::crew::{CrewMember, CrewMemberType};
 use simeis_data::errors::Errcode;
-use simeis_data::ship::module::{ShipModule, ShipModuleType, calc_extraction_rate};
+use simeis_data::ship::module::{calc_extraction_rate, ShipModule, ShipModuleType};
 use simeis_data::ship::resources::Resource;
 use strum::IntoEnumIterator;
 
-use crate::GameState;
 use crate::api::build_response;
+use crate::GameState;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, to_value};
 use simeis_data::galaxy::{SpaceCoord, SpaceObject};
@@ -53,21 +53,30 @@ async fn compute_mining_rate(
     srv: GameState,
     body: Json<MiningRateComputation>,
 ) -> impl web::Responder {
-    let MiningRateComputation { module_type, module_rank, operator_rank, planet_coord } = body.0;
-    let data = srv.map_galaxy_coord(&planet_coord, |spaceobj| Box::pin(async move {
-        let SpaceObject::Planet(planet) = spaceobj else {
-            return Err(Errcode::NotAPlanet);
-        };
-        let mut result = BTreeMap::new();
-        for (res, density) in planet.resources_density.iter() {
-            if !res.extractable(&module_type, operator_rank) {
-                continue;
-            }
-            let rate = calc_extraction_rate(res, module_rank, operator_rank, *density);
-            result.insert(res, rate);
-        }
-        Ok(to_value(result).unwrap())
-    })).await;
+    let MiningRateComputation {
+        module_type,
+        module_rank,
+        operator_rank,
+        planet_coord,
+    } = body.0;
+    let data = srv
+        .map_galaxy_coord(&planet_coord, |spaceobj| {
+            Box::pin(async move {
+                let SpaceObject::Planet(planet) = spaceobj else {
+                    return Err(Errcode::NotAPlanet);
+                };
+                let mut result = BTreeMap::new();
+                for (res, density) in planet.resources_density.iter() {
+                    if !res.extractable(&module_type, operator_rank) {
+                        continue;
+                    }
+                    let rate = calc_extraction_rate(res, module_rank, operator_rank, *density);
+                    result.insert(res, rate);
+                }
+                Ok(to_value(result).unwrap())
+            })
+        })
+        .await;
     build_response(data)
 }
 
@@ -83,10 +92,14 @@ pub struct UpgradeComputation {
 // @summary Computes the price of an upgraded on a ship module & operator, and its benefits on extraction rates
 // @returns The price of the module upgrade, the crew upgrade, and the diff in extraction rate (for a fixed planet resource density)
 #[web::post("/upgrade")]
-async fn compute_upgrade(
-    body: Json<UpgradeComputation>,
-) -> impl web::Responder {
-    let UpgradeComputation { module_type, module_start_rank, module_end_rank, crew_start_rank, crew_end_rank } = body.0;
+async fn compute_upgrade(body: Json<UpgradeComputation>) -> impl web::Responder {
+    let UpgradeComputation {
+        module_type,
+        module_start_rank,
+        module_end_rank,
+        crew_start_rank,
+        crew_end_rank,
+    } = body.0;
 
     let mut start_module = ShipModule::new(module_type.clone(), module_start_rank);
     let mut start_operator = CrewMember::from(CrewMemberType::Operator);
@@ -138,6 +151,6 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
             // TODO (#36) Test these, add to SDK
             .service(compute_travel_costs)
             .service(compute_mining_rate)
-            .service(compute_upgrade)
+            .service(compute_upgrade),
     );
 }

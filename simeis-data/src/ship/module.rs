@@ -86,7 +86,8 @@ impl ShipModule {
         };
 
         let cm = crew.0.get(opid).unwrap();
-        planet.resources_density
+        planet
+            .resources_density
             .iter()
             .filter(|(r, _)| r.extractable(&self.modtype, cm.rank))
             .map(|(r, density)| (*r, calc_extraction_rate(r, self.rank, cm.rank, *density)))

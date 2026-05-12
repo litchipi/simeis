@@ -261,11 +261,7 @@ impl Game {
         data
     }
 
-    pub async fn map_galaxy_coord<F, T>(
-        &self,
-        coord: &SpaceCoord,
-        f: F,
-    ) -> Result<T, Errcode>
+    pub async fn map_galaxy_coord<F, T>(&self, coord: &SpaceCoord, f: F) -> Result<T, Errcode>
     where
         F: for<'a> FnOnce(&'a SpaceObject) -> BoxFuture<'a, Result<T, Errcode>>,
     {
