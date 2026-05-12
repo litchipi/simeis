@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, EnumString, IntoStaticStr};
 
-use crate::galaxy::planet::Planet;
+use crate::{galaxy::planet::Planet, ship::module::ShipModuleType};
 
 use super::{cargo::ShipCargo, Ship};
 
@@ -104,6 +104,15 @@ impl Resource {
             Resource::Copper | Resource::Helium | Resource::Oil => 4,
             Resource::Gold | Resource::Ozone | Resource::SulfuricAcid => 6,
             Resource::Fuel | Resource::Hull => 0,
+        }
+    }
+
+    #[inline]
+    pub fn extractable(&self, modtype: &ShipModuleType, oprank: u8) -> bool {
+        match modtype {
+            ShipModuleType::Miner => self.mineable(oprank),
+            ShipModuleType::GasSucker => self.suckable(oprank),
+            ShipModuleType::Pump => self.pumpable(oprank),
         }
     }
 

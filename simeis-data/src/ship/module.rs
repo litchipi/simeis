@@ -80,31 +80,16 @@ impl ShipModule {
         };
 
         let cm = crew.0.get(opid).unwrap();
-        match self.modtype {
-            ShipModuleType::Miner => planet
-                .resources_density
-                .iter()
-                .filter(|(r, _)| r.mineable(cm.rank))
-                .map(|(r, density)| (*r, self.extraction_rate(r, cm.rank, *density)))
-                .collect(),
-            ShipModuleType::GasSucker => planet
-                .resources_density
-                .iter()
-                .filter(|(r, _)| r.suckable(cm.rank))
-                .map(|(r, density)| (*r, self.extraction_rate(r, cm.rank, *density)))
-                .collect(),
-            ShipModuleType::Pump => planet
-                .resources_density
-                .iter()
-                .filter(|(r, _)| r.pumpable(cm.rank))
-                .map(|(r, density)| (*r, self.extraction_rate(r, cm.rank, *density)))
-                .collect(),
-        }
+        planet.resources_density
+            .iter()
+            .filter(|(r, _)| r.extractable(&self.modtype, cm.rank))
+            .map(|(r, density)| (*r, calc_extraction_rate(r, self.rank, cm.rank, *density)))
+            .collect()
     }
+}
 
-    pub fn extraction_rate(&self, resource: &Resource, oprank: u8, density: f64) -> f64 {
-        let rank = ((oprank - resource.min_rank()) as f64) * (self.rank as f64);
-        let difficulty = resource.extraction_difficulty().powf(EXRATE_DIFF_FACT);
-        density * (rank / difficulty).powf(EXRATE_FACT)
-    }
+pub fn calc_extraction_rate(resource: &Resource, modrank: u8, oprank: u8, density: f64) -> f64 {
+    let rank = ((oprank - resource.min_rank()) as f64) * (modrank as f64);
+    let difficulty = resource.extraction_difficulty().powf(EXRATE_DIFF_FACT);
+    density * (rank / difficulty).powf(EXRATE_FACT)
 }

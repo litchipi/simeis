@@ -24,7 +24,7 @@ use rand::{Rng, RngExt};
 use crate::errors::Errcode;
 use crate::galaxy::scan::ScanResult;
 use crate::galaxy::station::{Station, StationId};
-use crate::galaxy::Galaxy;
+use crate::galaxy::{Galaxy, SpaceCoord, SpaceObject};
 use crate::market::{Market, MarketTx, MARKET_CHANGE_SEC};
 use crate::player::{Player, PlayerId, PlayerKey};
 use crate::ship::resources::{ExtractionInfo, Resource};
@@ -258,6 +258,22 @@ impl Game {
             return Err(Errcode::NoSuchStation(*id));
         };
         let data = f(&pid, station).await;
+        data
+    }
+
+    pub async fn map_galaxy_coord<F, T>(
+        &self,
+        coord: &SpaceCoord,
+        f: F,
+    ) -> Result<T, Errcode>
+    where
+        F: for<'a> FnOnce(&'a SpaceObject) -> BoxFuture<'a, Result<T, Errcode>>,
+    {
+        let galaxy = self.galaxy.read().await;
+        let Some(obj) = galaxy.get(coord) else {
+            return Err(Errcode::NothingAtThisCoord);
+        };
+        let data = f(obj).await;
         data
     }
 

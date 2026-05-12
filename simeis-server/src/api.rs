@@ -6,10 +6,6 @@ use crate::GameState;
 
 pub type ApiResult = Result<Value, Errcode>;
 
-// TODO (#35) Pass complex requests via POST body instead of url
-// - Navigation
-// - Upgrades
-
 macro_rules! get_player_key {
     ($req:ident) => {
         'getk: {

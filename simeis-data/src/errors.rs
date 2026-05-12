@@ -31,6 +31,8 @@ pub enum Errcode {
     PlayerLost,
     GameSignalSend,
     NoSuchIndustryUnit,
+    NothingAtThisCoord,
+    NotAPlanet,
 }
 
 impl Errcode {
@@ -75,6 +77,8 @@ impl Errcode {
             Errcode::GameSignalSend => "Error while sending a game signal to state".to_string(),
             Errcode::CannotExtractWithoutModule => "Cannot extract because the ship doesn't have the required module".to_string(),
             Errcode::NoSuchIndustryUnit => "The provided industry unit doesn't exist".to_string(),
+            Errcode::NothingAtThisCoord => "There is nothing at the specified space coordinates".to_string(),
+            Errcode::NotAPlanet => "The specified space coordinates doesn't point to a planet".to_string(),
         }
     }
 }
