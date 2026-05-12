@@ -158,7 +158,8 @@ impl Ship {
         price += self.fuel_tank_capacity * FUEL_TANK_CAP_PRICE;
         price += self.cargo.capacity * CARGO_CAP_PRICE;
         price += self.hull_resistance * HULL_RESIS_PRICE;
-        price += self.modules.values().map(|m| m.totalcost).sum::<f64>();
+        // TODO Add modules total value to ship price
+        // price += self.modules.values().map(|m| m.totalcost).sum::<f64>();
         price
     }
 

@@ -36,7 +36,6 @@ impl ShipModuleType {
         ShipModule {
             operator: None,
             modtype: self,
-            totalcost: 0.0,
             rank: 1,
         }
     }
@@ -54,7 +53,6 @@ pub struct ShipModule {
     pub operator: Option<CrewId>,
     pub modtype: ShipModuleType,
     pub rank: u8,
-    pub totalcost: f64,
 }
 
 impl ShipModule {

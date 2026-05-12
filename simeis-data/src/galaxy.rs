@@ -267,6 +267,7 @@ fn is_in_sector(coord: &SpaceCoord, sector: &GalaxySector) -> bool {
         && coord.2 < sector.2 .1
 }
 
+// TODO FIXME IMPORTANT    Multiply overflow occurs here
 fn sectors_around(center: &SpaceCoord, radius: f64) -> Vec<GalaxySector> {
     let mut sectors = vec![];
     let centersec = compute_sector(center.0, center.1, center.2);
