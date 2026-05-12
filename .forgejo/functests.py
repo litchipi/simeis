@@ -60,7 +60,7 @@ class Tester:
     def disp_ok(self):
         print("  * Test", self.current_test, " "*(self.indent - len(self.current_test)), "OK")
 
-    def request(self, endpoint, expcode=200, timeout=1, method="GET", headers={}, key=None, **kwargs):
+    def request(self, endpoint, expcode=200, timeout=1, method="GET", headers={}, key=None, body=None, **kwargs):
         self.addtrace(method, endpoint, "expected code", expcode)
         if key is None:
             if self.key is not None:
@@ -74,11 +74,15 @@ class Tester:
             url += "?" + qry
 
         try:
-            headers["Content-Type"] = "application/x-www-form-urlencoded"
+            if body is None:
+                headers["Content-Type"] = "application/x-www-form-urlencoded"
+            else:
+                headers["Content-Type"] = "application/json"
             if method == "GET":
                 got = requests.get(url, headers=headers, timeout=timeout)
             elif method == "POST":
-                got = requests.post(url, headers=headers, timeout=timeout)
+                self.addtrace("Body: \n", json.dumps(body, indent=2))
+                got = requests.post(url, headers=headers, timeout=timeout, json=body)
         except requests.exceptions.Timeout:
             print(f"{method} {endpoint}:")
             print("\tRequest timed out, deadlock suspected in the server")
@@ -379,16 +383,26 @@ class Tester:
         ship = self.get_ok(f"/ship/{ship_id}")
         shippos = ship["position"]
 
-        self.get_error(f"/ship/{ship_id}/travelcost/{shippos[0]}/{shippos[1]}/{shippos[2]}",
-            errtype="NullDistance",
-        )
+        self.post_error("/calc/navigation", errtype="NullDistance", body={
+            "origin": shippos,
+            "dest": shippos,
+            "ship_stats": ship["stats"],
+        })
 
-        close = self.get_ok(f"/ship/{ship_id}/travelcost/{shippos[0]+1}/{shippos[1]+1}/{shippos[2]+1}")
+        close = self.post_ok("/calc/navigation", body={
+            "origin": shippos,
+            "dest": (shippos[0]+1,shippos[1]+1, shippos[2]+1),
+            "ship_stats": ship["stats"],
+        })["costs"]
         dist = self.assert_got(close, "distance", None)
         assert dist is not None
         assert dist > 0.0
 
-        far = self.get_ok(f"/ship/{ship_id}/travelcost/{shippos[0]+2}/{shippos[1]+2}/{shippos[2]+2}")
+        far = self.post_ok("/calc/navigation", body={
+            "origin": shippos,
+            "dest": (shippos[0]+2,shippos[1]+2, shippos[2]+2),
+            "ship_stats": ship["stats"],
+        })["costs"]
 
         self.assert_got(far, "distance", 2 * self.assert_got(close, "distance", None))
         self.assert_got(far, "duration", 2 * self.assert_got(close, "duration", None))
@@ -408,7 +422,11 @@ class Tester:
         before = self.get_ok(f"/ship/{ship_id}")
         src = self.assert_got(before, "position", None)
         self.assert_got(before, "state", "Idle")
-        cost = self.post_ok(f"/ship/{ship_id}/navigate/{dst[0]}/{dst[1]}/{dst[2]}")
+        cost = self.post_ok(f"/ship/{ship_id}/navigate", body={
+            "x": dst[0],
+            "y": dst[1],
+            "z": dst[2]
+        })
         self.tick_dur(cost["duration"])
         self.addtrace("Arrived")
         after = self.get_ok(f"/ship/{ship_id}")
@@ -422,7 +440,9 @@ class Tester:
         )
         self.assert_got(after, "position", dst)
         self.addtrace("Return")
-        new_cost = self.post_ok(f"/ship/{ship_id}/navigate/{src[0]}/{src[1]}/{src[2]}")
+        new_cost = self.post_ok(f"/ship/{ship_id}/navigate", body={
+            "x": src[0], "y": src[1], "z": src[2]
+        })
         for key in ["fuel_consumption", "hull_usage", "distance", "duration"]:
             exp = self.assert_got(cost, key, None)
             self.assert_got(new_cost, key, exp)
@@ -445,7 +465,9 @@ class Tester:
         self.assert_got(before, "state", "Idle")
         beforepos = self.assert_got(before, "position", None)
         self.addtrace("Travel with in-middle stop")
-        cost = self.post_ok(f"/ship/{ship_id}/navigate/{dst[0]}/{dst[1]}/{dst[2]}")
+        cost = self.post_ok(f"/ship/{ship_id}/navigate", body={
+            "x": dst[0], "y": dst[1], "z": dst[2]
+        })
 
         for _ in range(niter // 2):
             self.tick()
@@ -468,7 +490,11 @@ class Tester:
         assert (pos[0] < shippos[0]+nadd) and (pos[1] < shippos[1]+nadd) and (pos[2] < shippos[2]+nadd)
         self.assert_got(stopped, "state", "Idle")
 
-        costmid = self.get_ok(f"/ship/{ship_id}/travelcost/{dst[0]}/{dst[1]}/{dst[2]}")
+        costmid = self.post_ok("/calc/navigation", body={
+            "ship_stats": ship["stats"],
+            "origin": pos,
+            "dest": dst,
+        })["costs"]
         done = (cost["duration"] - self.assert_got(costmid, "duration", None)) / cost["duration"]
         for key in ["fuel_consumption", "hull_usage", "distance", "duration"]:
             midval = self.assert_got(costmid, key, None)
@@ -478,7 +504,9 @@ class Tester:
             self.addtrace(f"{key}: diff is {consumption} (expected {exp})")
             self.assert_cmpf(exp, consumption)
 
-        new_cost = self.post_ok(f"/ship/{ship_id}/navigate/{dst[0]}/{dst[1]}/{dst[2]}")
+        new_cost = self.post_ok(f"/ship/{ship_id}/navigate", body={
+            "x": dst[0], "y": dst[1], "z": dst[2]
+        })
         for key in ["fuel_consumption", "hull_usage", "distance", "duration"]:
             self.assert_cmpf(
                 costmid[key],
@@ -517,7 +545,9 @@ class Tester:
         assert (afterpos[1] - beforepos[1]) == nadd
         assert (afterpos[2] - beforepos[2]) == nadd
 
-        cost = self.post_ok(f"/ship/{ship_id}/navigate/{shippos[0]}/{shippos[1]}/{shippos[2]}")
+        cost = self.post_ok(f"/ship/{ship_id}/navigate", body={
+            "x": shippos[0], "y": shippos[1], "z": shippos[2]
+        })
         self.tick_dur(cost["duration"])
 
         back = self.get_ok(f"/ship/{ship_id}")
@@ -582,7 +612,9 @@ class Tester:
         self.addtrace("Traveling to", best)
 
         dest = best["position"]
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": dest[0], "y": dest[1], "z": dest[2]
+        })
         self.tick_dur(cost["duration"])
 
         ship = self.get_ok(f"/ship/{shipid}")
@@ -605,7 +637,7 @@ class Tester:
         stationid = player["stations"][0]
         dest = self.assert_got(self.get_ok(f"/station/{stationid}"), "position", None)
         self.post_error(
-            f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}",
+            f"/ship/{shipid}/navigate", body={ "x": dest[0], "y": dest[1], "z": dest[2]},
             errtype="ShipNotIdle",
         )
         self.post_ok(f"/ship/{shipid}/extraction/stop")
@@ -619,7 +651,9 @@ class Tester:
         shipid = ship["id"]
 
         dest = self.get_ok(f"/station/{stationid}")["position"]
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": dest[0], "y": dest[1], "z": dest[2]
+        })
         self.tick_dur(cost["duration"])
 
         resname = list(ship["cargo"]["resources"].keys())[0]
@@ -752,10 +786,14 @@ class Tester:
 
         stationid = player["stations"][0]
         src = self.get_ok(f"/station/{stationid}")["position"]
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{src[0]+30}/{src[1]+30}/{src[2]+30}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": src[0]+30, "y": src[1]+30, "z": src[2]+30
+        })
         self.tick_dur(cost["duration"])
 
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{src[0]}/{src[1]}/{src[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": src[0], "y": src[1], "z": src[2]
+        })
         self.tick_dur(cost["duration"])
 
         ship = self.get_ok(f"/ship/{shipid}")
@@ -818,7 +856,9 @@ class Tester:
         self.post_ok(f"/station/{self.station}/crew/assign/{opid}/ship/{shipid}/{modid}")
 
         dest = best["position"]
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": dest[0], "y": dest[1], "z": dest[2]
+        })
         self.tick_dur(cost["duration"])
 
         ship = self.get_ok(f"/ship/{shipid}")
@@ -831,14 +871,18 @@ class Tester:
         self.tick()
         self.post_ok(f"/ship/{shipid}/extraction/stop")
 
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{stationpos[0]}/{stationpos[1]}/{stationpos[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": stationpos[0], "y": stationpos[1], "z": stationpos[2]
+        })
         self.tick_dur(cost["duration"])
 
         got = self.post_ok(f"/station/{self.station}/shop/modules/{shipid}/upgrade/1")
         self.assert_got(got, "cost", 4500)
         self.assert_got(got, "new-rank", 2)
 
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": dest[0], "y": dest[1], "z": dest[2]
+        })
         self.tick_dur(cost["duration"])
 
         new_extraction_rates = self.assert_got(self.post_ok(f"/ship/{shipid}/extraction/start"), "mining_rate", None)
@@ -849,7 +893,9 @@ class Tester:
         self.tick()
         self.post_ok(f"/ship/{shipid}/extraction/stop")
 
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{stationpos[0]}/{stationpos[1]}/{stationpos[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": stationpos[0], "y": stationpos[1], "z": stationpos[2]
+        })
         self.tick_dur(cost["duration"])
 
     # Uses environment from previous test
@@ -865,7 +911,11 @@ class Tester:
         tx = self.post_ok(f"/market/{self.station}/buy/carbon/50")
         oldfee = self.assert_got(tx, "fees", None) / self.assert_got(tx, "removed_money", None)
 
-        cost = self.get_ok(f"/ship/{shipid}/travelcost/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok("/calc/navigation", body={
+            "ship_stats": ship["stats"],
+            "origin": ship["position"],
+            "dest": dest,
+        })["costs"]
         oldt = self.assert_got(cost, "duration", None)
 
         prices = self.get_ok(f"/station/{self.station}/crew/upgrade/ship/{shipid}")
@@ -901,7 +951,9 @@ class Tester:
         self.addtrace("New fee", newfee, "< old fee", oldfee)
         assert newfee < oldfee
 
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": dest[0], "y": dest[1], "z": dest[2]
+        })
         newt = self.assert_got(cost, "duration", None)
         self.addtrace("New travel duration", newt, "< old travel duration", oldt)
         assert newt < oldt
@@ -917,7 +969,9 @@ class Tester:
         best = sorted(distances, key=lambda f: f[1])[0][0]
 
         dest = best["position"]
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": dest[0], "y": dest[1], "z": dest[2]
+        })
         self.tick_dur(cost["duration"])
 
         new_extraction_rates = self.assert_got(self.post_ok(f"/ship/{shipid}/extraction/start"), "mining_rate", None)
@@ -988,6 +1042,71 @@ class Tester:
             self.assert_cmpf(cargo[input[0]], 0.0)
         for output in self.assert_got(info, "outputs", None):
             self.assert_cmpf(cargo[output[0]], output[1])
+
+    @functest
+    def test_compute_travel_costs(self):
+        scosts = self.post_ok("/navigation", body={
+             "ship_stats": {
+                 "speed": 1.0,
+                 "fuel_consumption": 1.0,
+                 "hull_usage_rate": 1.0,
+             },
+             "origin": (0, 0, 0),
+             "dest": (1, 1, 1),
+         })
+        dcosts = self.post_ok("/navigation", body={
+             "ship_stats": {
+                 "speed": 2.0,
+                 "fuel_consumption": 2.0,
+                 "hull_usage_rate": 2.0,
+             },
+             "origin": (0, 0, 0),
+             "dest": (1, 1, 1),
+         })
+        fcosts = self.post_ok("/navigation", body={
+             "ship_stats": {
+                 "speed": 2.0,
+                 "fuel_consumption": 2.0,
+                 "hull_usage_rate": 2.0,
+             },
+             "origin": (0, 0, 0),
+             "dest": (2, 2, 2),
+         })
+        self.assert_got(scosts, "direction",
+            self.assert_got(dcosts, "direction",
+                self.assert_got(fcosts, "direction", None)
+            )
+        )
+        self.assert_got(scosts, "distance",
+            self.assert_got(dcosts, "distance",
+                self.assert_got(fcosts, "distance", None) / 2
+            )
+        )
+        self.assert_got(scosts, "duration",
+            self.assert_got(dcosts, "duration",
+                self.assert_got(fcosts, "duration", None) * 2
+            ) / 2
+        )
+        self.assert_got(scosts, "fuel_consumption",
+            self.assert_got(dcosts, "fuel_consumption",
+                self.assert_got(fcosts, "fuel_consumption", None) / 2
+            ) / 2
+        )
+        self.assert_got(scosts, "hull_usage",
+            self.assert_got(dcosts, "hull_usage",
+                self.assert_got(fcosts, "hull_usage", None) / 2
+            ) / 2
+        )
+
+    @functest
+    def test_compute_mining_rate(self):
+        # TODO Functest computation mining rate
+        pass
+
+    @functest
+    def test_compute_upgrade(self):
+        # TODO Functest computation upgrade
+        pass
 
 def compute_distance(a, b):
     sum = 0
