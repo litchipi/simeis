@@ -26,7 +26,7 @@ pub struct NavigationComputation {
 
 // @summary Compute how much will cost a travel to a specific position (X, Y, Z)
 // @returns Travel informations on this destination
-#[web::get("/navigation")]
+#[web::post("/navigation")]
 async fn compute_travel_costs(body: Json<NavigationComputation>) -> impl web::Responder {
     let NavigationComputation {
         ship_stats,
@@ -48,7 +48,7 @@ pub struct MiningRateComputation {
 
 // @summary Compute how much resources can be extracted from a given planet
 // @returns The mining rate for each resources
-#[web::get("/mining_rate")]
+#[web::post("/mining_rate")]
 async fn compute_mining_rate(
     srv: GameState,
     body: Json<MiningRateComputation>,
