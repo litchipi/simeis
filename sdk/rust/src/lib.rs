@@ -137,16 +137,18 @@ impl SimeisSDK {
                     log::warn!("Timeout");
                     std::thread::sleep(Duration::from_millis(100));
                     return self.api(path, get);
-                },
+                }
                 ureq::Error::StatusCode(101) => {
                     log::warn!("Network unreachable");
                     std::thread::sleep(Duration::from_secs(2));
                     return self.api(path, get);
-                },
-                err => return Err(json!({
-                    "status": 0,
-                    "error": format!("{err:?}"),
-                })),
+                }
+                err => {
+                    return Err(json!({
+                        "status": 0,
+                        "error": format!("{err:?}"),
+                    }));
+                }
             }
         }
         let data = got
@@ -457,11 +459,7 @@ impl SimeisSDK {
     pub fn unload_all(&self, station_id: u64, ship_id: u64) -> ApiResult {
         self.post(format!("/ship/{ship_id}/unload/{station_id}/all"))
     }
-    pub fn return_station_and_unload_all(
-        &self,
-        station_id: u64,
-        ship_id: u64,
-    ) -> ApiResult {
+    pub fn return_station_and_unload_all(&self, station_id: u64, ship_id: u64) -> ApiResult {
         let ship = self.get_ship_status(ship_id)?;
         let station = self.get_station_status(station_id)?;
 
@@ -526,7 +524,11 @@ impl SimeisSDK {
         self.post(format!("/station/{station_id}/shop/cargo/buy/{ncargo}"))
     }
 
-    pub fn get_ship_crew_upgrades(&self, station_id: u64, ship_id: u64) -> Result<BTreeMap<u64, Value>, Value> {
+    pub fn get_ship_crew_upgrades(
+        &self,
+        station_id: u64,
+        ship_id: u64,
+    ) -> Result<BTreeMap<u64, Value>, Value> {
         let mut result = BTreeMap::new();
         let res = self.get(format!("/station/{station_id}/crew/upgrade/ship/{ship_id}"))?;
         for (key, val) in res.as_object().unwrap() {
@@ -536,9 +538,15 @@ impl SimeisSDK {
         Ok(result)
     }
 
-    pub fn get_ship_module_upgrades(&self, station_id: u64, ship_id: u64) -> Result<BTreeMap<u64, Value>, Value> {
+    pub fn get_ship_module_upgrades(
+        &self,
+        station_id: u64,
+        ship_id: u64,
+    ) -> Result<BTreeMap<u64, Value>, Value> {
         let mut result = BTreeMap::new();
-        let res = self.get(format!("/station/{station_id}/shop/modules/{ship_id}/upgrade"))?;
+        let res = self.get(format!(
+            "/station/{station_id}/shop/modules/{ship_id}/upgrade"
+        ))?;
         for (key, val) in res.as_object().unwrap() {
             let id = key.parse().unwrap();
             result.insert(id, val.clone());
@@ -546,25 +554,34 @@ impl SimeisSDK {
         Ok(result)
     }
 
-    pub fn list_ship_upgrades(&self, station_id: u64, ship_id: u64) -> Result<HashMap<String, Value>, Value> {
+    pub fn list_ship_upgrades(
+        &self,
+        station_id: u64,
+        ship_id: u64,
+    ) -> Result<HashMap<String, Value>, Value> {
         let mut result = HashMap::new();
         let res = self.get(format!("/station/{station_id}/shipyard/upgrade/{ship_id}"))?;
         for (key, val) in res.as_object().unwrap() {
-            log::warn!("{key} = {val}");
             result.insert(key.clone(), val.clone());
         }
         Ok(result)
     }
 
     pub fn upgrade_ship_crew(&self, station_id: u64, ship_id: u64, crew_id: u64) -> ApiResult {
-        self.post(format!("/station/{station_id}/crew/upgrade/ship/{ship_id}/{crew_id}"))
+        self.post(format!(
+            "/station/{station_id}/crew/upgrade/ship/{ship_id}/{crew_id}"
+        ))
     }
 
     pub fn upgrade_ship_module(&self, station_id: u64, ship_id: u64, module_id: u64) -> ApiResult {
-        self.post(format!("/station/{station_id}/shop/modules/{ship_id}/upgrade/{module_id}"))
+        self.post(format!(
+            "/station/{station_id}/shop/modules/{ship_id}/upgrade/{module_id}"
+        ))
     }
 
     pub fn buy_ship_upgrade(&self, station_id: u64, ship_id: u64, upgtype: &str) -> ApiResult {
-        self.post(format!("/station/{station_id}/shipyard/upgrade/{ship_id}/{upgtype}"))
+        self.post(format!(
+            "/station/{station_id}/shipyard/upgrade/{ship_id}/{upgtype}"
+        ))
     }
 }
