@@ -147,7 +147,7 @@ async fn compute_upgrade(body: Json<UpgradeComputation>) -> impl web::Responder 
 pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
     srv.service(
         scope(base)
-            // TODO (#36) Test these, add to SDK
+            // TODO (#36) Add to SDK, update python & rust clients
             .service(compute_travel_costs)
             .service(compute_mining_rate)
             .service(compute_upgrade),
