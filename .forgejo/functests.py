@@ -1156,14 +1156,14 @@ class Tester:
 
     @functest
     def test_compute_upgrade(self):
-        base = self.post_ok("/calc/upgrade", body={
+        base = self.post_ok("/calc/upgrade/module", body={
             "module_type": "Miner",
             "module_start_rank": 3,
             "module_end_rank": 3,
             "crew_start_rank": 3,
             "crew_end_rank": 3,
         })
-        add = self.post_ok("/calc/upgrade", body={
+        add = self.post_ok("/calc/upgrade/module", body={
             "module_type": "Miner",
             "module_start_rank": 3,
             "module_end_rank": 4,
@@ -1177,7 +1177,7 @@ class Tester:
             add_diff = add["diff_extraction_rate"][res]
             assert add_diff > diff
 
-        fuzz = self.post_ok("/calc/upgrade", body={
+        fuzz = self.post_ok("/calc/upgrade/module", body={
             "module_type": "Miner",
             "module_start_rank": 4,
             "module_end_rank": 3,

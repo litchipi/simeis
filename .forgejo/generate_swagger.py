@@ -381,7 +381,7 @@ class ApiChecker:
             "planet_coord": target,
         })
 
-        self.prepare_post("/calc/upgrade", body={
+        self.prepare_post("/calc/upgrade/module", body={
             "module_type": "Miner",
             "module_start_rank": 2,
             "module_end_rank": 4,

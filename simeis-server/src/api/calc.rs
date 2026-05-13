@@ -91,8 +91,8 @@ pub struct UpgradeComputation {
 
 // @summary Computes the price of an upgraded on a ship module & operator, and its benefits on extraction rates
 // @returns The price of the module upgrade, the crew upgrade, and the diff in extraction rate (for a fixed planet resource density)
-#[web::post("/upgrade")]
-async fn compute_upgrade(body: Json<UpgradeComputation>) -> impl web::Responder {
+#[web::post("/upgrade/module")]
+async fn compute_upgrade_module(body: Json<UpgradeComputation>) -> impl web::Responder {
     let UpgradeComputation {
         module_type,
         module_start_rank,
@@ -150,6 +150,6 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
             // TODO (#36) Add to SDK, update python & rust clients
             .service(compute_travel_costs)
             .service(compute_mining_rate)
-            .service(compute_upgrade),
+            .service(compute_upgrade_module),
     );
 }
