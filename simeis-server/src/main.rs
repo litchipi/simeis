@@ -27,17 +27,17 @@ fn start_game_thread(
     })
 }
 
-// #[cfg(feature = "tokio")]
-// fn start_game_thread(
-//     stop: BoundedReceiver<GameSignal>,
-//     sysrecv: SyslogRecv,
-//     data: Game,
-// ) -> JoinHandle<()> {
-//     log::debug!("Starting the game thread on tokio runtime");
-//     let rt =
-//         tokio::runtime::Runtime::new().expect("Unable to create new tokio runtime for game thread");
-//     std::thread::spawn(move || rt.block_on(data.start(stop, sysrecv)))
-// }
+#[cfg(feature = "tokio")]
+fn start_game_thread(
+    stop: BoundedReceiver<GameSignal>,
+    sysrecv: SyslogRecv,
+    data: Game,
+) -> JoinHandle<()> {
+    log::debug!("Starting the game thread on tokio runtime");
+    let rt =
+        tokio::runtime::Runtime::new().expect("Unable to create new tokio runtime for game thread");
+    std::thread::spawn(move || rt.block_on(data.start(stop, sysrecv)))
+}
 
 // Simeis is a game player with an API
 // To play, you must start by creating a player with `/player/new/{name}`

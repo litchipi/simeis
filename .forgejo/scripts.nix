@@ -43,7 +43,7 @@
         export RUST_BACKTRACE=full
         export RUST_LOG=debug
         mkdir -p target
-        cargo build --target-dir ./target/functests/ --features testing,compio --no-default-features
+        cargo build --target-dir ./target/functests/ --features testing,tokio --no-default-features
         rm -f /tmp/simeis_logs
         ./target/functests/debug/simeis-server 1>/tmp/simeis_logs 2>&1 &
         sleep 5
