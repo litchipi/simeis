@@ -197,7 +197,7 @@ in {
     client_run_well = let
       app = pkgs.writeShellApplication {
         name = "client-run-well";
-        runtimeInputs = deps ++ [ pkgs.ripgrep python ];
+        runtimeInputs = deps ++ [ pkgs.ripgrep pkgs.gawk python ];
         text = compile_and_run {
           key = "client_runwell";
           features = ["extraspeed"];
