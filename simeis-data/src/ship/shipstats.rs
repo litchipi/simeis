@@ -5,6 +5,7 @@ use crate::crew::{CrewMember, CrewMemberType};
 const HULL_USAGE_BASE: f64 = 5.0 / 100.0;
 const REACTOR_SPEED_PER_POWER: f64 = 50.0;
 const PILOT_FUEL_SHARE: u8 = 5; // Rank 10 = 4/5 fuel consumption
+const PILOT_RANK_SPEED_POWF: f64 = 0.6;
 
 #[derive(Debug, Deserialize, Clone, Serialize, Default)]
 pub struct ShipStats {
@@ -23,7 +24,9 @@ impl ShipStats {
             let totshare = (PILOT_FUEL_SHARE * 10) as f64;
             let num = (totshare - (pilot.rank as f64).min(totshare)).sqrt();
             fuel_consumption *= num / totshare;
-            speed = (rpow as f64) * REACTOR_SPEED_PER_POWER * (pilot.rank as f64);
+            speed = (rpow as f64)
+                * REACTOR_SPEED_PER_POWER
+                * (pilot.rank as f64).powf(PILOT_RANK_SPEED_POWF);
         }
         #[cfg(feature = "extraspeed")]
         {
