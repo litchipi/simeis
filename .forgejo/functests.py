@@ -1113,8 +1113,46 @@ class Tester:
 
     @functest
     def test_compute_mining_rate(self):
-        # TODO Functest computation mining rate
-        pass
+        player = self.create_test_player("test-compute-mining-rate")
+        scan = self.post_ok(f"/station/{self.station}/scan")
+        planet = self.assert_got(scan, "planets", None)[0]["position"]
+
+        self.post_error("/calc/mining_rate",body={
+            "module_type": "Miner",
+            "module_rank": 3,
+            "operator_rank": 2,
+            "planet_coord": [planet[0]+2, planet[1]+1, planet[2]-3],
+        }, errtype="NothingAtThisCoord")
+
+        little = self.post_ok("/calc/mining_rate",body={
+            "module_type": "Miner",
+            "module_rank": 3,
+            "operator_rank": 2,
+            "planet_coord": planet,
+        })
+        same = self.post_ok("/calc/mining_rate",body={
+            "module_type": "Miner",
+            "module_rank": 3,
+            "operator_rank": 2,
+            "planet_coord": planet,
+        })
+        mid = self.post_ok("/calc/mining_rate",body={
+            "module_type": "Miner",
+            "module_rank": 4,
+            "operator_rank": 2,
+            "planet_coord": planet,
+        })
+        big = self.post_ok("/calc/mining_rate",body={
+            "module_type": "Miner",
+            "module_rank": 4,
+            "operator_rank": 3,
+            "planet_coord": planet,
+        })
+
+        self.assert_got(little, "Carbon", self.assert_got(same, "Carbon", None))
+        self.assert_got(little, "Carbon", None) < self.assert_got(mid, "Carbon", None)
+        self.assert_got(mid, "Carbon", None) < self.assert_got(big, "Carbon", None)
+        self.assert_got(little, "Oxygen", None, negate=True)
 
     @functest
     def test_compute_upgrade(self):
