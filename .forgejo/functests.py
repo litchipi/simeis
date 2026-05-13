@@ -1156,8 +1156,38 @@ class Tester:
 
     @functest
     def test_compute_upgrade(self):
-        # TODO Functest computation upgrade
-        pass
+        base = self.post_ok("/calc/upgrade", body={
+            "module_type": "Miner",
+            "module_start_rank": 3,
+            "module_end_rank": 3,
+            "crew_start_rank": 3,
+            "crew_end_rank": 3,
+        })
+        add = self.post_ok("/calc/upgrade", body={
+            "module_type": "Miner",
+            "module_start_rank": 3,
+            "module_end_rank": 4,
+            "crew_start_rank": 3,
+            "crew_end_rank": 4,
+        })
+        assert self.assert_got(base, "module_upgrade_price", None) < add["module_upgrade_price"]
+        assert self.assert_got(base, "crew_upgrade_price", None) < add["crew_upgrade_price"]
+
+        for res, diff in self.assert_got(base, "diff_extraction_rate", None).items():
+            add_diff = add["diff_extraction_rate"][res]
+            assert add_diff > diff
+
+        fuzz = self.post_ok("/calc/upgrade", body={
+            "module_type": "Miner",
+            "module_start_rank": 4,
+            "module_end_rank": 3,
+            "crew_start_rank": 4,
+            "crew_end_rank": 3,
+        })
+        self.assert_got(fuzz, "module_upgrade_price", 0)
+        self.assert_got(fuzz, "crew_upgrade_price", 0)
+        for res, diff in self.assert_got(fuzz, "diff_extraction_rate", None).items():
+            assert diff < 0.0
 
 def compute_distance(a, b):
     sum = 0
