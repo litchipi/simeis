@@ -63,8 +63,22 @@ jobs:
       - name: "Check for unadressed TODOs"
         run: nix run .#check_todos
 
-  # TODO Workflow to test if the robots can still play for X minutes without losing
-  #   Or getting a timeout because of a deadlock
-  #   Compile the server with a "extraspeed" feature to make it quicker
-  #   Make X players play together
-  # robots-viable:
+  check-runs-well:
+    runs-on: nix
+    steps:
+      - uses: actions/checkout@v4
+      - name: Calculate lockfile hash
+        id: cargo-lock-hash
+        run: echo "hash=$(md5sum Cargo.lock)" >> $GITHUB_OUTPUT
+      - uses: https://code.forgejo.org/actions/cache@v4
+        name: Cache dependencies
+        id: cache-rust
+        with:
+          path: |
+            .cargohome/registry/index/
+            .cargohome/registry/cache/
+            .cargohome/git/db/
+            target/
+          key: ${{ runner.os }}-clientrun-${{ steps.cargo-lock-hash.outputs.hash }}
+      - name: "Check if base client runs well"
+        run: nix run .#client_run_well

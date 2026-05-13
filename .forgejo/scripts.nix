@@ -1,4 +1,47 @@
-{ pkgs, deps }: {
+{ pkgs, deps }: let
+  compile_and_run = {
+    key,
+    exec,
+    features ? [],
+    release ? false,
+    head ? "",
+  }: let
+    fflags = "--features ${builtins.concatStringsSep "," (features ++ ["tokio"])}";
+    rf = if release then "--release" else "";
+    bcmd = "cargo build ${rf} --target-dir ./target/${key} ${fflags} --no-default-features";
+    targetdir = "./target/${key}/${if release then "release" else "debug"}";
+    rcmd = "${targetdir}/simeis-server 1>/tmp/${key}_simeis_logs 2>&1 &";
+  in ''
+    #!/bin/bash
+    export CARGO_HOME=$PWD/.cargohome
+    export RUST_BACKTRACE=full
+    export RUST_LOG=debug
+    mkdir -p target/${key}
+    ${head}
+    echo "[*] Building server"
+    ${bcmd}
+    echo "[*] Starting the server"
+    ${rcmd}
+    sleep 2
+    if [ -z "$(jobs -r)" ]; then
+      echo "!!! Failed to start the server";
+      cat /tmp/${key}_simeis_logs
+      exit 1;
+    fi
+
+    echo "[*] Executing the command for ${key}"
+    if ! ${exec}; then
+      echo "!!! Error occured while executing ${key}"
+      jobs -p|xargs kill
+      echo "Server logs:"
+      tail -n 150 /tmp/${key}_simeis_logs
+      exit 1;
+    fi
+
+    jobs -p|xargs kill
+    echo "[*] Finished"
+  '';
+in {
   prepare_class = let
     app = pkgs.writeShellApplication {
       name = "prepare-class";
@@ -38,34 +81,11 @@
     app = pkgs.writeShellApplication {
       name = "functionnal-tests";
       runtimeInputs = deps ++ [ python ];
-      text = ''
-        export CARGO_HOME=$PWD/.cargohome
-        export RUST_BACKTRACE=full
-        export RUST_LOG=debug
-        mkdir -p target
-        cargo build --target-dir ./target/functests/ --features testing,tokio --no-default-features
-        rm -f /tmp/simeis_logs
-        ./target/functests/debug/simeis-server 1>/tmp/simeis_logs 2>&1 &
-        sleep 5
-
-        if [ -z "$(jobs -r)" ]; then
-          echo "!!! Failed to start the server";
-          cat /tmp/simeis_logs
-          exit 1;
-        fi
-
-        if ! python3 .forgejo/functests.py 127.0.0.1 9345 "$@"; then
-          echo "Some tests failed"
-          kill "$(jobs -p)"
-
-          echo "Server logs:"
-          tail -n 20 /tmp/simeis_logs
-          exit 1;
-        fi
-
-        kill "$(jobs -p)"
-        echo "[*] Finished"
-      '';
+      text = compile_and_run {
+        key = "functests";
+        features = ["testing"];
+        exec = "python3 .forgejo/functests.py 127.0.0.1 9345 \"$@\"";
+      };
     };
   in "${app}/bin/functionnal-tests";
 
@@ -152,28 +172,54 @@
       app = pkgs.writeShellApplication {
         name = "apiSanity";
         runtimeInputs = [ pkgs.ripgrep ];
-        text = ''
-          export CARGO_HOME=$PWD/.cargohome
-        export RUST_BACKTRACE=full
-          mkdir -p target
-          cargo build --target-dir ./target/apisanity/ --features testing
-          rm -f /tmp/simeis_logs
-          ./target/apisanity/debug/simeis-server 1>/tmp/simeis_logs 2>&1 &
-          sleep 5
-          if [ -z "$(jobs -r)" ]; then
-            echo "!!! Failed to start the server";
-            cat /tmp/simeis_logs
-            exit 1;
-          fi
-          if ! python3 .forgejo/generate_swagger.py 127.0.0.1 9345 "$@"; then
-            echo "Error while generating swagger file"
-            kill "$(jobs -p)"
-            exit 1;
-          fi
-
-          kill "$(jobs -p)"
-          echo "[*] Finished"
-        '';
+        text = compile_and_run {
+          key = "apisanity";
+          features = ["testing"];
+          exec = "python3 .forgejo/generate_swagger.py 127.0.0.1 9345 \"$@\"";
+        };
       };
     in "${app}/bin/apiSanity";
+
+    client_run_well = let
+      app = pkgs.writeShellApplication {
+        name = "client-run-well";
+        runtimeInputs = [];
+        text = compile_and_run {
+          key = "client_runwell";
+          features = ["extraspeed"];
+          release=true;
+          exec = "start_client_test";
+          head = ''
+            #!/bin/bash
+            function start_client_test() {
+              python3 example/python/client.py ci 127.0.0.1 8080 1>/tmp/client_runwell_clilogs 2>&1 &
+              client_pid=$!
+              sleep 3
+              if ! jobs -p |grep "$client_pid" 1>/dev/null; then
+                echo "Client failed to start"
+                return 1
+              fi
+              echo "[*] Client started"
+              tstart=$(date +%s)
+              while [ $(($(date +%s) - tstart)) -lt 600 ]; do
+                TBL=$(cat /tmp/client_runwell_clilogs|grep "time left before lost"|tail -n 1|awk '{print $11}')
+                if [ -z "$TBL" ]; then
+                  sleep 1
+                  continue;
+                fi
+                echo "Time before lost: $TBL"
+                if [ "$TBL" -gt 5000 ]; then
+                  echo "Reached 5000 secs before lost, considering it a success"
+                  break
+                fi
+                sleep 5
+              done
+              echo "Test finished, killing client..."
+              echo "$client_pid"
+              kill "$client_pid"
+            }
+          '';
+        };
+      };
+    in "${app}/bin/client-run-well";
   }

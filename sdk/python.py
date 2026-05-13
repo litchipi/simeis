@@ -144,7 +144,7 @@ class SimeisSDK:
             time.sleep(costs["duration"])
             self.wait_until_ship_idle(ship_id)
 
-    def wait_until_ship_idle(self, ship_id, ts=1):
+    def wait_until_ship_idle(self, ship_id, ts=0.2):
         ship = self.get(f"/ship/{ship_id}")
         while ship["state"] != "Idle":
             time.sleep(ts)
