@@ -93,7 +93,7 @@ impl Game {
         (thread, data)
     }
 
-    #[allow(unused_variables, unused_mut)]
+    #[allow(unused_mut, unused_variables)]
     pub async fn start(&self, mut stop: BoundedReceiver<GameSignal>, syslog: SyslogRecv) {
         log::info!("Game thread started");
         let sleepmin_iter = ITER_PERIOD;

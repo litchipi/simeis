@@ -6,8 +6,9 @@ use crate::crew::{Crew, CrewId, CrewMemberType};
 use crate::galaxy::planet::Planet;
 
 const MOD_UPG_POWF_DIV: f64 = 75.0;
-const EXRATE_DIFF_FACT: f64 = 2.5;
+const EXRATE_DIFF_FACT: f64 = 1.5;
 const EXRATE_FACT: f64 = 0.6;
+const BASE_EXTRACTION_MULT: f64 = 30.0;
 
 pub type ShipModuleId = u16;
 
@@ -96,7 +97,8 @@ impl ShipModule {
 }
 
 pub fn calc_extraction_rate(resource: &Resource, modrank: u8, oprank: u8, density: f64) -> f64 {
+    log::debug!("Calc extraction rate of {resource:?}");
     let rank = ((oprank - resource.min_rank()) as f64) * (modrank as f64);
     let difficulty = resource.extraction_difficulty().powf(EXRATE_DIFF_FACT);
-    density * (rank / difficulty).powf(EXRATE_FACT)
+    BASE_EXTRACTION_MULT * density * (rank / difficulty).powf(EXRATE_FACT)
 }

@@ -1,4 +1,3 @@
-#![allow(clippy::type_complexity)]
 use mea::mpsc::TryRecvError;
 use mea::mpsc::{BoundedReceiver, BoundedSender};
 use mea::mutex::Mutex;

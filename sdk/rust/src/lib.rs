@@ -1,4 +1,3 @@
-#![allow(dead_code, unused_variables)]
 use serde_json::{Value, json};
 
 use std::collections::{BTreeMap, HashMap};
@@ -497,7 +496,6 @@ impl SimeisSDK {
         self.get("/syslogs")
     }
 
-    #[allow(clippy::type_complexity)]
     pub fn get_resources_info(&self) -> Result<HashMap<String, (f64, f64, f64, u64)>, Value> {
         let got = self.get("/resources")?;
         let mut result = HashMap::new();

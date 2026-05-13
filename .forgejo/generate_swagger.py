@@ -342,7 +342,7 @@ class ApiChecker:
         pilot = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="pilot")
         self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/pilot", crew_id=pilot["id"])
         mod_type = "Miner"
-        resource = "Carbon"
+        resource = "Iron"
         module = self.prepare_post("/station/{station_id}/shop/modules/{ship_id}/buy/{modtype}", modtype=mod_type)
         operator = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="operator")
         self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/{mod_id}", crew_id=operator["id"], mod_id=module["id"])

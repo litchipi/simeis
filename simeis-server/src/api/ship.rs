@@ -160,7 +160,7 @@ async fn unload_all_ship_cargo(
                 let unloaded = ship.unload_all(station).await?;
                 Ok(json!({
                     "unloaded": unloaded,
-                    "emptied": ship.cargo.usage < 0.0000001,
+                    "emptied": ship.cargo.usage < 0.000001,
                 }))
             })
         })

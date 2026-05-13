@@ -283,6 +283,7 @@ impl Ship {
                 return Ok(unloaded);
             }
         }
+        self.cargo.usage = 0.0; // Usage can have rounding errors sometimes
         Ok(unloaded)
     }
 

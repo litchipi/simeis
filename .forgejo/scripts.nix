@@ -82,6 +82,7 @@
         set -e
         export CARGO_HOME=$PWD/.cargohome
         cargo check
+        cargo check --features testing,extraspeed,tokio --no-default-features
         cargo clippy --no-deps --frozen -- -D warnings
         cargo fmt --check
         cargo audit ${allIgnored}

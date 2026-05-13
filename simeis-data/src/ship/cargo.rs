@@ -71,11 +71,11 @@ impl ShipCargo {
 
 #[test]
 fn test_cargo_overflow() {
-    let mut cargo = ShipCargo::with_capacity(100.0 * Resource::Carbon.volume());
-    let added = cargo.add_resource(&Resource::Carbon, 95.0);
+    let mut cargo = ShipCargo::with_capacity(100.0 * Resource::Iron.volume());
+    let added = cargo.add_resource(&Resource::Iron, 95.0);
     assert_eq!(added, 95.0);
 
-    let added = cargo.add_resource(&Resource::Carbon, 10.0);
+    let added = cargo.add_resource(&Resource::Iron, 10.0);
     assert_eq!(added, 5.0);
     assert_eq!(cargo.usage, cargo.capacity);
 }

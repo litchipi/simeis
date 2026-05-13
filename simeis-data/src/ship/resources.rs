@@ -24,16 +24,16 @@ use super::{cargo::ShipCargo, Ship};
 #[strum(ascii_case_insensitive)]
 pub enum Resource {
     // Solid
-    Carbon,
     Iron,
     Copper,
-    Gold,
+    Titanium,
+    Uranium,
 
     // Liquid
     Water,
-    Alcohol,
-    Oil,
+    Ammonia,
     SulfuricAcid,
+    Brine,
 
     // Gaseous
     Hydrogen,
@@ -56,10 +56,10 @@ impl Resource {
     pub const fn base_price(&self) -> f64 {
         let base = 4.0;
         match self {
-            Resource::Carbon | Resource::Hydrogen | Resource::Water => base,
-            Resource::Iron | Resource::Oxygen | Resource::Alcohol => 4.0 * base,
-            Resource::Copper | Resource::Helium | Resource::Oil => 12.0 * base,
-            Resource::Gold | Resource::Ozone | Resource::SulfuricAcid => 16.0 * base,
+            Resource::Iron | Resource::Hydrogen | Resource::Water => base,
+            Resource::Copper | Resource::Oxygen | Resource::Ammonia => 4.0 * base,
+            Resource::Titanium | Resource::Helium | Resource::SulfuricAcid => 12.0 * base,
+            Resource::Uranium | Resource::Ozone | Resource::Brine => 16.0 * base,
             Resource::Fuel | Resource::Hull => base / 2.0,
         }
     }
@@ -67,10 +67,10 @@ impl Resource {
     #[inline]
     pub fn volume(&self) -> f64 {
         match self {
-            Resource::Carbon | Resource::Hydrogen | Resource::Water => 0.75,
-            Resource::Iron | Resource::Oxygen | Resource::Alcohol => 2.5,
-            Resource::Copper | Resource::Helium | Resource::Oil => 3.0,
-            Resource::Gold | Resource::Ozone | Resource::SulfuricAcid => 0.25,
+            Resource::Iron | Resource::Hydrogen | Resource::Water => 0.75,
+            Resource::Copper | Resource::Oxygen | Resource::Ammonia => 2.5,
+            Resource::Titanium | Resource::Helium | Resource::SulfuricAcid => 3.0,
+            Resource::Uranium | Resource::Ozone | Resource::Brine => 0.25,
             Resource::Fuel => 2.0,
             Resource::Hull => 0.05,
         }
@@ -79,17 +79,17 @@ impl Resource {
     #[allow(unused_mut)]
     #[inline]
     pub fn extraction_difficulty(&self) -> f64 {
-        let mut base = 0.25;
+        let mut base = 1.0;
 
         #[cfg(feature = "extraspeed")]
         {
             base /= 1000.0;
         }
         match self {
-            Resource::Carbon | Resource::Hydrogen => base,
-            Resource::Iron | Resource::Oxygen => 3.75 * base,
-            Resource::Copper | Resource::Helium => 11.0 * base,
-            Resource::Gold | Resource::Ozone => 14.0 * base,
+            Resource::Iron | Resource::Hydrogen | Resource::Water => base,
+            Resource::Copper | Resource::Oxygen | Resource::Ammonia => 3.75 * base,
+            Resource::Titanium | Resource::Helium | Resource::SulfuricAcid => 11.0 * base,
+            Resource::Uranium | Resource::Ozone | Resource::Brine => 14.0 * base,
 
             // All the things that are only crafted
             _ => unreachable!("Extraction difficulty on crafted resources"),
@@ -99,10 +99,10 @@ impl Resource {
     #[inline]
     pub fn min_rank(&self) -> u8 {
         match self {
-            Resource::Carbon | Resource::Hydrogen | Resource::Water => 0,
-            Resource::Iron | Resource::Oxygen | Resource::Alcohol => 2,
-            Resource::Copper | Resource::Helium | Resource::Oil => 4,
-            Resource::Gold | Resource::Ozone | Resource::SulfuricAcid => 6,
+            Resource::Iron | Resource::Hydrogen | Resource::Water => 0,
+            Resource::Copper | Resource::Oxygen | Resource::Ammonia => 2,
+            Resource::Titanium | Resource::Helium | Resource::SulfuricAcid => 4,
+            Resource::Uranium | Resource::Ozone | Resource::Brine => 6,
             Resource::Fuel | Resource::Hull => 0,
         }
     }
@@ -119,7 +119,7 @@ impl Resource {
     #[inline]
     pub fn mineable(&self, rank: u8) -> bool {
         match self {
-            Resource::Carbon | Resource::Iron | Resource::Copper | Resource::Gold => {
+            Resource::Iron | Resource::Copper | Resource::Titanium | Resource::Uranium => {
                 rank > self.min_rank()
             }
             _ => false,
@@ -139,7 +139,7 @@ impl Resource {
     #[inline]
     pub fn pumpable(&self, rank: u8) -> bool {
         match self {
-            Resource::Water | Resource::Alcohol | Resource::Oil | Resource::SulfuricAcid => {
+            Resource::Water | Resource::Ammonia | Resource::SulfuricAcid | Resource::Brine => {
                 rank > self.min_rank()
             }
             _ => false,

@@ -13,8 +13,8 @@ FAILFAST=os.getenv("CI") is None
 
 ITER_PERIOD = 20 / 1000
 
-SOLID=["Carbon", "Iron", "Copper", "Gold"]
-LIQUID=["Water", "Alcohol", "Oil", "SulfuricAcid"]
+SOLID=["Iron", "Copper", "Titanium", "Uranium"]
+LIQUID=["Water", "Ammonia", "SulfuricAcid", "Brine"]
 GAS=["Hydrogen", "Helium", "Oxygen", "Ozone"]
 
 def functest(f):
@@ -650,7 +650,7 @@ class Tester:
         self.addtrace("Ship arrived")
         extraction_info = self.post_ok(f"/ship/{shipid}/extraction/start")
         extraction_rates = self.assert_got(extraction_info, "mining_rate", None)
-        assert ("Carbon" in extraction_rates) or ("Hydrogen" in extraction_rates)
+        assert ("Iron" in extraction_rates) or ("Hydrogen" in extraction_rates)
         self.tick()
 
         before = self.get_ok(f"/ship/{shipid}")
@@ -722,7 +722,7 @@ class Tester:
     @functest
     def test_market_buy_sell(self):
         player = self.create_test_player("test-rich-market")
-        resname = "Carbon"
+        resname = "Iron"
         resamnt = 100
 
         self.post_error(f"/market/{self.station}/sell/{resname}/{resamnt}", errtype="NoTraderAssigned")
@@ -766,8 +766,8 @@ class Tester:
 
         fee = self.get_ok(f"/market/{self.station}/fee_rate")
         feerate = self.assert_got(fee, "fee_rate", 0.25)
-        carbon_tot = 30 / (1 - feerate)
-        tx = self.post_ok(f"/market/{self.station}/buy/{resname}/{carbon_tot}")
+        iron_tot = 30 / (1 - feerate)
+        tx = self.post_ok(f"/market/{self.station}/buy/{resname}/{iron_tot}")
         assert self.assert_got(tx, "removed_money", None) > 0
         self.assert_got(tx, "added_cargo", [resname, 40])
 
@@ -777,7 +777,7 @@ class Tester:
         self.assert_got(cargo, "usage", 30.0)
 
         cargobefore = self.get_ok(f"/station/{self.station}")["cargo"]
-        tx = self.post_ok(f"/market/{self.station}/buy/carbon/5000")
+        tx = self.post_ok(f"/market/{self.station}/buy/iron/5000")
         assert self.assert_got(tx, "added_cargo", None)[1] < 5000
 
     # Uses environment of previous test
@@ -894,7 +894,7 @@ class Tester:
         self.addtrace("Ship arrived")
         old_extraction_rates = self.assert_got(self.post_ok(f"/ship/{shipid}/extraction/start"), "mining_rate", None)
 
-        assert ("Carbon" in old_extraction_rates) or ("Hydrogen" in old_extraction_rates)
+        assert ("Iron" in old_extraction_rates) or ("Hydrogen" in old_extraction_rates)
         self.tick()
         self.tick()
         self.post_ok(f"/ship/{shipid}/extraction/stop")
@@ -936,7 +936,7 @@ class Tester:
         dest = [shippos[0] + 30, shippos[1] + 30, shippos[2] + 30]
         beforewages = player["costs"]
 
-        tx = self.post_ok(f"/market/{self.station}/buy/carbon/50")
+        tx = self.post_ok(f"/market/{self.station}/buy/iron/50")
         oldfee = self.assert_got(tx, "fees", None) / self.assert_got(tx, "removed_money", None)
 
         cost = self.post_ok("/calc/navigation", body={
@@ -974,7 +974,7 @@ class Tester:
         afterwages = player["costs"]
         assert afterwages > beforewages
 
-        tx = self.post_ok(f"/market/{self.station}/buy/carbon/50")
+        tx = self.post_ok(f"/market/{self.station}/buy/iron/50")
         newfee = self.assert_got(tx, "fees", None) / self.assert_got(tx, "removed_money", None)
         self.addtrace("New fee", newfee, "< old fee", oldfee)
         assert newfee < oldfee
@@ -1152,9 +1152,9 @@ class Tester:
             "planet_coord": planet,
         })
 
-        self.assert_got(little, "Carbon", self.assert_got(same, "Carbon", None))
-        self.assert_got(little, "Carbon", None) < self.assert_got(mid, "Carbon", None)
-        self.assert_got(mid, "Carbon", None) < self.assert_got(big, "Carbon", None)
+        self.assert_got(little, "Iron", self.assert_got(same, "Iron", None))
+        self.assert_got(little, "Iron", None) < self.assert_got(mid, "Iron", None)
+        self.assert_got(mid, "Iron", None) < self.assert_got(big, "Iron", None)
         self.assert_got(little, "Oxygen", None, negate=True)
 
     @functest

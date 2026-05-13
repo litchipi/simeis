@@ -48,7 +48,6 @@ impl CrewMember {
     }
 }
 
-#[allow(dead_code)]
 #[derive(EnumString, IntoStaticStr, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[strum(ascii_case_insensitive)]
 pub enum CrewMemberType {
