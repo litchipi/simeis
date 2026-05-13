@@ -52,3 +52,5 @@ ces mécaniques de bases vers l'excellence intergalactique !
 
 Pour avoir le détails des API, leurs paramètres et fonctionnement,
 lire le fichier `swagger.json` contenu dans ce dossier
+
+// TODO (#37)   Create tutorial
