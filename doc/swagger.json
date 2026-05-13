@@ -43,9 +43,9 @@
                   "events": [
                     {
                       "event": {
-                        "ShipFlightFinished": 9672415920091265538
+                        "ShipFlightFinished": 4234977580101500313
                       },
-                      "timestamp": 1776325806.5971503,
+                      "timestamp": 1778663572.838515,
                       "type": "ShipFlightFinished"
                     }
                   ],
@@ -189,41 +189,41 @@
               "application/json": {
                 "example": {
                   "1809641971439093430": {
-                    "age": 1,
+                    "age": 4,
                     "lost": false,
-                    "money": 719898673.1002418,
+                    "money": 719898132.9549235,
                     "name": "test-rich-swagger",
                     "potential": 404.0,
                     "score": -445.06252313054154,
                     "stations": {
-                      "27524": {
+                      "6911": {
                         "cargo": {
                           "capacity": 1001.0,
                           "resources": {
+                            "Carbon": 1.0,
                             "Fuel": 100.0,
-                            "Hull": 100.0,
-                            "Hydrogen": 1.0
+                            "Hull": 100.0
                           },
                           "usage": 205.75
                         },
                         "crew": {
-                          "1014862443": {
-                            "member_type": "Trader",
-                            "rank": 2
-                          },
-                          "2171334395": {
+                          "4082353366": {
                             "member_type": "Operator",
                             "rank": 1
+                          },
+                          "887510270": {
+                            "member_type": "Trader",
+                            "rank": 2
                           }
                         },
-                        "id": 27524,
+                        "id": 6911,
                         "idle_crew": {},
                         "position": [
-                          2225940144,
-                          961942117,
-                          1718287172
+                          2256751305,
+                          649769229,
+                          797007587
                         ],
-                        "trader": 1014862443
+                        "trader": 887510270
                       }
                     }
                   },
@@ -235,19 +235,19 @@
                     "potential": 0.0,
                     "score": 0.0,
                     "stations": {
-                      "27524": {
+                      "6911": {
                         "cargo": {
                           "capacity": 1000.0,
                           "resources": {},
                           "usage": 0.0
                         },
                         "crew": {},
-                        "id": 27524,
+                        "id": 6911,
                         "idle_crew": {},
                         "position": [
-                          2225940144,
-                          961942117,
-                          1718287172
+                          2256751305,
+                          649769229,
+                          797007587
                         ],
                         "trader": null
                       }
@@ -391,7 +391,7 @@
                   "error": "ok",
                   "fees": 0.4506252313054152,
                   "removed_cargo": [
-                    "Hydrogen",
+                    "Carbon",
                     1.0
                   ],
                   "removed_money": null
@@ -463,7 +463,7 @@
               "application/json": {
                 "example": {
                   "error": "ok",
-                  "key": "ICg73187rdIfOSQjDb0UMLyRjmUxZYwSJfvLD0lqqmI1ZLZ9pxA6hE00jmQNP8vGuMISadGw3jFOLsAFxoaPjicZCbvswlhuDM0UGyb7fdb+vHv1VME7fJYn/vqG4e903IjKRLkVnDrYQt5s/M1MdKVv96xPqCI0TRQGSVeAmiM=",
+                  "key": "7VwlHM/PdTW1luv2H7UXTC0KaortPH6nEwyUIcrcLQe6mKXkPTlVBarQUlV/q8E4bIyMu0aF2eNi/9+7FGgd2nz6psx6BYHSoTXU5pexnKFwUzpSqPG9TrS7g1AIXhaE7Tx7NaikSTMV2LCaCT6Lmb7uBFoYnuEgN0n/03lxvgw=",
                   "playerId": 7104837252786233073
                 }
               }
@@ -495,40 +495,39 @@
                   "cargo": {
                     "capacity": 200.0,
                     "resources": {
-                      "Hydrogen": 131.99999999999997
+                      "Carbon": 132.28325598119991
                     },
-                    "usage": 99.0
+                    "usage": 99.212
                   },
                   "crew": {
-                    "3336414799": {
-                      "member_type": "Operator",
+                    "1663325431": {
+                      "member_type": "Pilot",
                       "rank": 1
                     },
-                    "3679256511": {
-                      "member_type": "Pilot",
+                    "3521665029": {
+                      "member_type": "Operator",
                       "rank": 1
                     }
                   },
                   "error": "ok",
-                  "fuel_tank": 997.2027621624388,
+                  "fuel_tank": 997.2003696244174,
                   "fuel_tank_capacity": 1000.0,
-                  "hull_decay": 49.950675671106225,
+                  "hull_decay": 49.99339956434292,
                   "hull_resistance": 3000.0,
-                  "id": 9672415920091265538,
+                  "id": 4234977580101500313,
                   "modules": {
                     "1": {
-                      "modtype": "GasSucker",
-                      "operator": 3336414799,
-                      "rank": 1,
-                      "totalcost": 0.0
+                      "modtype": "Miner",
+                      "operator": 3521665029,
+                      "rank": 1
                     }
                   },
                   "owner": 1809641971439093430,
-                  "pilot": 3679256511,
+                  "pilot": 1663325431,
                   "position": [
-                    2225940144,
-                    961942117,
-                    1718287172
+                    2256751305,
+                    649769229,
+                    797007587
                   ],
                   "reactor_power": 2,
                   "shield_power": 0,
@@ -585,59 +584,7 @@
         "summary": "Compute how much wages cost per second for this ship"
       }
     },
-    "/ship/{ship_id}/travelcost/{x}/{y}/{z}": {
-      "get": {
-        "description": "",
-        "responses": {
-          "200": {
-            "description": "Travel informations on this destination",
-            "content": {
-              "application/json": {
-                "example": {
-                  "direction": [
-                    0.08208097177695765,
-                    0.2982942632869925,
-                    -0.9509380876598753
-                  ],
-                  "distance": 499.5067567110579,
-                  "duration": 4.995067567110579,
-                  "error": "ok",
-                  "fuel_consumption": 1.3986189187909621,
-                  "hull_usage": 24.975337835552896
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "ship"
-        ],
-        "parameters": [
-          {
-            "name": "ship_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "x",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "y",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "z",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "summary": "Compute how much will cost a travel to a specific position (X, Y, Z)"
-      }
-    },
-    "/ship/{ship_id}/navigate/{x}/{y}/{z}": {
+    "/ship/{ship_id}/navigate": {
       "post": {
         "description": "Ship will have the state InFlight during the travel",
         "responses": {
@@ -647,15 +594,15 @@
               "application/json": {
                 "example": {
                   "direction": [
-                    -0.08208097177695765,
-                    -0.2982942632869925,
-                    0.9509380876598753
+                    0.10201346666645864,
+                    -0.036004752941103044,
+                    -0.9941312339849008
                   ],
-                  "distance": 499.5067567110579,
-                  "duration": 4.995067567110579,
+                  "distance": 499.9339956434249,
+                  "duration": 4.999339956434249,
                   "error": "ok",
-                  "fuel_consumption": 1.3986189187909621,
-                  "hull_usage": 24.975337835552896
+                  "fuel_consumption": 1.3998151878015899,
+                  "hull_usage": 24.996699782171248
                 }
               }
             }
@@ -669,23 +616,35 @@
             "name": "ship_id",
             "in": "path",
             "required": true
-          },
-          {
-            "name": "x",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "y",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "z",
-            "in": "path",
-            "required": true
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer"
+                  },
+                  "y": {
+                    "type": "integer"
+                  },
+                  "z": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "example": {
+                "x": 2256751305,
+                "y": 649769229,
+                "z": 797007587
+              }
+            }
+          },
+          "description": "Coordinate of the destination, in X, Y and Z"
+        },
         "summary": "Navigate to position (X, Y, Z)"
       }
     },
@@ -700,9 +659,9 @@
                 "example": {
                   "error": "ok",
                   "position": [
-                    2225940144,
-                    961942117,
-                    1718287172
+                    2256751305,
+                    649769229,
+                    797007587
                   ]
                 }
               }
@@ -733,9 +692,9 @@
                 "example": {
                   "error": "ok",
                   "mining_rate": {
-                    "Hydrogen": 49.99999999999999
+                    "Carbon": 3.287697483502684
                   },
-                  "time_fill_cargo": 5.333333333333334
+                  "time_fill_cargo": 81.11046347931085
                 }
               }
             }
@@ -794,7 +753,7 @@
                   "emptied": true,
                   "error": "ok",
                   "unloaded": {
-                    "Hydrogen": 131.99999999999997
+                    "Carbon": 132.28325598119991
                   }
                 }
               }
@@ -879,12 +838,12 @@
                   },
                   "crew": {},
                   "error": "ok",
-                  "id": 27524,
+                  "id": 6911,
                   "idle_crew": {},
                   "position": [
-                    2225940144,
-                    961942117,
-                    1718287172
+                    2256751305,
+                    649769229,
+                    797007587
                   ],
                   "trader": null
                 }
@@ -948,39 +907,180 @@
                   "planets": [
                     {
                       "position": [
-                        2225940185,
-                        961942266,
-                        1718286697
+                        2256751254,
+                        649769247,
+                        797008084
                       ],
-                      "solid": false,
-                      "temperature": 40099
+                      "resources_density": {
+                        "Alcohol": 0.15797674391511912,
+                        "Carbon": 0.4109621854378356,
+                        "Copper": 0.4226061477737436,
+                        "Gold": 0.40898503727499996,
+                        "Helium": 0.30284873697276704,
+                        "Hydrogen": 0.3006032153664571,
+                        "Iron": 0.7525345176787479,
+                        "Oil": 0.20990741892010964,
+                        "Oxygen": 0.20966486747310148,
+                        "Ozone": 0.08064684632749833,
+                        "SulfuricAcid": 0.12669449843009994,
+                        "Water": 0.11749479446636943
+                      }
                     },
                     {
                       "position": [
-                        2225940443,
-                        961944751,
-                        1718285656
+                        2256751780,
+                        649768218,
+                        797006729
                       ],
-                      "solid": false,
-                      "temperature": 46421
+                      "resources_density": {
+                        "Alcohol": 0.41158278496917156,
+                        "Carbon": 0.40038925765200983,
+                        "Copper": 0.377408179651768,
+                        "Gold": 0.22469185940860809,
+                        "Helium": 0.45779754791151805,
+                        "Hydrogen": 0.41198028688432603,
+                        "Iron": 0.4335823133639578,
+                        "Oil": 0.6113307856120825,
+                        "Oxygen": 0.5044173873088318,
+                        "Ozone": 0.40774989427778763,
+                        "SulfuricAcid": 0.012497070095496443,
+                        "Water": 0.6108911783935707
+                      }
                     },
                     {
                       "position": [
-                        2225942291,
-                        961944669,
-                        1718289705
+                        2256752226,
+                        649766275,
+                        797008444
                       ],
-                      "solid": true,
-                      "temperature": 40487
+                      "resources_density": {
+                        "Alcohol": 0.1273630981539135,
+                        "Carbon": 0.6053414416890193,
+                        "Copper": 0.731826091192517,
+                        "Gold": 0.41414710161920226,
+                        "Helium": 0.41858420795017,
+                        "Hydrogen": 0.3831135160889411,
+                        "Iron": 0.6810197679326032,
+                        "Oil": 0.5628290056279249,
+                        "Oxygen": 0.26803246904196,
+                        "Ozone": 0.40969772383953734,
+                        "SulfuricAcid": 0.1986451765924788,
+                        "Water": 0.49305936659460603
+                      }
+                    },
+                    {
+                      "position": [
+                        2256754029,
+                        649767572,
+                        797007888
+                      ],
+                      "resources_density": {
+                        "Alcohol": 0.7481810899361097,
+                        "Carbon": 0.7786611262950367,
+                        "Copper": 0.7302612968916236,
+                        "Gold": 0.19606248239461496,
+                        "Helium": 0.6463791201516229,
+                        "Hydrogen": 0.5845924466350478,
+                        "Iron": 0.3807130492736827,
+                        "Oil": 0.32232085000340405,
+                        "Oxygen": 0.7836360348299031,
+                        "Ozone": 0.6948284007295593,
+                        "SulfuricAcid": 0.196558249557609,
+                        "Water": 0.7359830804670366
+                      }
+                    },
+                    {
+                      "position": [
+                        2256754088,
+                        649766207,
+                        797008234
+                      ],
+                      "resources_density": {
+                        "Alcohol": 0.12867274139031903,
+                        "Carbon": 0.26579832565712225,
+                        "Copper": 0.34406259806591133,
+                        "Gold": 0.45787838499751177,
+                        "Helium": 0.30073056251036856,
+                        "Hydrogen": 0.29310413171951755,
+                        "Iron": 0.6416818788476488,
+                        "Oil": 0.4342803233745846,
+                        "Oxygen": 0.015011954197358967,
+                        "Ozone": 0.054138696767861906,
+                        "SulfuricAcid": 0.021442128205340718,
+                        "Water": 0.08126978564859089
+                      }
+                    },
+                    {
+                      "position": [
+                        2256754191,
+                        649765735,
+                        797008806
+                      ],
+                      "resources_density": {
+                        "Alcohol": 0.6064187352291956,
+                        "Carbon": 0.4576134496769664,
+                        "Copper": 0.27897095958175283,
+                        "Gold": 0.1140659414339309,
+                        "Helium": 0.756836200675046,
+                        "Hydrogen": 0.672979547611875,
+                        "Iron": 0.2314166852285719,
+                        "Oil": 0.5581738114050993,
+                        "Oxygen": 0.3764772275217628,
+                        "Ozone": 0.34041770646987485,
+                        "SulfuricAcid": 0.09680796171036934,
+                        "Water": 0.569989621141716
+                      }
+                    },
+                    {
+                      "position": [
+                        2256754522,
+                        649768135,
+                        797009453
+                      ],
+                      "resources_density": {
+                        "Alcohol": 0.1623409565481932,
+                        "Carbon": 0.4918600818519322,
+                        "Copper": 0.3764406738608435,
+                        "Gold": 0.2311604322337676,
+                        "Helium": 0.6822390296772963,
+                        "Hydrogen": 0.7165336955758957,
+                        "Iron": 0.3756843889821425,
+                        "Oil": 0.6922381465977346,
+                        "Oxygen": 0.2824244523302887,
+                        "Ozone": 0.4187653143803904,
+                        "SulfuricAcid": 0.4247990128525174,
+                        "Water": 0.4464823970083698
+                      }
+                    },
+                    {
+                      "position": [
+                        2256754701,
+                        649769762,
+                        797009304
+                      ],
+                      "resources_density": {
+                        "Alcohol": 0.10808767923686202,
+                        "Carbon": 0.447352384443071,
+                        "Copper": 0.45564819885985464,
+                        "Gold": 0.34336861131011975,
+                        "Helium": 0.574475523867169,
+                        "Hydrogen": 0.6266620568181747,
+                        "Iron": 0.5024787875086528,
+                        "Oil": 0.5766452836438258,
+                        "Oxygen": 0.15719987449885153,
+                        "Ozone": 0.29143662039693813,
+                        "SulfuricAcid": 0.4421785971243496,
+                        "Water": 0.3065464114262078
+                      }
                     }
                   ],
                   "stations": [
                     {
-                      "id": 27524,
+                      "id": 6911,
                       "position": [
-                        2225940144,
-                        961942117,
-                        1718287172
+                        2256751305,
+                        649769229,
+                        797007587
                       ]
                     }
                   ]
@@ -1011,7 +1111,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "added-fuel": 2.7972378375611697,
+                  "added-fuel": 2.7996303755826375,
                   "error": "ok"
                 }
               }
@@ -1045,7 +1145,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "added-hull": 49.950675671106225,
+                  "added-hull": 49.99339956434292,
                   "error": "ok"
                 }
               }
@@ -1085,7 +1185,7 @@
                       "cargo_capacity": 200.0,
                       "fuel_tank_capacity": 1000.0,
                       "hull_resistance": 3000.0,
-                      "id": 9672415920091265538,
+                      "id": 4234977580101500313,
                       "modules": {},
                       "price": 65000.0,
                       "reactor_power": 1
@@ -1094,7 +1194,7 @@
                       "cargo_capacity": 400.0,
                       "fuel_tank_capacity": 2000.0,
                       "hull_resistance": 6000.0,
-                      "id": 13542268084090455426,
+                      "id": 3624300068617514611,
                       "modules": {},
                       "price": 134000.0,
                       "reactor_power": 3
@@ -1103,7 +1203,7 @@
                       "cargo_capacity": 1200.0,
                       "fuel_tank_capacity": 4000.0,
                       "hull_resistance": 20000.0,
-                      "id": 7672050109002783761,
+                      "id": 8102894971559113442,
                       "modules": {},
                       "price": 364000.0,
                       "reactor_power": 10
@@ -1182,7 +1282,7 @@
               "application/json": {
                 "example": {
                   "error": "ok",
-                  "id": 9672415920091265538
+                  "id": 4234977580101500313
                 }
               }
             }
@@ -1254,14 +1354,14 @@
             "content": {
               "application/json": {
                 "example": {
-                  "3336414799": {
-                    "member-type": "Operator",
-                    "price": 1148.4466146364105,
-                    "rank": 2
-                  },
-                  "3679256511": {
+                  "1663325431": {
                     "member-type": "Pilot",
                     "price": 43703.70833044504,
+                    "rank": 2
+                  },
+                  "3521665029": {
+                    "member-type": "Operator",
+                    "price": 1148.4466146364105,
                     "rank": 2
                   },
                   "error": "ok"
@@ -1298,7 +1398,7 @@
               "application/json": {
                 "example": {
                   "error": "ok",
-                  "id": 3336414799
+                  "id": 3521665029
                 }
               }
             }
@@ -1625,7 +1725,7 @@
               "application/json": {
                 "example": {
                   "1": {
-                    "module-type": "GasSucker",
+                    "module-type": "Miner",
                     "price": 4500.0
                   },
                   "error": "ok"
@@ -1871,7 +1971,7 @@
                 "example": {
                   "cost": 8000.0,
                   "error": "ok",
-                  "id": 2965805596
+                  "id": 2091146427
                 }
               }
             }
@@ -1993,6 +2093,216 @@
           }
         ],
         "summary": "Stop an industry unit"
+      }
+    },
+    "/calc/navigation": {
+      "post": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "Travel informations on this destination",
+            "content": {
+              "application/json": {
+                "example": {
+                  "costs": {
+                    "direction": [
+                      0.2672612419124244,
+                      0.5345224838248488,
+                      0.8017837257372732
+                    ],
+                    "distance": 3.7416573867739413,
+                    "duration": 1.247219128924647,
+                    "fuel_consumption": 2.494438257849294,
+                    "hull_usage": 3.7416573867739413
+                  },
+                  "error": "ok"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calc"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ship_stats": {
+                    "type": "object",
+                    "properties": {
+                      "speed": {
+                        "type": "number"
+                      },
+                      "fuel_consumption": {
+                        "type": "number"
+                      },
+                      "hull_usage_rate": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "origin": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "dest": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              },
+              "example": {
+                "ship_stats": {
+                  "speed": 3.0,
+                  "fuel_consumption": 2.0,
+                  "hull_usage_rate": 1.0
+                },
+                "origin": [
+                  0,
+                  0,
+                  0
+                ],
+                "dest": [
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          }
+        },
+        "summary": "Compute how much will cost a travel to a specific position (X, Y, Z)"
+      }
+    },
+    "/calc/mining_rate": {
+      "post": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "The mining rate for each resources",
+            "content": {
+              "application/json": {
+                "example": {
+                  "Carbon": 13.088559427931068,
+                  "error": "ok"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calc"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "module_type": {
+                    "type": "string"
+                  },
+                  "module_rank": {
+                    "type": "integer"
+                  },
+                  "operator_rank": {
+                    "type": "integer"
+                  },
+                  "planet_coord": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              },
+              "example": {
+                "module_type": "Miner",
+                "module_rank": 5,
+                "operator_rank": 2,
+                "planet_coord": [
+                  2256751254,
+                  649769247,
+                  797008084
+                ]
+              }
+            }
+          }
+        },
+        "summary": "Compute how much resources can be extracted from a given planet"
+      }
+    },
+    "/calc/upgrade": {
+      "post": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "The price of the module upgrade, the crew upgrade, and the diff in extraction rate (for a fixed planet resource density)",
+            "content": {
+              "application/json": {
+                "example": {
+                  "crew_upgrade_price": 4368.721391884723,
+                  "diff_extraction_rate": {
+                    "Carbon": 23.40455602668353,
+                    "Iron": 2.530923860604798
+                  },
+                  "error": "ok",
+                  "module_upgrade_price": 10665.69832539719
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "calc"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "module_type": {
+                    "type": "string"
+                  },
+                  "module_start_rank": {
+                    "type": "integer"
+                  },
+                  "module_end_rank": {
+                    "type": "integer"
+                  },
+                  "crew_start_rank": {
+                    "type": "integer"
+                  },
+                  "crew_end_rank": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "example": {
+                "module_type": "Miner",
+                "module_start_rank": 2,
+                "module_end_rank": 4,
+                "crew_start_rank": 1,
+                "crew_end_rank": 3
+              }
+            }
+          }
+        },
+        "summary": "Computes the price of an upgraded on a ship module & operator, and its benefits on extraction rates"
       }
     }
   }

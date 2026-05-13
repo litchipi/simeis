@@ -126,7 +126,6 @@ async fn compute_upgrade(body: Json<UpgradeComputation>) -> impl web::Responder 
         };
 
         if res.extractable(&module_type, crew_end_rank) {
-            debug_assert!(start_rate > 0.0);
             let end_rate = calc_extraction_rate(&res, module_end_rank, crew_end_rank, 1.0);
             extraction_rates.insert(res, end_rate - start_rate);
         };
