@@ -2,7 +2,7 @@ use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use crate::crew::{Crew, CrewId, CrewMemberType};
+use crate::crew::{Crew, CrewId};
 use crate::errors::Errcode;
 use crate::galaxy::planet::Planet;
 use crate::galaxy::station::Station;
@@ -22,16 +22,11 @@ use navigation::{FlightData, Travel, TravelCost};
 use resources::{ExtractionInfo, Resource};
 use shipstats::ShipStats;
 
-const PILOT_FUEL_SHARE: u8 = 5; // Rank 10 = 4/5 fuel consumption
-const HULL_USAGE_BASE: f64 = 5.0 / 100.0;
-
 const FUEL_TANK_CAP_PRICE: f64 = 30.0;
 const CARGO_CAP_PRICE: f64 = 20.0;
 const HULL_RESIS_PRICE: f64 = 9.0;
 const REACTOR_POWER_PRICE: f64 = 4000.0;
 const SHIELD_PRICE: f64 = 2500.0;
-
-const REACTOR_SPEED_PER_POWER: f64 = 50.0;
 
 pub type ShipId = u64;
 
@@ -158,33 +153,18 @@ impl Ship {
         price += self.fuel_tank_capacity * FUEL_TANK_CAP_PRICE;
         price += self.cargo.capacity * CARGO_CAP_PRICE;
         price += self.hull_resistance * HULL_RESIS_PRICE;
-        price += self.modules.values().map(|m| m.totalcost).sum::<f64>();
+        // TODO (#9) Add modules total value to ship price
+        // price += self.modules.values().map(|m| m.totalcost).sum::<f64>();
         price
     }
 
     // Updates the performances of the ship based on the crew onboard
     pub fn update_perf_stats(&mut self) {
-        self.stats = ShipStats::default();
-        self.stats.hull_usage_rate =
-            HULL_USAGE_BASE / (1.0 + (1.0 + self.shield_power as f64).log(3.5));
-        self.stats.fuel_consumption = self.reactor_power as f64;
-
-        if let Some(ref pilot) = self.pilot {
-            let pilot = self.crew.0.get(pilot).unwrap();
-            debug_assert!(matches!(pilot.member_type, CrewMemberType::Pilot));
-            let totshare = (PILOT_FUEL_SHARE * 10) as f64;
-            let num = (totshare - (pilot.rank as f64).min(totshare)).sqrt();
-            self.stats.fuel_consumption *= num / totshare;
-            self.stats.speed =
-                (self.reactor_power as f64) * REACTOR_SPEED_PER_POWER * (pilot.rank as f64);
-        } else {
-            self.stats.speed = 0.0;
-        };
-        #[cfg(feature = "extraspeed")]
-        {
-            self.stats.speed *= 1000.0;
-            self.stats.fuel_consumption *= 1000.0;
-        }
+        self.stats = ShipStats::new(
+            self.reactor_power,
+            self.shield_power,
+            self.pilot.map(|id| self.crew.0.get(&id).unwrap()),
+        );
         self.stats.speed *= 1.0 - self.cargo.slowing_ratio();
     }
 
@@ -337,7 +317,7 @@ fn test_ship_flight() {
         let pilot_id = rng.random();
         ship.crew.0.insert(
             pilot_id,
-            crate::crew::CrewMember::from(CrewMemberType::Pilot),
+            crate::crew::CrewMember::from(crate::crew::CrewMemberType::Pilot),
         );
         ship.pilot = Some(pilot_id);
         ship.update_perf_stats();

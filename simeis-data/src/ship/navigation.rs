@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     errors::Errcode,
     galaxy::{get_delta, get_direction, get_distance, SpaceCoord},
+    ship::shipstats::ShipStats,
 };
 
 use super::Ship;
@@ -16,20 +17,19 @@ impl Travel {
         Travel { destination }
     }
 
-    pub fn compute_costs(&self, ship: &Ship) -> Result<TravelCost, Errcode> {
-        if ship.pilot.is_none() {
-            return Err(Errcode::NoPilotAssigned);
-        }
-        let distance = get_distance(&ship.position, &self.destination);
+    pub fn compute_from_stats(
+        &self,
+        origin: &SpaceCoord,
+        stats: &ShipStats,
+    ) -> Result<TravelCost, Errcode> {
+        let distance = get_distance(origin, &self.destination);
         if distance == 0.0 {
             return Err(Errcode::NullDistance);
         }
-
-        let direction = get_direction(&ship.position, &self.destination);
-        let time_secs = distance / ship.stats.speed;
-        let fuel_consumption = ship.stats.fuel_consumption * time_secs;
-        let hull_usage = ship.stats.hull_usage_rate * distance;
-
+        let direction = get_direction(origin, &self.destination);
+        let time_secs = distance / stats.speed;
+        let fuel_consumption = stats.fuel_consumption * time_secs;
+        let hull_usage = stats.hull_usage_rate * distance;
         Ok(TravelCost {
             direction,
             distance,
@@ -37,6 +37,13 @@ impl Travel {
             fuel_consumption,
             hull_usage,
         })
+    }
+
+    pub fn compute_costs(&self, ship: &Ship) -> Result<TravelCost, Errcode> {
+        if ship.pilot.is_none() {
+            return Err(Errcode::NoPilotAssigned);
+        }
+        self.compute_from_stats(&ship.position, &ship.stats)
     }
 }
 

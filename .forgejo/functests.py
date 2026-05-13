@@ -13,6 +13,10 @@ FAILFAST=os.getenv("CI") is None
 
 ITER_PERIOD = 20 / 1000
 
+SOLID=["Carbon", "Iron", "Copper", "Gold"]
+LIQUID=["Water", "Alcohol", "Oil", "SulfuricAcid"]
+GAS=["Hydrogen", "Helium", "Oxygen", "Ozone"]
+
 def functest(f):
     assert f.__name__.startswith("test_")
     name = f.__name__.removeprefix("test_").replace("_", " ").capitalize()
@@ -60,7 +64,7 @@ class Tester:
     def disp_ok(self):
         print("  * Test", self.current_test, " "*(self.indent - len(self.current_test)), "OK")
 
-    def request(self, endpoint, expcode=200, timeout=1, method="GET", headers={}, key=None, **kwargs):
+    def request(self, endpoint, expcode=200, timeout=1, method="GET", headers={}, key=None, body=None, **kwargs):
         self.addtrace(method, endpoint, "expected code", expcode)
         if key is None:
             if self.key is not None:
@@ -74,11 +78,15 @@ class Tester:
             url += "?" + qry
 
         try:
-            headers["Content-Type"] = "application/x-www-form-urlencoded"
+            if body is None:
+                headers["Content-Type"] = "application/x-www-form-urlencoded"
+            else:
+                headers["Content-Type"] = "application/json"
             if method == "GET":
                 got = requests.get(url, headers=headers, timeout=timeout)
             elif method == "POST":
-                got = requests.post(url, headers=headers, timeout=timeout)
+                self.addtrace("Body: \n", json.dumps(body, indent=2))
+                got = requests.post(url, headers=headers, timeout=timeout, json=body)
         except requests.exceptions.Timeout:
             print(f"{method} {endpoint}:")
             print("\tRequest timed out, deadlock suspected in the server")
@@ -155,6 +163,30 @@ class Tester:
             traderid = self.assert_got(trader, "id", None)
             self.post_ok(f"/station/{self.station}/crew/assign/{traderid}/trading")
         self.tick()
+
+    def decide_modtype(self, planet):
+        solid = 0
+        liquid = 0
+        gas = 0
+        self.addtrace(f"Decide of best mod for planet {planet}")
+        for (res, d) in planet["resources_density"].items():
+            if res in SOLID:
+                solid += d
+            elif res in LIQUID:
+                liquid += d
+            elif res in GAS:
+                gas += d
+            else:
+                self.addtrace(f"Resource {res} is not in SOLID, LIQUID or GAS")
+                assert False
+        if solid > liquid and solid > gas:
+            return "miner"
+        elif liquid > solid and liquid > gas:
+            return "pump"
+        elif gas > solid and gas > liquid:
+            return "gassucker"
+        self.addtrace("Unable to decide which mod to buy")
+        assert False
 
     def assert_ok(self, endpoint, **kwargs):
         got = self.request(endpoint, **kwargs)
@@ -379,16 +411,26 @@ class Tester:
         ship = self.get_ok(f"/ship/{ship_id}")
         shippos = ship["position"]
 
-        self.get_error(f"/ship/{ship_id}/travelcost/{shippos[0]}/{shippos[1]}/{shippos[2]}",
-            errtype="NullDistance",
-        )
+        self.post_error("/calc/navigation", errtype="NullDistance", body={
+            "origin": shippos,
+            "dest": shippos,
+            "ship_stats": ship["stats"],
+        })
 
-        close = self.get_ok(f"/ship/{ship_id}/travelcost/{shippos[0]+1}/{shippos[1]+1}/{shippos[2]+1}")
+        close = self.post_ok("/calc/navigation", body={
+            "origin": shippos,
+            "dest": (shippos[0]+1,shippos[1]+1, shippos[2]+1),
+            "ship_stats": ship["stats"],
+        })["costs"]
         dist = self.assert_got(close, "distance", None)
         assert dist is not None
         assert dist > 0.0
 
-        far = self.get_ok(f"/ship/{ship_id}/travelcost/{shippos[0]+2}/{shippos[1]+2}/{shippos[2]+2}")
+        far = self.post_ok("/calc/navigation", body={
+            "origin": shippos,
+            "dest": (shippos[0]+2,shippos[1]+2, shippos[2]+2),
+            "ship_stats": ship["stats"],
+        })["costs"]
 
         self.assert_got(far, "distance", 2 * self.assert_got(close, "distance", None))
         self.assert_got(far, "duration", 2 * self.assert_got(close, "duration", None))
@@ -408,7 +450,11 @@ class Tester:
         before = self.get_ok(f"/ship/{ship_id}")
         src = self.assert_got(before, "position", None)
         self.assert_got(before, "state", "Idle")
-        cost = self.post_ok(f"/ship/{ship_id}/navigate/{dst[0]}/{dst[1]}/{dst[2]}")
+        cost = self.post_ok(f"/ship/{ship_id}/navigate", body={
+            "x": dst[0],
+            "y": dst[1],
+            "z": dst[2]
+        })
         self.tick_dur(cost["duration"])
         self.addtrace("Arrived")
         after = self.get_ok(f"/ship/{ship_id}")
@@ -422,7 +468,9 @@ class Tester:
         )
         self.assert_got(after, "position", dst)
         self.addtrace("Return")
-        new_cost = self.post_ok(f"/ship/{ship_id}/navigate/{src[0]}/{src[1]}/{src[2]}")
+        new_cost = self.post_ok(f"/ship/{ship_id}/navigate", body={
+            "x": src[0], "y": src[1], "z": src[2]
+        })
         for key in ["fuel_consumption", "hull_usage", "distance", "duration"]:
             exp = self.assert_got(cost, key, None)
             self.assert_got(new_cost, key, exp)
@@ -445,7 +493,9 @@ class Tester:
         self.assert_got(before, "state", "Idle")
         beforepos = self.assert_got(before, "position", None)
         self.addtrace("Travel with in-middle stop")
-        cost = self.post_ok(f"/ship/{ship_id}/navigate/{dst[0]}/{dst[1]}/{dst[2]}")
+        cost = self.post_ok(f"/ship/{ship_id}/navigate", body={
+            "x": dst[0], "y": dst[1], "z": dst[2]
+        })
 
         for _ in range(niter // 2):
             self.tick()
@@ -468,7 +518,11 @@ class Tester:
         assert (pos[0] < shippos[0]+nadd) and (pos[1] < shippos[1]+nadd) and (pos[2] < shippos[2]+nadd)
         self.assert_got(stopped, "state", "Idle")
 
-        costmid = self.get_ok(f"/ship/{ship_id}/travelcost/{dst[0]}/{dst[1]}/{dst[2]}")
+        costmid = self.post_ok("/calc/navigation", body={
+            "ship_stats": ship["stats"],
+            "origin": pos,
+            "dest": dst,
+        })["costs"]
         done = (cost["duration"] - self.assert_got(costmid, "duration", None)) / cost["duration"]
         for key in ["fuel_consumption", "hull_usage", "distance", "duration"]:
             midval = self.assert_got(costmid, key, None)
@@ -478,7 +532,9 @@ class Tester:
             self.addtrace(f"{key}: diff is {consumption} (expected {exp})")
             self.assert_cmpf(exp, consumption)
 
-        new_cost = self.post_ok(f"/ship/{ship_id}/navigate/{dst[0]}/{dst[1]}/{dst[2]}")
+        new_cost = self.post_ok(f"/ship/{ship_id}/navigate", body={
+            "x": dst[0], "y": dst[1], "z": dst[2]
+        })
         for key in ["fuel_consumption", "hull_usage", "distance", "duration"]:
             self.assert_cmpf(
                 costmid[key],
@@ -517,7 +573,9 @@ class Tester:
         assert (afterpos[1] - beforepos[1]) == nadd
         assert (afterpos[2] - beforepos[2]) == nadd
 
-        cost = self.post_ok(f"/ship/{ship_id}/navigate/{shippos[0]}/{shippos[1]}/{shippos[2]}")
+        cost = self.post_ok(f"/ship/{ship_id}/navigate", body={
+            "x": shippos[0], "y": shippos[1], "z": shippos[2]
+        })
         self.tick_dur(cost["duration"])
 
         back = self.get_ok(f"/ship/{ship_id}")
@@ -582,7 +640,9 @@ class Tester:
         self.addtrace("Traveling to", best)
 
         dest = best["position"]
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": dest[0], "y": dest[1], "z": dest[2]
+        })
         self.tick_dur(cost["duration"])
 
         ship = self.get_ok(f"/ship/{shipid}")
@@ -605,7 +665,7 @@ class Tester:
         stationid = player["stations"][0]
         dest = self.assert_got(self.get_ok(f"/station/{stationid}"), "position", None)
         self.post_error(
-            f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}",
+            f"/ship/{shipid}/navigate", body={ "x": dest[0], "y": dest[1], "z": dest[2]},
             errtype="ShipNotIdle",
         )
         self.post_ok(f"/ship/{shipid}/extraction/stop")
@@ -619,7 +679,9 @@ class Tester:
         shipid = ship["id"]
 
         dest = self.get_ok(f"/station/{stationid}")["position"]
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": dest[0], "y": dest[1], "z": dest[2]
+        })
         self.tick_dur(cost["duration"])
 
         resname = list(ship["cargo"]["resources"].keys())[0]
@@ -733,7 +795,10 @@ class Tester:
         got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/cargoexpansion")
         assert self.assert_got(got, "cost", None) > 0
 
-        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/reactorupgrade")
+        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/reactor")
+        assert self.assert_got(got, "cost", None) > 0
+
+        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/shield")
         assert self.assert_got(got, "cost", None) > 0
 
         got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/hullupgrade")
@@ -752,10 +817,14 @@ class Tester:
 
         stationid = player["stations"][0]
         src = self.get_ok(f"/station/{stationid}")["position"]
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{src[0]+30}/{src[1]+30}/{src[2]+30}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": src[0]+30, "y": src[1]+30, "z": src[2]+30
+        })
         self.tick_dur(cost["duration"])
 
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{src[0]}/{src[1]}/{src[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": src[0], "y": src[1], "z": src[2]
+        })
         self.tick_dur(cost["duration"])
 
         ship = self.get_ok(f"/ship/{shipid}")
@@ -806,10 +875,7 @@ class Tester:
         for planet in self.assert_got(scan, "planets", None):
             distances.append((planet, compute_distance(planet["position"], ship["position"])))
         best = sorted(distances, key=lambda f: f[1])[0][0]
-        if best["solid"]:
-            mod = "miner"
-        else:
-            mod = "gassucker"
+        mod = self.decide_modtype(best)
 
         got = self.post_ok(f"/station/{self.station}/shop/modules/{shipid}/buy/{mod}")
         modid = self.assert_got(got, "id", 1)
@@ -818,7 +884,9 @@ class Tester:
         self.post_ok(f"/station/{self.station}/crew/assign/{opid}/ship/{shipid}/{modid}")
 
         dest = best["position"]
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": dest[0], "y": dest[1], "z": dest[2]
+        })
         self.tick_dur(cost["duration"])
 
         ship = self.get_ok(f"/ship/{shipid}")
@@ -831,14 +899,18 @@ class Tester:
         self.tick()
         self.post_ok(f"/ship/{shipid}/extraction/stop")
 
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{stationpos[0]}/{stationpos[1]}/{stationpos[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": stationpos[0], "y": stationpos[1], "z": stationpos[2]
+        })
         self.tick_dur(cost["duration"])
 
         got = self.post_ok(f"/station/{self.station}/shop/modules/{shipid}/upgrade/1")
         self.assert_got(got, "cost", 4500)
         self.assert_got(got, "new-rank", 2)
 
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": dest[0], "y": dest[1], "z": dest[2]
+        })
         self.tick_dur(cost["duration"])
 
         new_extraction_rates = self.assert_got(self.post_ok(f"/ship/{shipid}/extraction/start"), "mining_rate", None)
@@ -849,7 +921,9 @@ class Tester:
         self.tick()
         self.post_ok(f"/ship/{shipid}/extraction/stop")
 
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{stationpos[0]}/{stationpos[1]}/{stationpos[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": stationpos[0], "y": stationpos[1], "z": stationpos[2]
+        })
         self.tick_dur(cost["duration"])
 
     # Uses environment from previous test
@@ -865,7 +939,11 @@ class Tester:
         tx = self.post_ok(f"/market/{self.station}/buy/carbon/50")
         oldfee = self.assert_got(tx, "fees", None) / self.assert_got(tx, "removed_money", None)
 
-        cost = self.get_ok(f"/ship/{shipid}/travelcost/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok("/calc/navigation", body={
+            "ship_stats": ship["stats"],
+            "origin": ship["position"],
+            "dest": dest,
+        })["costs"]
         oldt = self.assert_got(cost, "duration", None)
 
         prices = self.get_ok(f"/station/{self.station}/crew/upgrade/ship/{shipid}")
@@ -901,23 +979,24 @@ class Tester:
         self.addtrace("New fee", newfee, "< old fee", oldfee)
         assert newfee < oldfee
 
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": dest[0], "y": dest[1], "z": dest[2]
+        })
         newt = self.assert_got(cost, "duration", None)
         self.addtrace("New travel duration", newt, "< old travel duration", oldt)
         assert newt < oldt
         self.tick_dur(cost["duration"])
 
-        need_solid = list(ship["modules"].values())[0]["modtype"] == "Miner"
         scan = self.post_ok(f"/station/{self.station}/scan")
         distances = []
         for planet in self.assert_got(scan, "planets", None):
-            if planet["solid"] != need_solid:
-                continue
             distances.append((planet, compute_distance(planet["position"], ship["position"])))
         best = sorted(distances, key=lambda f: f[1])[0][0]
 
         dest = best["position"]
-        cost = self.post_ok(f"/ship/{shipid}/navigate/{dest[0]}/{dest[1]}/{dest[2]}")
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": dest[0], "y": dest[1], "z": dest[2]
+        })
         self.tick_dur(cost["duration"])
 
         new_extraction_rates = self.assert_got(self.post_ok(f"/ship/{shipid}/extraction/start"), "mining_rate", None)
@@ -988,6 +1067,207 @@ class Tester:
             self.assert_cmpf(cargo[input[0]], 0.0)
         for output in self.assert_got(info, "outputs", None):
             self.assert_cmpf(cargo[output[0]], output[1])
+
+    @functest
+    def test_compute_travel_costs(self):
+        scosts = self.post_ok("/calc/navigation", body={
+             "ship_stats": {
+                 "speed": 1.0,
+                 "fuel_consumption": 1.0,
+                 "hull_usage_rate": 1.0,
+             },
+             "origin": (0, 0, 0),
+             "dest": (1, 1, 1),
+         })["costs"]
+        dcosts = self.post_ok("/calc/navigation", body={
+             "ship_stats": {
+                 "speed": 2.0,
+                 "fuel_consumption": 2.0,
+                 "hull_usage_rate": 2.0,
+             },
+             "origin": (0, 0, 0),
+             "dest": (1, 1, 1),
+         })["costs"]
+        fcosts = self.post_ok("/calc/navigation", body={
+             "ship_stats": {
+                 "speed": 2.0,
+                 "fuel_consumption": 2.0,
+                 "hull_usage_rate": 2.0,
+             },
+             "origin": (0, 0, 0),
+             "dest": (2, 2, 2),
+         })["costs"]
+        self.assert_got(scosts, "direction", dcosts["direction"])
+        self.assert_got(dcosts, "direction", fcosts["direction"])
+
+        self.assert_got(scosts, "distance", dcosts["distance"])
+        self.assert_got(dcosts, "distance", fcosts["distance"] / 2)
+
+        self.assert_got(scosts, "duration", dcosts["duration"] * 2)
+        self.assert_got(dcosts, "duration", fcosts["duration"] / 2)
+
+        # 2x more consumption, but 2x faster = same
+        self.assert_got(scosts, "fuel_consumption", dcosts["fuel_consumption"])
+        self.assert_got(dcosts, "fuel_consumption", fcosts["fuel_consumption"] / 2)
+
+        # Hull usage is based on distance
+        self.assert_got(scosts, "hull_usage", dcosts["hull_usage"] / 2)
+        self.assert_got(dcosts, "hull_usage", fcosts["hull_usage"] / 2)
+
+    @functest
+    def test_compute_mining_rate(self):
+        player = self.create_test_player("test-compute-mining-rate")
+        scan = self.post_ok(f"/station/{self.station}/scan")
+        planet = self.assert_got(scan, "planets", None)[0]["position"]
+
+        self.post_error("/calc/mining_rate",body={
+            "module_type": "Miner",
+            "module_rank": 3,
+            "operator_rank": 2,
+            "planet_coord": [planet[0]+2, planet[1]+1, planet[2]-3],
+        }, errtype="NothingAtThisCoord")
+
+        little = self.post_ok("/calc/mining_rate",body={
+            "module_type": "Miner",
+            "module_rank": 3,
+            "operator_rank": 2,
+            "planet_coord": planet,
+        })
+        same = self.post_ok("/calc/mining_rate",body={
+            "module_type": "Miner",
+            "module_rank": 3,
+            "operator_rank": 2,
+            "planet_coord": planet,
+        })
+        mid = self.post_ok("/calc/mining_rate",body={
+            "module_type": "Miner",
+            "module_rank": 4,
+            "operator_rank": 2,
+            "planet_coord": planet,
+        })
+        big = self.post_ok("/calc/mining_rate",body={
+            "module_type": "Miner",
+            "module_rank": 4,
+            "operator_rank": 3,
+            "planet_coord": planet,
+        })
+
+        self.assert_got(little, "Carbon", self.assert_got(same, "Carbon", None))
+        self.assert_got(little, "Carbon", None) < self.assert_got(mid, "Carbon", None)
+        self.assert_got(mid, "Carbon", None) < self.assert_got(big, "Carbon", None)
+        self.assert_got(little, "Oxygen", None, negate=True)
+
+    @functest
+    def test_compute_upgrade_module(self):
+        base = self.post_ok("/calc/upgrade/module", body={
+            "module_type": "Miner",
+            "module_start_rank": 3,
+            "module_end_rank": 3,
+            "crew_start_rank": 3,
+            "crew_end_rank": 3,
+        })
+        add = self.post_ok("/calc/upgrade/module", body={
+            "module_type": "Miner",
+            "module_start_rank": 3,
+            "module_end_rank": 4,
+            "crew_start_rank": 3,
+            "crew_end_rank": 4,
+        })
+        assert self.assert_got(base, "module_upgrade_price", None) < add["module_upgrade_price"]
+        assert self.assert_got(base, "crew_upgrade_price", None) < add["crew_upgrade_price"]
+
+        for res, diff in self.assert_got(base, "diff_extraction_rate", None).items():
+            add_diff = add["diff_extraction_rate"][res]
+            assert add_diff > diff
+
+        fuzz = self.post_ok("/calc/upgrade/module", body={
+            "module_type": "Miner",
+            "module_start_rank": 4,
+            "module_end_rank": 3,
+            "crew_start_rank": 4,
+            "crew_end_rank": 3,
+        })
+        self.assert_got(fuzz, "module_upgrade_price", 0)
+        self.assert_got(fuzz, "crew_upgrade_price", 0)
+        for res, diff in self.assert_got(fuzz, "diff_extraction_rate", None).items():
+            assert diff < 0.0
+
+    @functest
+    def test_compute_upgrade_ship(self):
+        data = {
+            "pilot_start_rank": 3,
+            "pilot_end_rank": 3,
+            "start_reactor_power": 3,
+            "end_reactor_power": 3,
+            "start_shield_power": 3,
+            "end_shield_power": 3,
+        }
+        got = self.post_ok("/calc/upgrade/ship", body=data)
+        self.assert_got(got, "wage_increase", 0)
+        self.assert_got(got, "pilot_upgrade_price", 0)
+        self.assert_got(got, "reactor_upgrade_price", 0)
+        self.assert_got(got, "shield_upgrade_price", 0)
+        base_stats = self.assert_got(got, "stats_before",
+             self.assert_got(got, "stats_after", None)
+        )
+
+        data["pilot_end_rank"] += 1
+        pilot = self.post_ok("/calc/upgrade/ship", body=data)
+        assert pilot["wage_increase"] > 0.0
+        assert pilot["pilot_upgrade_price"] > 0.0
+        assert pilot["reactor_upgrade_price"] == 0
+        assert pilot["shield_upgrade_price"] == 0
+        assert pilot["stats_before"] == base_stats
+        pilot_stats = pilot["stats_after"]
+        assert pilot_stats["fuel_consumption"] < base_stats["fuel_consumption"]
+        assert pilot_stats["speed"] > base_stats["speed"]
+        assert pilot_stats["hull_usage_rate"] == base_stats["hull_usage_rate"]
+
+        data["pilot_end_rank"] = data["pilot_start_rank"]
+        data['end_reactor_power'] += 1
+        rpow = self.post_ok("/calc/upgrade/ship", body=data)
+        assert rpow["wage_increase"] == 0.0
+        assert rpow["pilot_upgrade_price"] == 0.0
+        assert rpow["reactor_upgrade_price"] > 0
+        assert rpow["shield_upgrade_price"] == 0
+        assert rpow["stats_before"] == base_stats
+        rpow_stats = rpow["stats_after"]
+        assert rpow_stats["fuel_consumption"] > base_stats["fuel_consumption"]
+        assert rpow_stats["speed"] > base_stats["speed"]
+        assert rpow_stats["hull_usage_rate"] == base_stats["hull_usage_rate"]
+
+        data["end_reactor_power"] = data['start_reactor_power']
+        data['end_shield_power'] += 1
+        spow = self.post_ok("/calc/upgrade/ship", body=data)
+        assert spow["wage_increase"] == 0.0
+        assert spow["pilot_upgrade_price"] == 0.0
+        assert spow["reactor_upgrade_price"] == 0
+        assert spow["shield_upgrade_price"] > 0
+        assert spow["stats_before"] == base_stats
+        spow_stats = spow["stats_after"]
+        assert spow_stats["fuel_consumption"] == base_stats["fuel_consumption"]
+        assert spow_stats["speed"] == base_stats["speed"]
+        assert spow_stats["hull_usage_rate"] < base_stats["hull_usage_rate"]
+
+    @functest
+    def test_compute_upgrade_trader(self):
+        data = {
+            "trader_start_rank": 3,
+            "trader_end_rank": 3,
+        }
+        got = self.post_ok("/calc/upgrade/trader", body=data)
+        self.assert_got(got, "wage_increase", 0)
+        self.assert_got(got, "trader_upgrade_price", 0)
+        base_fee = self.assert_got(got, "fee_before",
+             self.assert_got(got, "fee_after", None)
+        )
+
+        data["trader_end_rank"] += 1
+        after = self.post_ok("/calc/upgrade/trader", body=data)
+        assert after["wage_increase"] > 0
+        assert after["trader_upgrade_price"] > 0
+        assert after["fee_before"] == base_fee
+        assert after["fee_after"] < base_fee
 
 def compute_distance(a, b):
     sum = 0

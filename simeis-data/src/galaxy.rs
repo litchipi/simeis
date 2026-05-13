@@ -23,7 +23,7 @@ type GalaxySector = (
 );
 
 const SECTOR_SIZE: (SpaceUnit, SpaceUnit, SpaceUnit) = (5000, 5000, 5000);
-const PLANETS_PER_SECTOR: usize = 3;
+const PLANETS_PER_SECTOR: usize = 8;
 const STATION_FPLANET_DIST: f64 = 500.0;
 
 #[allow(dead_code)]
@@ -204,13 +204,10 @@ impl Galaxy {
     }
 
     pub async fn scan_sector(&self, rank: u8, center: &SpaceCoord) -> ScanResult {
-        let strengh = (rank - 1) as f64;
+        let sector = compute_sector(center.0, center.1, center.2);
         let mut results = ScanResult::empty();
-        debug_assert!(strengh >= 0.0);
-        for sector in sectors_around(center, strengh) {
-            for obj in self.list_objects_in_sector(&sector) {
-                results.add(rank, obj).await;
-            }
+        for obj in self.list_objects_in_sector(&sector) {
+            results.add(rank, obj).await;
         }
         debug_assert!(!results.planets.is_empty()); // We should always have some planets
         results
@@ -265,49 +262,6 @@ fn is_in_sector(coord: &SpaceCoord, sector: &GalaxySector) -> bool {
         && coord.1 < sector.1 .1
         && coord.2 >= sector.2 .0
         && coord.2 < sector.2 .1
-}
-
-fn sectors_around(center: &SpaceCoord, radius: f64) -> Vec<GalaxySector> {
-    let mut sectors = vec![];
-    let centersec = compute_sector(center.0, center.1, center.2);
-
-    let xsecstart = ((centersec.0 .0 as f64) - (radius * (SECTOR_SIZE.0 as f64))) as SpaceUnit;
-    let nsector_x = (1.0 + (2.0 * radius * (SECTOR_SIZE.0 as f64))) as SpaceUnit;
-    let xsecend = ((centersec.0 .1 as f64) + (radius * (SECTOR_SIZE.0 as f64))) as SpaceUnit;
-    debug_assert_eq!(xsecstart + (nsector_x * SECTOR_SIZE.0), xsecend);
-
-    let ysecstart = ((centersec.1 .0 as f64) - (radius * (SECTOR_SIZE.1 as f64))) as SpaceUnit;
-    let nsector_y = (1.0 + (2.0 * radius * (SECTOR_SIZE.1 as f64))) as SpaceUnit;
-    let ysecend = ((centersec.1 .1 as f64) + (radius * (SECTOR_SIZE.1 as f64))) as SpaceUnit;
-    debug_assert_eq!(ysecstart + (nsector_y * SECTOR_SIZE.1), ysecend);
-
-    let zsecstart = ((centersec.2 .0 as f64) - (radius * (SECTOR_SIZE.2 as f64))) as SpaceUnit;
-    let nsector_z = (1.0 + (2.0 * radius * (SECTOR_SIZE.2 as f64))) as SpaceUnit;
-    let zsecend = ((centersec.2 .1 as f64) + (radius * (SECTOR_SIZE.2 as f64))) as SpaceUnit;
-    debug_assert_eq!(zsecstart + (nsector_z * SECTOR_SIZE.2), zsecend);
-
-    for sx in 0..nsector_x {
-        for sy in 0..nsector_y {
-            for sz in 0..nsector_z {
-                sectors.push((
-                    (
-                        xsecstart + (sx * SECTOR_SIZE.0),
-                        xsecstart + ((sx + 1) * SECTOR_SIZE.0),
-                    ),
-                    (
-                        ysecstart + (sy * SECTOR_SIZE.1),
-                        ysecstart + ((sy + 1) * SECTOR_SIZE.1),
-                    ),
-                    (
-                        zsecstart + (sz * SECTOR_SIZE.2),
-                        zsecstart + ((sz + 1) * SECTOR_SIZE.2),
-                    ),
-                ))
-            }
-        }
-    }
-
-    sectors
 }
 
 fn get_rand_coord_near(obj: &SpaceCoord, dist: f64, rng: &mut ThreadRng) -> SpaceCoord {

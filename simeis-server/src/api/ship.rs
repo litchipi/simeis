@@ -2,11 +2,10 @@ use std::str::FromStr;
 
 use ntex::router::IntoPattern;
 use ntex::web;
-use ntex::web::scope;
-use ntex::web::types::Path;
-use ntex::web::HttpRequest;
-use ntex::web::ServiceConfig;
+use ntex::web::types::{Json, Path};
+use ntex::web::{scope, HttpRequest, ServiceConfig};
 
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::to_value;
 use simeis_data::galaxy::SpaceUnit;
@@ -57,39 +56,26 @@ async fn get_wages_cost(
     build_response(data)
 }
 
-// @summary Compute how much will cost a travel to a specific position (X, Y, Z)
-// @returns Travel informations on this destination
-#[web::get("/travelcost/{x}/{y}/{z}")]
-async fn compute_travel_costs(
-    srv: GameState,
-    args: Path<(ShipId, SpaceUnit, SpaceUnit, SpaceUnit)>,
-    req: HttpRequest,
-) -> impl web::Responder {
-    let (ship_id, x, y, z) = *args;
-    let pkey = get_player_key!(req);
-
-    let data = srv
-        .map_ship(&pkey, &ship_id, |_, ship| {
-            Box::pin(async move {
-                let cost = ship.compute_travel_costs((x, y, z))?;
-                Ok(to_value(cost).unwrap())
-            })
-        })
-        .await;
-    build_response(data)
+#[derive(Serialize, Deserialize)]
+pub struct NavigationDestination {
+    x: SpaceUnit,
+    y: SpaceUnit,
+    z: SpaceUnit,
 }
 
 // @summary Navigate to position (X, Y, Z)
+// @postbody Coordinate of the destination, in X, Y and Z
 // @returns Travel informations on the destination
 // Ship will have the state InFlight during the travel
-#[web::post("/navigate/{x}/{y}/{z}")]
+#[web::post("/navigate")]
 async fn ask_navigate(
     srv: GameState,
-    args: Path<(ShipId, SpaceUnit, SpaceUnit, SpaceUnit)>,
+    id: Path<ShipId>,
+    body: Json<NavigationDestination>,
     req: HttpRequest,
 ) -> impl web::Responder {
     let pkey = get_player_key!(req);
-    let (id, x, y, z) = *args;
+    let NavigationDestination { x, y, z } = body.0;
     let data = srv
         .map_ship_mut(&pkey, &id, |_, ship| {
             Box::pin(async move {
@@ -226,7 +212,6 @@ async fn unload_ship_cargo(
 pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
     srv.service(
         scope(base)
-            .service(compute_travel_costs)
             .service(get_wages_cost)
             .service(get_ship_status)
             .service(ask_navigate)

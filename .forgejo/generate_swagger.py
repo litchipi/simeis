@@ -8,11 +8,12 @@ IGNORED_LINES = [
     "FIXME",
 ]
 
-MDATA_KEYS = ["summary", "returns"]
+MDATA_KEYS = ["summary", "returns", "postbody"]
+OPT_KEYS = ["postbody"]
 
 def check_all_metadata(trace, mdata):
     for k in MDATA_KEYS:
-        if k not in mdata:
+        if k not in mdata and k not in OPT_KEYS:
             print("")
             print(f"ERROR: Metadata from {trace} is missing key {k}")
             print("")
@@ -69,6 +70,24 @@ def get_comments_before(data, tag):
             result = []
     return None
 
+def mk_schema(val):
+    if isinstance(val, dict):
+        prop = {k: mk_schema(v) for k, v in val.items()}
+        return {"type": "object", "properties": prop }
+    elif isinstance(val, list):
+        return { "type": "array", "items": mk_schema(val[0]) }
+    elif isinstance(val, str):
+        return { "type": "string" }
+    elif isinstance(val, int):
+        return { "type": "integer" }
+    elif isinstance(val, float):
+        return { "type": "number" }
+    elif isinstance(val, bool):
+        return { "type": "boolean" }
+    else:
+        ty = data.__class__.__name__
+        raise Exception(f"Unsupported type for OpenAPI type: {ty}")
+
 class ApiChecker:
     def __init__(self, host, port, root):
         self.host = host
@@ -76,6 +95,7 @@ class ApiChecker:
         self.root = root
         self.examples = {}
         self.path_params = {}
+        self.bodies = {}
         version = get_version(os.path.join(root, "../Cargo.toml"))
         with open(os.path.join(root, "main.rs"), "r") as f:
             main = f.read().split("\n")
@@ -105,12 +125,12 @@ class ApiChecker:
             sys.exit(1)
         return json.loads(got.text)
 
-    def post(self, path, timeout=5):
+    def post(self, path, timeout=5, body=None):
         headers = {}
         if hasattr(self, "key"):
             headers["Simeis-Key"] = str(self.key)
         url = f"http://{self.host}:{self.port}/{path}"
-        got = requests.post(url, headers=headers, timeout=timeout)
+        got = requests.post(url, headers=headers, timeout=timeout, json=body)
         if got.status_code != 200:
             print("Got a status code", got.status_code, "on POST", path)
             sys.exit(1)
@@ -181,7 +201,8 @@ class ApiChecker:
             all_params = get_url_params(path)
             name = code[nline+1].split("(")[0].split(" ")[-1]
             print("Found {} {} API {} at line {}".format(method.upper(), path, name, nline))
-            check_all_metadata(f"{method.upper()}:{name}", mdata)
+            exkey = f"{method.upper()}:{path}"
+            check_all_metadata(exkey, mdata)
             example = self.get_example(method, path, all_params)
             data = {
                 "description": doc,
@@ -202,6 +223,16 @@ class ApiChecker:
                     "required": True,
                 } for n in all_params]
             }
+            if exkey in self.bodies:
+                data["requestBody"] = {
+                    "required": True,
+                    "content": { "application/json": {
+                        "schema": mk_schema(self.bodies[exkey]),
+                        "example": self.bodies[exkey],
+                    }},
+                }
+                if "postbody" in mdata:
+                    data["requestBody"]["description"] = mdata.pop("postbody")
             data.update(mdata)
             self.swagger["paths"][path] = { method: data }
             code = code[nline+1:]
@@ -240,9 +271,11 @@ class ApiChecker:
         with open(outfile, "w") as f:
             json.dump(self.swagger, f, indent=2)
 
-    def prepare_path(self, path, method=None, show=True, **params):
+    def prepare_path(self, path, method=None, show=True, body=None, **params):
         method=method.upper()
         exkey = f"{method}:{path}"
+        if body is not None:
+            self.bodies[exkey] = body
         self.path_params.update(params)
         for (key, val) in self.path_params.items():
             if "{" + key + "}" not in path:
@@ -254,7 +287,7 @@ class ApiChecker:
         if method == "GET":
             data = self.get(path)
         else:
-            data = self.post(path)
+            data = self.post(path, body=body)
         if data["error"] != "ok":
             print(f"Preparation of path {exkey} raised an error:", data["error"])
             sys.exit(1)
@@ -287,6 +320,8 @@ class ApiChecker:
         station = self.prepare_get("/station/{station_id}", station_id=player["stations"][0])
 
         trader = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="trader")
+        self.prepare_post("/station/{station_id}/crew/fire/{crew_id}", crew_id=trader["id"])
+        trader = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}")
         self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/trading", crew_id=trader["id"])
         self.prepare_post("/station/{station_id}/crew/upgrade/{crew_id}")
         self.prepare_post("/market/{station_id}/buy/{resource}/{amnt}", resource="Fuel", amnt=100)
@@ -302,42 +337,71 @@ class ApiChecker:
         allships = self.prepare_get("/station/{station_id}/shipyard/list")
         fship = allships["ships"][0]["id"]
         ship = self.prepare_post("/station/{station_id}/shipyard/buy/{ship_id}", ship_id=fship)
-        self.prepare_post("/station/{station_id}/shipyard/upgrade/{ship_id}/{upgrade_type}", upgrade_type="reactorupgrade")
+        self.prepare_post("/station/{station_id}/shipyard/upgrade/{ship_id}/{upgrade_type}", upgrade_type="reactor")
         self.prepare_post("/station/{station_id}/shop/cargo/buy/{amount}", amount=1)
         pilot = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="pilot")
         self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/pilot", crew_id=pilot["id"])
-        if planets["planets"][0]["solid"]:
-            mod_type = "Miner"
-            resource = "Carbon"
-        else:
-            mod_type = "GasSucker"
-            resource = "Hydrogen"
+        mod_type = "Miner"
+        resource = "Carbon"
         module = self.prepare_post("/station/{station_id}/shop/modules/{ship_id}/buy/{modtype}", modtype=mod_type)
         operator = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="operator")
         self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/{mod_id}", crew_id=operator["id"], mod_id=module["id"])
 
-        self.prepare_get("/ship/{ship_id}/travelcost/{x}/{y}/{z}",
-             x=target[0],
-             y=target[1],
-             z=target[2],
-         )
-        cost = self.prepare_post("/ship/{ship_id}/navigate/{x}/{y}/{z}")
+        self.prepare_post("/calc/navigation", body={
+            "ship_stats": { "speed": 3.0, "fuel_consumption": 2.0, "hull_usage_rate": 1.0 },
+            "origin": [0, 0, 0],
+            "dest": [1, 2, 3],
+        })
+        cost = self.prepare_post("/ship/{ship_id}/navigate", body={
+            "x": target[0],
+            "y": target[1],
+            "z": target[2]
+        })
         self.tick_for_event("ShipFlightFinished")
         rate = self.prepare_post("/ship/{ship_id}/extraction/start")
         tfilled = rate["time_fill_cargo"] / 2.0
         for _ in range(int(tfilled / (20.0 / 1000.0))):
             self.post("/tick")
         rate = self.prepare_post("/ship/{ship_id}/extraction/stop")
-        cost = self.prepare_post("/ship/{ship_id}/navigate/{x}/{y}/{z}",
-             x=station["position"][0],
-             y=station["position"][1],
-             z=station["position"][2],
-        )
+        cost = self.prepare_post("/ship/{ship_id}/navigate", body={
+             "x": station["position"][0],
+             "y": station["position"][1],
+             "z": station["position"][2],
+        })
         self.tick_for_event("ShipFlightFinished")
         self.prepare_post("/ship/{ship_id}/unload/{station_id}/{resource}/{amnt}", resource=resource, amnt=1)
 
         pl = self.prepare_post("/player/new/{name}", name="xX_GigaProf_Xx")
         self.prepare_get("/player/{player_id}", player_id=pl["playerId"])
+
+        self.prepare_post("/calc/mining_rate", body={
+            "module_type": "Miner",
+            "module_rank": 5,
+            "operator_rank": 2,
+            "planet_coord": target,
+        })
+
+        self.prepare_post("/calc/upgrade/module", body={
+            "module_type": "Miner",
+            "module_start_rank": 2,
+            "module_end_rank": 4,
+            "crew_start_rank": 1,
+            "crew_end_rank": 3,
+        })
+
+        self.prepare_post("/calc/upgrade/ship", body={
+            "start_reactor_power": 5,
+            "end_reactor_power": 6,
+            "start_shield_power": 5,
+            "end_shield_power": 6,
+            "pilot_start_rank": 4,
+            "pilot_end_rank": 5,
+        })
+
+        self.prepare_post("/calc/upgrade/trader", body={
+            "trader_start_rank": 1,
+            "trader_end_rank": 3,
+        })
 
 ip = sys.argv[1]
 port = sys.argv[2]

@@ -1,5 +1,8 @@
+use std::collections::BTreeMap;
+
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
 
 use crate::ship::resources::Resource;
 
@@ -9,16 +12,20 @@ use super::SpaceCoord;
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PlanetInfo {
     pub position: SpaceCoord,
-    pub temperature: u16,
-    pub solid: bool,
+    pub resources_density: BTreeMap<Resource, f64>,
 }
 
 impl PlanetInfo {
-    pub fn scan(_rank: u8, planet: &Planet) -> PlanetInfo {
+    pub fn scan(rank: u8, planet: &Planet) -> PlanetInfo {
+        let mut resources_density = BTreeMap::new();
+        for (res, density) in planet.resources_density.iter() {
+            if res.min_rank() <= rank && density > &0.0 {
+                resources_density.insert(*res, *density);
+            }
+        }
         PlanetInfo {
             position: planet.position,
-            temperature: planet.temperature,
-            solid: planet.solid,
+            resources_density,
         }
     }
 }
@@ -26,30 +33,139 @@ impl PlanetInfo {
 #[derive(Debug)]
 pub struct Planet {
     pub position: SpaceCoord,
-    temperature: u16,
-    solid: bool, // TODO (#25) Remove
+    pub resources_density: BTreeMap<Resource, f64>,
 }
 
 impl Planet {
     pub fn random<R: rand::Rng>(coord: SpaceCoord, rng: &mut R) -> Planet {
-        Planet {
-            solid: rng.random_bool(0.4),
-            temperature: rng.random(),
-            position: coord,
-        }
-    }
+        let temperature = rng.random_range(0.0..=1.0);
+        let density = rng.random_range(0.0..=1.0);
+        let rotation_speed = rng.random_range(0.0..=1.0);
+        let volcanic_activity = rng.random_range(0.0..=1.0);
+        let athmospheric_pressure = rng.random_range(0.0..=1.0);
 
-    // TODO (#25) Make this depend on the conditions, temperature, etc...
-    #[allow(clippy::if_same_then_else)]
-    pub fn resource_density(&self, resource: &Resource) -> f64 {
-        if self.solid && resource.mineable(u8::MAX) {
-            6.25
-        } else if !self.solid && resource.suckable(u8::MAX) {
-            6.25
-        } else if resource.suckable(u8::MAX) {
-            6.25
-        } else {
-            0.0
+        let mut resources_density = BTreeMap::new();
+        for res in Resource::iter() {
+            let density = calc_resource_density(
+                &res,
+                temperature,
+                density,
+                rotation_speed,
+                volcanic_activity,
+                athmospheric_pressure,
+            );
+            resources_density.insert(res, density);
+        }
+
+        Planet {
+            position: coord,
+            resources_density,
         }
     }
+}
+
+#[inline]
+fn bell(x: f64, center: f64, width: f64) -> f64 {
+    let d = (x - center) / width;
+    (-d * d).exp()
+}
+
+#[inline]
+fn inverse(x: f64) -> f64 {
+    1.0 - x
+}
+
+#[inline]
+pub fn calc_resource_density(
+    resource: &Resource,
+    temp: f64,
+    density: f64,
+    rot: f64,
+    volc: f64,
+    atm: f64,
+) -> f64 {
+    match resource {
+        Resource::Carbon => {
+            0.3 * bell(temp, 0.5, 0.25)    // Moderate temperatures
+            + 0.2 * density                // Denser rocky planets
+            + 0.1 * bell(rot, 0.5, 0.30)   // Moderate rotation
+            + 0.2 * bell(volc, 0.6, 0.25)  // Moderate / High volcanism
+            + 0.2 * bell(atm, 0.6, 0.25) // Moderate / High pressure
+        }
+
+        Resource::Iron => {
+            0.5 * density                  // High density
+            + 0.3 * volc                   // High volcanism
+            + 0.2 * inverse(atm) // Thin atmosphere
+        }
+
+        Resource::Copper => {
+            0.4 * bell(volc, 0.7, 0.20)    // High volcanism
+            + 0.3 * density                // High density
+            + 0.2 * bell(temp, 0.5, 0.25)  // Moderate temperature
+            + 0.1 * bell(atm, 0.5, 0.30) // Moderate atmosphere
+        }
+
+        Resource::Gold => {
+            0.5 * bell(volc, 0.85, 0.15)  // High volcanism
+            + 0.4 * density               // High density
+            + 0.1 * inverse(rot) // Low rotation speed
+        }
+
+        Resource::Water => {
+            0.4 * bell(temp, 0.45, 0.18)       // Moderate temperatures
+            + 0.3 * bell(atm, 0.6, 0.25)       // Moderate pressure
+            + 0.2 * bell(density, 0.5, 0.25)   // Moderate density
+            + 0.1 * bell(rot, 0.5, 0.30) // Moderate rotation
+        }
+
+        Resource::Alcohol => {
+            0.5 * bell(temp, 0.5, 0.15)       // Moderate temperatures
+            + 0.3 * bell(atm, 0.6, 0.20)      // Moderate atmosphere pressure
+            + 0.2 * bell(volc, 0.25, 0.25) // Low volcanic activity
+        }
+
+        Resource::Oil => {
+            0.4 * bell(temp, 0.3, 0.20)        // Low temperatures
+            + 0.3 * bell(atm, 0.7, 0.20)       // High atmosphere pressure
+            + 0.2 * inverse(volc)              // Low volcanism
+            + 0.1 * bell(density, 0.6, 0.25) // Moderate / high density
+        }
+
+        Resource::SulfuricAcid => {
+            0.4 * bell(temp, 0.9, 0.12)    // High temperature
+            + 0.3 * volc                   // High volcanism
+            + 0.3 * bell(atm, 0.9, 0.15) // High athmosphere
+        }
+
+        Resource::Hydrogen => {
+            0.5 * inverse(density)         // Low density
+            + 0.3 * inverse(temp)          // Low temperature
+            + 0.2 * bell(atm, 0.8, 0.20) // High atmosphere pressure
+        }
+
+        Resource::Oxygen => {
+            0.4 * bell(temp, 0.5, 0.18)       // Moderate temperature
+            + 0.3 * bell(atm, 0.65, 0.20)     // Moderate / high atmosphere pressure
+            + 0.2 * bell(rot, 0.75, 0.30)     // High rotation speed
+            + 0.1 * bell(density, 0.4, 0.25) // Moderate / low density
+        }
+
+        Resource::Helium => {
+            0.6 * inverse(density)          // Low density
+            + 0.3 * inverse(temp)           // Low temperature
+            + 0.1 * bell(atm, 0.9, 0.15) // High atmosphere pressure
+        }
+
+        Resource::Ozone => {
+            0.4 * bell(temp, 0.5, 0.18)      // Moderate temperature
+            + 0.3 * bell(atm, 0.7, 0.20)     // High atmosphere pressure
+            + 0.2 * bell(rot, 0.5, 0.30)     // Moderate rotation speed
+            + 0.1 * bell(density, 0.5, 0.25) // Moderate density
+        }
+
+        // Not extractable
+        Resource::Hull | Resource::Fuel => 0.0,
+    }
+    .clamp(0.0, 1.0)
 }

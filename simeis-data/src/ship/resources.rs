@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, EnumString, IntoStaticStr};
 
-use crate::galaxy::planet::Planet;
+use crate::{galaxy::planet::Planet, ship::module::ShipModuleType};
 
 use super::{cargo::ShipCargo, Ship};
 
@@ -64,6 +64,7 @@ impl Resource {
         }
     }
 
+    #[inline]
     pub fn volume(&self) -> f64 {
         match self {
             Resource::Carbon | Resource::Hydrogen | Resource::Water => 0.75,
@@ -76,6 +77,7 @@ impl Resource {
     }
 
     #[allow(unused_mut)]
+    #[inline]
     pub fn extraction_difficulty(&self) -> f64 {
         let mut base = 0.25;
 
@@ -94,6 +96,7 @@ impl Resource {
         }
     }
 
+    #[inline]
     pub fn min_rank(&self) -> u8 {
         match self {
             Resource::Carbon | Resource::Hydrogen | Resource::Water => 0,
@@ -104,6 +107,16 @@ impl Resource {
         }
     }
 
+    #[inline]
+    pub fn extractable(&self, modtype: &ShipModuleType, oprank: u8) -> bool {
+        match modtype {
+            ShipModuleType::Miner => self.mineable(oprank),
+            ShipModuleType::GasSucker => self.suckable(oprank),
+            ShipModuleType::Pump => self.pumpable(oprank),
+        }
+    }
+
+    #[inline]
     pub fn mineable(&self, rank: u8) -> bool {
         match self {
             Resource::Carbon | Resource::Iron | Resource::Copper | Resource::Gold => {
@@ -113,6 +126,7 @@ impl Resource {
         }
     }
 
+    #[inline]
     pub fn suckable(&self, rank: u8) -> bool {
         match self {
             Resource::Hydrogen | Resource::Oxygen | Resource::Helium | Resource::Ozone => {
@@ -122,6 +136,7 @@ impl Resource {
         }
     }
 
+    #[inline]
     pub fn pumpable(&self, rank: u8) -> bool {
         match self {
             Resource::Water | Resource::Alcohol | Resource::Oil | Resource::SulfuricAcid => {
