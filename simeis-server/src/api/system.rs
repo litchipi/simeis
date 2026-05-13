@@ -108,7 +108,7 @@ async fn tick_server_n(srv: GameState, n: ntex::web::types::Path<usize>) -> impl
 async fn resources_info() -> impl web::Responder {
     let mut data = BTreeMap::new();
     for res in Resource::iter() {
-        if res.mineable(u8::MAX) || res.suckable(u8::MAX) {
+        if res.mineable(u8::MAX) || res.suckable(u8::MAX) || res.pumpable(u8::MAX) {
             data.insert(
                 format!("{res:?}"),
                 json!({
