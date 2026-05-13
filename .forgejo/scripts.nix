@@ -197,7 +197,7 @@ in {
     client_run_well = let
       app = pkgs.writeShellApplication {
         name = "client-run-well";
-        runtimeInputs = deps ++ [ python ];
+        runtimeInputs = deps ++ [ pkgs.ripgrep python ];
         text = compile_and_run {
           key = "client_runwell";
           features = ["extraspeed"];
@@ -209,14 +209,14 @@ in {
               python3 example/python/client.py ci 127.0.0.1 8080 1>/tmp/client_runwell_clilogs 2>&1 &
               client_pid=$!
               sleep 3
-              if ! jobs -p |grep "$client_pid" 1>/dev/null; then
+              if ! jobs -p |rg "$client_pid" 1>/dev/null; then
                 echo "Client failed to start"
                 return 1
               fi
               echo "[*] Client started"
               tstart=$(date +%s)
               while [ $(($(date +%s) - tstart)) -lt 600 ]; do
-                TBL=$(cat /tmp/client_runwell_clilogs|grep "time left before lost"|tail -n 1|awk '{print $11}')
+                TBL=$(cat /tmp/client_runwell_clilogs|rg "time left before lost"|tail -n 1|awk '{print $11}')
                 if [ -z "$TBL" ]; then
                   sleep 1
                   continue;
