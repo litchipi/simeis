@@ -230,8 +230,8 @@ async fn compute_upgrade_trader(body: Json<UpgradeTrader>) -> impl web::Responde
     build_response(Ok(json!({
         "wage_increase": end_wage - start_wage,
         "trader_upgrade_price": crew_upgrade_price,
-        "before_fee": start_fee,
-        "after_fee": end_fee,
+        "fee_before": start_fee,
+        "fee_after": end_fee,
     })))
 }
 
