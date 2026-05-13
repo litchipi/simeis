@@ -235,7 +235,7 @@ async fn compute_upgrade_trader(body: Json<UpgradeTrader>) -> impl web::Responde
     })))
 }
 
-// TODO (#36) Endpoints for all kinds of computations
+// TODO (#44) Endpoints for all kinds of computations
 // - Prices of the upgrade of an industry + its operator (from source lvl to dst lvl), returns benefits, price, wages, etc...
 // - Resource requirements / production of an industry at a certain level
 
