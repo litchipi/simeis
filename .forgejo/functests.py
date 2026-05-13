@@ -795,7 +795,10 @@ class Tester:
         got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/cargoexpansion")
         assert self.assert_got(got, "cost", None) > 0
 
-        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/reactorupgrade")
+        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/reactor")
+        assert self.assert_got(got, "cost", None) > 0
+
+        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/shield")
         assert self.assert_got(got, "cost", None) > 0
 
         got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/hullupgrade")

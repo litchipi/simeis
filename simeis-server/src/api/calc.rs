@@ -5,8 +5,10 @@ use ntex::web::types::Json;
 use ntex::web::{self, scope, ServiceConfig};
 use simeis_data::crew::{CrewMember, CrewMemberType};
 use simeis_data::errors::Errcode;
+use simeis_data::market::fee_rate;
 use simeis_data::ship::module::{calc_extraction_rate, ShipModule, ShipModuleType};
 use simeis_data::ship::resources::Resource;
+use simeis_data::ship::upgrade::ShipUpgrade;
 use strum::IntoEnumIterator;
 
 use crate::api::build_response;
@@ -81,7 +83,7 @@ async fn compute_mining_rate(
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct UpgradeComputation {
+pub struct UpgradeModule {
     module_type: ShipModuleType,
     module_start_rank: u8,
     module_end_rank: u8,
@@ -89,11 +91,11 @@ pub struct UpgradeComputation {
     crew_end_rank: u8,
 }
 
-// @summary Computes the price of an upgraded on a ship module & operator, and its benefits on extraction rates
-// @returns The price of the module upgrade, the crew upgrade, and the diff in extraction rate (for a fixed planet resource density)
+// @summary Computes the costs of upgrading a ship's module & operator, and its benefits on extraction rates
+// @returns The price of the module upgrade, the crew upgrade, the increase in wages, and the diff in extraction rate (for a fixed planet resource density)
 #[web::post("/upgrade/module")]
-async fn compute_upgrade_module(body: Json<UpgradeComputation>) -> impl web::Responder {
-    let UpgradeComputation {
+async fn compute_upgrade_module(body: Json<UpgradeModule>) -> impl web::Responder {
+    let UpgradeModule {
         module_type,
         module_start_rank,
         module_end_rank,
@@ -102,8 +104,9 @@ async fn compute_upgrade_module(body: Json<UpgradeComputation>) -> impl web::Res
     } = body.0;
 
     let mut start_module = ShipModule::new(module_type.clone(), module_start_rank);
-    let mut start_operator = CrewMember::from(CrewMemberType::Operator);
-    start_operator.rank = crew_start_rank;
+    let mut operator = CrewMember::from(CrewMemberType::Operator);
+    operator.rank = crew_start_rank;
+    let start_wage = operator.wage();
 
     let mut upg_mod_price = 0.0;
     for r in module_start_rank..module_end_rank {
@@ -113,9 +116,11 @@ async fn compute_upgrade_module(body: Json<UpgradeComputation>) -> impl web::Res
 
     let mut upg_crew_price = 0.0;
     for r in crew_start_rank..crew_end_rank {
-        start_operator.rank = r;
-        upg_crew_price += start_operator.price_next_rank();
+        operator.rank = r;
+        upg_crew_price += operator.price_next_rank();
     }
+    operator.rank = crew_end_rank;
+    let end_wage = operator.wage();
 
     let mut extraction_rates = BTreeMap::new();
     for res in Resource::iter() {
@@ -135,14 +140,104 @@ async fn compute_upgrade_module(body: Json<UpgradeComputation>) -> impl web::Res
         "diff_extraction_rate": to_value(extraction_rates).unwrap(),
         "module_upgrade_price": to_value(upg_mod_price).unwrap(),
         "crew_upgrade_price": to_value(upg_crew_price).unwrap(),
+        "wage_increase": to_value(end_wage - start_wage).unwrap(),
+    })))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UpgradeShip {
+    start_reactor_power: u16,
+    end_reactor_power: u16,
+
+    start_shield_power: u16,
+    end_shield_power: u16,
+
+    pilot_start_rank: u8,
+    pilot_end_rank: u8,
+}
+
+// @summary Computes the costs of upgrading a ship, and its benefits on the ship's statistics
+// @returns The price of the pilot upgrade, the price of the reactor upgrade, the price of the shields upgrade, the increase in wages, and the ship statistics before / after upgrading
+#[web::post("/upgrade/ship")]
+async fn compute_upgrade_ship(body: Json<UpgradeShip>) -> impl web::Responder {
+    let UpgradeShip {
+        pilot_start_rank,
+        pilot_end_rank,
+        start_reactor_power,
+        end_reactor_power,
+        start_shield_power,
+        end_shield_power,
+    } = body.0;
+    let mut pilot = CrewMember::from(CrewMemberType::Pilot);
+    pilot.rank = pilot_start_rank;
+    let start_wage = pilot.wage();
+    let start_stats = ShipStats::new(start_reactor_power, start_shield_power, Some(&pilot));
+
+    let mut rpow_upgrade_price = 0.0;
+    for _ in start_reactor_power..end_reactor_power {
+        rpow_upgrade_price += ShipUpgrade::Reactor.get_price();
+    }
+    let mut spow_upgrade_price = 0.0;
+    for _ in start_shield_power..end_shield_power {
+        spow_upgrade_price += ShipUpgrade::Shield.get_price();
+    }
+
+    let mut crew_upgrade_price = 0.0;
+    for r in pilot_start_rank..pilot_end_rank {
+        pilot.rank = r;
+        crew_upgrade_price += pilot.price_next_rank();
+    }
+    pilot.rank = pilot_end_rank;
+    let end_wage = pilot.wage();
+    let end_stats = ShipStats::new(end_reactor_power, end_shield_power, Some(&pilot));
+    build_response(Ok(json!({
+        "wage_increase": end_wage - start_wage,
+        "pilot_upgrade_price": crew_upgrade_price,
+        "reactor_upgrade_price": rpow_upgrade_price,
+        "shield_upgrade_price": spow_upgrade_price,
+        "stats_before": start_stats,
+        "stats_after": end_stats,
+    })))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UpgradeTrader {
+    trader_start_rank: u8,
+    trader_end_rank: u8,
+}
+
+// @summary Computes the costs of upgrading a station's trader, and the new fee rate
+// @returns The price of the upgrade, the increase in wages, the old and new fee rate
+#[web::post("/upgrade/trader")]
+async fn compute_upgrade_trader(body: Json<UpgradeTrader>) -> impl web::Responder {
+    let UpgradeTrader {
+        trader_start_rank,
+        trader_end_rank,
+    } = body.0;
+    let mut trader = CrewMember::from(CrewMemberType::Trader);
+    trader.rank = trader_start_rank;
+    let start_wage = trader.wage();
+    let start_fee = fee_rate(trader_start_rank);
+    let end_fee = fee_rate(trader_end_rank);
+    let mut crew_upgrade_price = 0.0;
+    for r in trader_start_rank..trader_end_rank {
+        trader.rank = r;
+        crew_upgrade_price += trader.price_next_rank();
+    }
+    trader.rank = trader_end_rank;
+    let end_wage = trader.wage();
+
+    build_response(Ok(json!({
+        "wage_increase": end_wage - start_wage,
+        "trader_upgrade_price": crew_upgrade_price,
+        "before_fee": start_fee,
+        "after_fee": end_fee,
     })))
 }
 
 // TODO (#36) Endpoints for all kinds of computations
 // - Prices of the upgrade of an industry + its operator (from source lvl to dst lvl), returns benefits, price, wages, etc...
 // - Resource requirements / production of an industry at a certain level
-// - Price, wage, benefits on ships stats when upgrading a pilot
-// - Price, wage, fee reduction when upgrading a trader
 
 pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
     srv.service(
@@ -150,6 +245,8 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
             // TODO (#36) Add to SDK, update python & rust clients
             .service(compute_travel_costs)
             .service(compute_mining_rate)
+            .service(compute_upgrade_ship)
+            .service(compute_upgrade_trader)
             .service(compute_upgrade_module),
     );
 }

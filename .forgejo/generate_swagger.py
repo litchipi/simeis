@@ -337,7 +337,7 @@ class ApiChecker:
         allships = self.prepare_get("/station/{station_id}/shipyard/list")
         fship = allships["ships"][0]["id"]
         ship = self.prepare_post("/station/{station_id}/shipyard/buy/{ship_id}", ship_id=fship)
-        self.prepare_post("/station/{station_id}/shipyard/upgrade/{ship_id}/{upgrade_type}", upgrade_type="reactorupgrade")
+        self.prepare_post("/station/{station_id}/shipyard/upgrade/{ship_id}/{upgrade_type}", upgrade_type="reactor")
         self.prepare_post("/station/{station_id}/shop/cargo/buy/{amount}", amount=1)
         pilot = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="pilot")
         self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/pilot", crew_id=pilot["id"])
@@ -387,6 +387,20 @@ class ApiChecker:
             "module_end_rank": 4,
             "crew_start_rank": 1,
             "crew_end_rank": 3,
+        })
+
+        self.prepare_post("/calc/upgrade/ship", body={
+            "start_reactor_power": 5,
+            "end_reactor_power": 6,
+            "start_shield_power": 5,
+            "end_shield_power": 6,
+            "pilot_start_rank": 4,
+            "pilot_end_rank": 5,
+        })
+
+        self.prepare_post("/calc/upgrade/trader", body={
+            "trader_start_rank": 1,
+            "trader_end_rank": 3,
         })
 
 ip = sys.argv[1]
