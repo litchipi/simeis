@@ -10,10 +10,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Calculate version
+        id: simeis-version
+        run: echo "simeis_version=$(cat simeis-server/Cargo.toml|grep version)" >> $GITHUB_OUTPUT
+      - uses: https://code.forgejo.org/actions/cache@v4
+        name: Common dependencies caching
+        id: cache-base
+        with:
+          path: |
+            .cargohome/registry/index/
+            .cargohome/registry/cache/
+            .cargohome/git/db/
+            target/
+            supply-chain/
+          key: ${{ runner.os }}-${{ steps.simeis-version.outputs.simeis_version }}
+
       - name: Calculate lockfile hash
         id: cargo-lock-hash
         run: echo "hash=$(md5sum Cargo.lock)" >> $GITHUB_OUTPUT
-
       - uses: https://code.forgejo.org/actions/cache@v4
         name: Cache dependencies
         id: cache-rust
@@ -44,10 +58,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Calculate version
+        id: simeis-version
+        run: echo "simeis_version=$(cat simeis-server/Cargo.toml|grep version)" >> $GITHUB_OUTPUT
+      - uses: https://code.forgejo.org/actions/cache@v4
+        name: Common dependencies caching
+        id: cache-base
+        with:
+          path: |
+            .cargohome/registry/index/
+            .cargohome/registry/cache/
+            .cargohome/git/db/
+            target/
+            supply-chain/
+          key: ${{ runner.os }}-${{ steps.simeis-version.outputs.simeis_version }}
+
       - name: Calculate lockfile hash
         id: cargo-lock-hash
         run: echo "hash=$(md5sum Cargo.lock)" >> $GITHUB_OUTPUT
-
       - uses: https://code.forgejo.org/actions/cache@v4
         name: Cache dependencies
         id: cache-rust
@@ -74,6 +102,22 @@ jobs:
     runs-on: nix
     steps:
       - uses: actions/checkout@v4
+
+      - name: Calculate version
+        id: simeis-version
+        run: echo "simeis_version=$(cat simeis-server/Cargo.toml|grep version)" >> $GITHUB_OUTPUT
+      - uses: https://code.forgejo.org/actions/cache@v4
+        name: Common dependencies caching
+        id: cache-base
+        with:
+          path: |
+            .cargohome/registry/index/
+            .cargohome/registry/cache/
+            .cargohome/git/db/
+            target/
+            supply-chain/
+          key: ${{ runner.os }}-${{ steps.simeis-version.outputs.simeis_version }}
+
       - name: Calculate lockfile hash
         id: cargo-lock-hash
         run: echo "hash=$(md5sum Cargo.lock)" >> $GITHUB_OUTPUT
