@@ -229,8 +229,7 @@ in {
                 sleep 5
               done
               echo "Test finished, killing client..."
-              echo "$client_pid"
-              kill "$client_pid"
+              echo "$client_pid" | xargs kill
             }
           '';
         };
