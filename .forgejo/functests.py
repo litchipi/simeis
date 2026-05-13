@@ -13,6 +13,10 @@ FAILFAST=os.getenv("CI") is None
 
 ITER_PERIOD = 20 / 1000
 
+SOLID=["Carbon", "Iron", "Copper", "Gold"]
+LIQUID=["Water", "Alcohol", "Oil", "SulfuricAcid"]
+GAS=["Hydrogen", "Helium", "Oxygen", "Ozone"]
+
 def functest(f):
     assert f.__name__.startswith("test_")
     name = f.__name__.removeprefix("test_").replace("_", " ").capitalize()
@@ -159,6 +163,30 @@ class Tester:
             traderid = self.assert_got(trader, "id", None)
             self.post_ok(f"/station/{self.station}/crew/assign/{traderid}/trading")
         self.tick()
+
+    def decide_modtype(self, planet):
+        solid = 0
+        liquid = 0
+        gas = 0
+        self.addtrace(f"Decide of best mod for planet {planet}")
+        for (res, d) in planet["resources_density"].items():
+            if res in SOLID:
+                solid += d
+            elif res in LIQUID:
+                liquid += d
+            elif res in GAS:
+                gas += d
+            else:
+                self.addtrace(f"Resource {res} is not in SOLID, LIQUID or GAS")
+                assert False
+        if solid > liquid and solid > gas:
+            return "miner"
+        elif liquid > solid and liquid > gas:
+            return "pump"
+        elif gas > solid and gas > liquid:
+            return "gassucker"
+        self.addtrace("Unable to decide which mod to buy")
+        assert False
 
     def assert_ok(self, endpoint, **kwargs):
         got = self.request(endpoint, **kwargs)
@@ -844,10 +872,7 @@ class Tester:
         for planet in self.assert_got(scan, "planets", None):
             distances.append((planet, compute_distance(planet["position"], ship["position"])))
         best = sorted(distances, key=lambda f: f[1])[0][0]
-        if best["solid"]:
-            mod = "miner"
-        else:
-            mod = "gassucker"
+        mod = self.decide_modtype(best)
 
         got = self.post_ok(f"/station/{self.station}/shop/modules/{shipid}/buy/{mod}")
         modid = self.assert_got(got, "id", 1)
@@ -959,12 +984,9 @@ class Tester:
         assert newt < oldt
         self.tick_dur(cost["duration"])
 
-        need_solid = list(ship["modules"].values())[0]["modtype"] == "Miner"
         scan = self.post_ok(f"/station/{self.station}/scan")
         distances = []
         for planet in self.assert_got(scan, "planets", None):
-            if planet["solid"] != need_solid:
-                continue
             distances.append((planet, compute_distance(planet["position"], ship["position"])))
         best = sorted(distances, key=lambda f: f[1])[0][0]
 
@@ -1045,7 +1067,7 @@ class Tester:
 
     @functest
     def test_compute_travel_costs(self):
-        scosts = self.post_ok("/navigation", body={
+        scosts = self.post_ok("/calc/navigation", body={
              "ship_stats": {
                  "speed": 1.0,
                  "fuel_consumption": 1.0,
@@ -1053,8 +1075,8 @@ class Tester:
              },
              "origin": (0, 0, 0),
              "dest": (1, 1, 1),
-         })
-        dcosts = self.post_ok("/navigation", body={
+         })["costs"]
+        dcosts = self.post_ok("/calc/navigation", body={
              "ship_stats": {
                  "speed": 2.0,
                  "fuel_consumption": 2.0,
@@ -1062,8 +1084,8 @@ class Tester:
              },
              "origin": (0, 0, 0),
              "dest": (1, 1, 1),
-         })
-        fcosts = self.post_ok("/navigation", body={
+         })["costs"]
+        fcosts = self.post_ok("/calc/navigation", body={
              "ship_stats": {
                  "speed": 2.0,
                  "fuel_consumption": 2.0,
@@ -1071,32 +1093,23 @@ class Tester:
              },
              "origin": (0, 0, 0),
              "dest": (2, 2, 2),
-         })
-        self.assert_got(scosts, "direction",
-            self.assert_got(dcosts, "direction",
-                self.assert_got(fcosts, "direction", None)
-            )
-        )
-        self.assert_got(scosts, "distance",
-            self.assert_got(dcosts, "distance",
-                self.assert_got(fcosts, "distance", None) / 2
-            )
-        )
-        self.assert_got(scosts, "duration",
-            self.assert_got(dcosts, "duration",
-                self.assert_got(fcosts, "duration", None) * 2
-            ) / 2
-        )
-        self.assert_got(scosts, "fuel_consumption",
-            self.assert_got(dcosts, "fuel_consumption",
-                self.assert_got(fcosts, "fuel_consumption", None) / 2
-            ) / 2
-        )
-        self.assert_got(scosts, "hull_usage",
-            self.assert_got(dcosts, "hull_usage",
-                self.assert_got(fcosts, "hull_usage", None) / 2
-            ) / 2
-        )
+         })["costs"]
+        self.assert_got(scosts, "direction", dcosts["direction"])
+        self.assert_got(dcosts, "direction", fcosts["direction"])
+
+        self.assert_got(scosts, "distance", dcosts["distance"])
+        self.assert_got(dcosts, "distance", fcosts["distance"] / 2)
+
+        self.assert_got(scosts, "duration", dcosts["duration"] * 2)
+        self.assert_got(dcosts, "duration", fcosts["duration"] / 2)
+
+        # 2x more consumption, but 2x faster = same
+        self.assert_got(scosts, "fuel_consumption", dcosts["fuel_consumption"])
+        self.assert_got(dcosts, "fuel_consumption", fcosts["fuel_consumption"] / 2)
+
+        # Hull usage is based on distance
+        self.assert_got(scosts, "hull_usage", dcosts["hull_usage"] / 2)
+        self.assert_got(dcosts, "hull_usage", fcosts["hull_usage"] / 2)
 
     @functest
     def test_compute_mining_rate(self):
