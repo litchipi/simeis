@@ -19,14 +19,13 @@ impl PlanetInfo {
     pub fn scan(rank: u8, planet: &Planet) -> PlanetInfo {
         let mut resources_density = BTreeMap::new();
         for (res, density) in planet.resources_density.iter() {
-            if res.min_rank() <= rank {
-                resources_density.insert(res, density);
+            if res.min_rank() <= rank && density > &0.0 {
+                resources_density.insert(*res, *density);
             }
         }
-
         PlanetInfo {
             position: planet.position,
-            resources_density: planet.resources_density.clone(),
+            resources_density,
         }
     }
 }
