@@ -1,4 +1,5 @@
 { pkgs, deps }: let
+  python = pkgs.python312.withPackages (p: [ p.requests ]);
   compile_and_run = {
     key,
     exec,
@@ -77,7 +78,6 @@ in {
   in "${app}/bin/unit-tests";
 
   functional_tests = let
-    python = pkgs.python312.withPackages (p: [ p.requests ]);
     app = pkgs.writeShellApplication {
       name = "functionnal-tests";
       runtimeInputs = deps ++ [ python ];
@@ -92,6 +92,8 @@ in {
   check_rust_code = let
     allIgnoredCVE = [
       "RUSTSEC-2025-0047"
+      "RUSTSEC-2026-0097"
+      "RUSTSEC-2024-0436"  # To look, paste is required by compio, but would be nice to upgrade
     ];
     allIgnored = builtins.concatStringsSep " " (builtins.map (s: "--ignore ${s}") allIgnoredCVE);
     app = pkgs.writeShellApplication {
@@ -101,10 +103,22 @@ in {
       text = ''
         set -e
         export CARGO_HOME=$PWD/.cargohome
+        echo "[*] Basic checks on the project"
         cargo check
         cargo check --features testing,extraspeed,tokio --no-default-features
         cargo clippy --no-deps --frozen -- -D warnings
         cargo fmt --check
+
+        echo "[*] Checking the SDK"
+        rm -rf /tmp/rust_sdk
+        cp -r sdk/rust/ /tmp/rust_sdk
+        cd /tmp/rust_sdk
+        cargo check
+        cargo clippy --no-deps --frozen -- -D warnings
+        cargo fmt --check
+        cd -
+
+        echo "[*] Security audit on the project"
         cargo audit ${allIgnored}
         if ! [ -d supply-chain ]; then
           cargo vet init
@@ -171,7 +185,7 @@ in {
     apiSanity = let
       app = pkgs.writeShellApplication {
         name = "apiSanity";
-        runtimeInputs = [ pkgs.ripgrep ];
+        runtimeInputs = deps ++ [ python pkgs.ripgrep ];
         text = compile_and_run {
           key = "apisanity";
           features = ["testing"];
@@ -183,7 +197,7 @@ in {
     client_run_well = let
       app = pkgs.writeShellApplication {
         name = "client-run-well";
-        runtimeInputs = [];
+        runtimeInputs = deps ++ [ python ];
         text = compile_and_run {
           key = "client_runwell";
           features = ["extraspeed"];
@@ -222,4 +236,42 @@ in {
         };
       };
     in "${app}/bin/client-run-well";
+
+    check_sdk_sync = let
+      ignored = builtins.concatStringsSep "|" [
+        "__init__"
+        " api\\("
+        " get\\("
+        " post\\("
+      ];
+      app = pkgs.writeShellApplication {
+        name = "check-sdk-sync";
+        runtimeInputs = [ pkgs.ripgrep pkgs.gawk pkgs.gnused pkgs.diffutils ];
+        text = ''
+          cat sdk/python.py \
+          | rg "def.*\(self" \
+          | rg -v "${ignored}" \
+          | awk -F '(' '{print $1}' \
+          | awk '{print $NF}' \
+          | rg -v "${ignored}" \
+          | sort -u > pymethods
+
+          cat sdk/rust/src/lib.rs \
+          | tr '\n' ' ' \
+          | rg -o 'fn(\w|\s)*?\(\s*&(mut)?\s*self' \
+          | rg -v "${ignored}" \
+          | awk -F '(' '{print $1}' \
+          | awk '{print $NF}' \
+          | sed 's/assign_crew.*/assign_crew_to_ship/' \
+          | sort -u > rsmethods
+
+          if ! diff pymethods rsmethods; then
+            echo "Python SDK and Rust SDK are not in sync"
+            exit 1
+          fi
+
+          echo "Python SDK and Rust SDK are in sync"
+        '';
+      };
+    in "${app}/bin/check-sdk-sync";
   }

@@ -94,6 +94,9 @@ class SimeisSDK:
             print("!!! Player already lost, please restart the server to reset the game")
             sys.exit(0)
 
+    def ping(self):
+        return self.get("/ping")
+
     def get_player_status(self):
         return self.get("/player/" + str(self.player["playerId"]))
 
@@ -251,14 +254,41 @@ class SimeisSDK:
     def buy_resource(self, sta, res, amnt):
         return self.post(f"/market/{sta}/buy/{res}/{amnt}")
 
-    def syslogs(self):
+    def get_syslogs(self):
         return self.get("/syslogs")["events"]
 
-    def resources_info(self):
+    def get_resources_info(self):
         return self.get("/resources")
 
-    def ship_wages_cost(self, ship_id):
+    def get_ship_wages_cost(self, ship_id):
         return self.get(f"/ship/{ship_id}/wages")["wages"]
+
+    def list_ship_crew_upgrades(self, sta, ship_id):
+        return self.get(f"/station/{sta}/crew/upgrade/ship/{ship_id}")
+
+    def list_ship_module_upgrades(self, sta, ship_id):
+        return self.get(f"/station/{sta}/shop/modules/{ship_id}/upgrade")
+
+    def list_ship_upgrades(self, sta, ship_id):
+        return self.get(f"/station/{sta}/shipyard/upgrade/{ship_id}")
+
+    def list_station_upgrades(self, sta):
+        return self.get(f"/station/{sta}/upgrades")
+
+    def upgrade_ship_crew(self, sta, ship_id, crew_id):
+        return self.post(f"/station/{sta}/crew/upgrade/ship/{ship_id}/{crew_id}")
+
+    def upgrade_ship_module(self, sta, ship_id, mod_id):
+        return self.post(f"/station/{sta}/shop/modules/{ship_id}/upgrade/{mod_id}")
+
+    def upgrade_station_cargo(self, sta, ncargo):
+        return self.post(f"/station/{sta}/shop/cargo/buy/{ncargo}")
+
+    def upgrade_station_crew(self, sta, crew_id):
+        return self.post(f"/station/{sta}/crew/upgrade/{crew_id}")
+
+    def buy_ship_upgrade(self, sta, ship_id, upgtype):
+        return self.post(f"/station/{sta}/shipyard/upgrade/{ship_id}/{upgtype}")
 
     def compute_mining_rate(self, modtype, modrank, oprank, planet):
         return  self.post("/calc/mining_rate", body={
@@ -290,7 +320,7 @@ class SimeisSDK:
         if crew_end_rank is None:
             crew_end_rank = crew_start_rank
         return self.post("/calc/upgrade/module", body={
-            "module_type": "modtype",
+            "module_type": modtype,
             "module_start_rank": mod_start_rank,
             "module_end_rank": mod_end_rank,
             "crew_start_rank": crew_start_rank,
