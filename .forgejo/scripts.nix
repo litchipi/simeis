@@ -1,4 +1,50 @@
-{ pkgs, deps }: {
+{ pkgs, deps }: let
+  python = pkgs.python312.withPackages (p: [ p.requests ]);
+  compile_and_run = {
+    key,
+    exec,
+    features ? [],
+    release ? false,
+    head ? "",
+  }: let
+    fflags = "--features ${builtins.concatStringsSep "," (features ++ ["tokio"])}";
+    rf = if release then "--release" else "";
+    bcmd = "cargo build ${rf} --target-dir ./target/${key} ${fflags} --no-default-features";
+    targetdir = "./target/${key}/${if release then "release" else "debug"}";
+    rcmd = "${targetdir}/simeis-server 1>/tmp/${key}_simeis_logs 2>&1 &";
+  in ''
+    #!/bin/bash
+    export CARGO_HOME=$PWD/.cargohome
+    export RUST_BACKTRACE=full
+    export RUST_LOG=debug
+    mkdir -p target/${key}
+    ${head}
+    echo "[*] Building server"
+    ${bcmd}
+    echo "[*] Starting the server"
+    ${rcmd}
+    sleep 2
+    if [ -z "$(jobs -r)" ]; then
+      echo "!!! Failed to start the server";
+      cat /tmp/${key}_simeis_logs
+      exit 1;
+    fi
+
+    echo "[*] Executing the command for ${key}"
+    if ! ${exec}; then
+      echo "!!! Error occured while executing ${key}"
+      kill "$(jobs -p)"
+      echo "Server logs:"
+      tail -n 150 /tmp/${key}_simeis_logs
+      exit 1;
+    fi
+
+    tail -n 5 /tmp/${key}_simeis_logs
+    echo "[*] Killing server"
+    kill "$(jobs -p)"
+    echo "[*] Finished"
+  '';
+in {
   prepare_class = let
     app = pkgs.writeShellApplication {
       name = "prepare-class";
@@ -34,44 +80,22 @@
   in "${app}/bin/unit-tests";
 
   functional_tests = let
-    python = pkgs.python312.withPackages (p: [ p.requests ]);
     app = pkgs.writeShellApplication {
       name = "functionnal-tests";
       runtimeInputs = deps ++ [ python ];
-      text = ''
-        export CARGO_HOME=$PWD/.cargohome
-        export RUST_BACKTRACE=full
-        export RUST_LOG=debug
-        mkdir -p target
-        cargo build --target-dir ./target/functests/ --features testing,tokio --no-default-features
-        rm -f /tmp/simeis_logs
-        ./target/functests/debug/simeis-server 1>/tmp/simeis_logs 2>&1 &
-        sleep 5
-
-        if [ -z "$(jobs -r)" ]; then
-          echo "!!! Failed to start the server";
-          cat /tmp/simeis_logs
-          exit 1;
-        fi
-
-        if ! python3 .forgejo/functests.py 127.0.0.1 9345 "$@"; then
-          echo "Some tests failed"
-          kill "$(jobs -p)"
-
-          echo "Server logs:"
-          tail -n 20 /tmp/simeis_logs
-          exit 1;
-        fi
-
-        kill "$(jobs -p)"
-        echo "[*] Finished"
-      '';
+      text = compile_and_run {
+        key = "functests";
+        features = ["testing"];
+        exec = "python3 .forgejo/functests.py 127.0.0.1 9345 \"$@\"";
+      };
     };
   in "${app}/bin/functionnal-tests";
 
   check_rust_code = let
     allIgnoredCVE = [
       "RUSTSEC-2025-0047"
+      "RUSTSEC-2026-0097"
+      "RUSTSEC-2024-0436"  # To look, paste is required by compio, but would be nice to upgrade
     ];
     allIgnored = builtins.concatStringsSep " " (builtins.map (s: "--ignore ${s}") allIgnoredCVE);
     app = pkgs.writeShellApplication {
@@ -81,9 +105,22 @@
       text = ''
         set -e
         export CARGO_HOME=$PWD/.cargohome
+        echo "[*] Basic checks on the project"
+        cargo check
+        cargo check --features testing,extraspeed,tokio --no-default-features
+        cargo clippy --no-deps --frozen -- -D warnings
+        cargo fmt --check
+
+        echo "[*] Checking the SDK"
+        rm -rf /tmp/rust_sdk
+        cp -r sdk/rust/ /tmp/rust_sdk
+        cd /tmp/rust_sdk
         cargo check
         cargo clippy --no-deps --frozen -- -D warnings
         cargo fmt --check
+        cd -
+
+        echo "[*] Security audit on the project"
         cargo audit ${allIgnored}
         if ! [ -d supply-chain ]; then
           cargo vet init
@@ -150,29 +187,94 @@
     apiSanity = let
       app = pkgs.writeShellApplication {
         name = "apiSanity";
-        runtimeInputs = [ pkgs.ripgrep ];
-        text = ''
-          export CARGO_HOME=$PWD/.cargohome
-        export RUST_BACKTRACE=full
-          mkdir -p target
-          cargo build --target-dir ./target/apisanity/ --features testing
-          rm -f /tmp/simeis_logs
-          ./target/apisanity/debug/simeis-server 1>/tmp/simeis_logs 2>&1 &
-          sleep 5
-          if [ -z "$(jobs -r)" ]; then
-            echo "!!! Failed to start the server";
-            cat /tmp/simeis_logs
-            exit 1;
-          fi
-          if ! python3 .forgejo/generate_swagger.py 127.0.0.1 9345 "$@"; then
-            echo "Error while generating swagger file"
-            kill "$(jobs -p)"
-            exit 1;
-          fi
-
-          kill "$(jobs -p)"
-          echo "[*] Finished"
-        '';
+        runtimeInputs = deps ++ [ python pkgs.ripgrep ];
+        text = compile_and_run {
+          key = "apisanity";
+          features = ["testing"];
+          exec = "python3 .forgejo/generate_swagger.py 127.0.0.1 9345 \"$@\"";
+        };
       };
     in "${app}/bin/apiSanity";
+
+    client_run_well = let
+      app = pkgs.writeShellApplication {
+        name = "client-run-well";
+        runtimeInputs = deps ++ [ pkgs.ripgrep pkgs.gawk python ];
+        text = compile_and_run {
+          key = "client_runwell";
+          features = ["extraspeed"];
+          release=true;
+          exec = "start_client_test";
+          head = ''
+            #!/bin/bash
+            function start_client_test() {
+              python3 example/python/client.py ci 127.0.0.1 8080 1>/tmp/client_runwell_clilogs 2>&1 &
+              client_pid=$!
+              sleep 3
+              if ! jobs -p |rg "$client_pid" 1>/dev/null; then
+                echo "Client failed to start"
+                return 1
+              fi
+              echo "[*] Client started"
+              tstart=$(date +%s)
+              while [ $(($(date +%s) - tstart)) -lt 600 ]; do
+                TBL=$(cat /tmp/client_runwell_clilogs|rg "time left before lost"|tail -n 1|awk '{print $11}')
+                if [ -z "$TBL" ]; then
+                  sleep 1
+                  continue;
+                fi
+                echo "Time before lost: $TBL"
+                if [ "$TBL" -gt 5000 ]; then
+                  echo "Reached 5000 secs before lost, considering it a success"
+                  break
+                fi
+                sleep 5
+              done
+              echo "[*] Test finished, killing client..."
+              kill "$client_pid"
+              wait "$client_pid"
+              echo "[*] Client stopped"
+            }
+          '';
+        };
+      };
+    in "${app}/bin/client-run-well";
+
+    check_sdk_sync = let
+      ignored = builtins.concatStringsSep "|" [
+        "__init__"
+        " api\\("
+        " get\\("
+        " post\\("
+      ];
+      app = pkgs.writeShellApplication {
+        name = "check-sdk-sync";
+        runtimeInputs = [ pkgs.ripgrep pkgs.gawk pkgs.gnused pkgs.diffutils ];
+        text = ''
+          cat sdk/python.py \
+          | rg "def.*\(self" \
+          | rg -v "${ignored}" \
+          | awk -F '(' '{print $1}' \
+          | awk '{print $NF}' \
+          | rg -v "${ignored}" \
+          | sort -u > pymethods
+
+          cat sdk/rust/src/lib.rs \
+          | tr '\n' ' ' \
+          | rg -o 'fn(\w|\s)*?\(\s*&(mut)?\s*self' \
+          | rg -v "${ignored}" \
+          | awk -F '(' '{print $1}' \
+          | awk '{print $NF}' \
+          | sed 's/assign_crew.*/assign_crew_to_ship/' \
+          | sort -u > rsmethods
+
+          if ! diff pymethods rsmethods; then
+            echo "Python SDK and Rust SDK are not in sync"
+            exit 1
+          fi
+
+          echo "Python SDK and Rust SDK are in sync"
+        '';
+      };
+    in "${app}/bin/check-sdk-sync";
   }

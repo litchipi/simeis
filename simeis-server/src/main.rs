@@ -1,4 +1,3 @@
-#![allow(unexpected_cfgs)]
 use std::thread::JoinHandle;
 
 use mea::mpsc::BoundedReceiver;

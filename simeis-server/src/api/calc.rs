@@ -235,14 +235,13 @@ async fn compute_upgrade_trader(body: Json<UpgradeTrader>) -> impl web::Responde
     })))
 }
 
-// TODO (#36) Endpoints for all kinds of computations
+// TODO (#44) Endpoints for all kinds of computations
 // - Prices of the upgrade of an industry + its operator (from source lvl to dst lvl), returns benefits, price, wages, etc...
 // - Resource requirements / production of an industry at a certain level
 
 pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
     srv.service(
         scope(base)
-            // TODO (#36) Add to SDK, update python & rust clients
             .service(compute_travel_costs)
             .service(compute_mining_rate)
             .service(compute_upgrade_ship)

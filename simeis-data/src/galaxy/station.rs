@@ -424,6 +424,10 @@ impl Station {
         pd.cargo.add_resource(resource, amnt)
     }
 
+    // TODO (#45)    Every X secs in game, update the shipyard
+    //    If len of shipyard is < 10, add a random one on top of existing ones
+    //    If len == 10, take one of the last 7 ships, and replace it with random
+
     pub async fn buy_ship(&self, index: usize) -> Ship {
         // Ship starters, always keep them
         let mut ship = if index < 3 {

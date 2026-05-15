@@ -130,7 +130,7 @@ impl Ship {
         }
     }
 
-    // TODO (#9) Create a new ship with random specs, with specs between +/- 20% base price
+    // TODO (#45) Create a new ship with random specs, with specs between +/- 20% base price
     //     Change it every X minutes
     //     Used by traders to seek nice ships to buy
 
@@ -153,7 +153,7 @@ impl Ship {
         price += self.fuel_tank_capacity * FUEL_TANK_CAP_PRICE;
         price += self.cargo.capacity * CARGO_CAP_PRICE;
         price += self.hull_resistance * HULL_RESIS_PRICE;
-        // TODO (#9) Add modules total value to ship price
+        // TODO (#45) Add modules total value to ship price
         // price += self.modules.values().map(|m| m.totalcost).sum::<f64>();
         price
     }
@@ -283,6 +283,7 @@ impl Ship {
                 return Ok(unloaded);
             }
         }
+        self.cargo.usage = 0.0; // Usage can have rounding errors sometimes
         Ok(unloaded)
     }
 

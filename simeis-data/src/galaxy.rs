@@ -1,4 +1,3 @@
-#![allow(unexpected_cfgs)]
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -26,7 +25,6 @@ const SECTOR_SIZE: (SpaceUnit, SpaceUnit, SpaceUnit) = (5000, 5000, 5000);
 const PLANETS_PER_SECTOR: usize = 8;
 const STATION_FPLANET_DIST: f64 = 500.0;
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub enum SpaceObject {
     BaseStation(StationId, Arc<station::Station>),

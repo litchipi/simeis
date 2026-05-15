@@ -1,4 +1,3 @@
-#![allow(dead_code, unused_variables)]
 use serde_json::{Value, json};
 
 use std::collections::{BTreeMap, HashMap};
@@ -115,7 +114,7 @@ impl SimeisSDK {
         sdk
     }
 
-    fn api<T: ToString>(&self, path: T, get: bool) -> ApiResult {
+    fn api<T: ToString>(&self, path: T, get: bool, body: Option<Value>) -> ApiResult {
         debug_assert!(path.to_string().starts_with("/"));
 
         let got = if get {
@@ -129,19 +128,23 @@ impl SimeisSDK {
             if let Some(ref key) = self.player_key {
                 req = req.header("Simeis-Key", key);
             }
-            req.send(&[0u8; 0])
+            let mut data = vec![];
+            if let Some(ref b) = body {
+                serde_json::to_writer(&mut data, b).unwrap()
+            }
+            req.send(&data)
         };
         if let Err(ref e) = got {
             match e {
                 ureq::Error::StatusCode(408) => {
                     log::warn!("Timeout");
                     std::thread::sleep(Duration::from_millis(100));
-                    return self.api(path, get);
+                    return self.api(path, get, body);
                 }
                 ureq::Error::StatusCode(101) => {
                     log::warn!("Network unreachable");
                     std::thread::sleep(Duration::from_secs(2));
-                    return self.api(path, get);
+                    return self.api(path, get, body);
                 }
                 err => {
                     return Err(json!({
@@ -166,11 +169,15 @@ impl SimeisSDK {
     }
 
     pub fn get<T: ToString>(&self, path: T) -> ApiResult {
-        self.api(path, true)
+        self.api(path, true, None)
     }
 
     pub fn post<T: ToString>(&self, path: T) -> ApiResult {
-        self.api(path, false)
+        self.api(path, false, None)
+    }
+
+    pub fn post_with_body<T: ToString>(&self, path: T, body: Value) -> ApiResult {
+        self.api(path, false, Some(body))
     }
 
     pub fn ping(&self) -> bool {
@@ -229,7 +236,7 @@ impl SimeisSDK {
         self.get(format!("/station/{station_id}"))
     }
 
-    pub fn list_shop_modules(&self, station_id: u64) -> Result<Vec<Value>, Value> {
+    pub fn shop_list_modules(&self, station_id: u64) -> Result<Vec<Value>, Value> {
         let mut all = self.get(format!("/station/{station_id}/shop/modules"))?;
         let allvec = all.as_array_mut().unwrap();
         allvec.sort_by(|a, b| {
@@ -243,7 +250,7 @@ impl SimeisSDK {
         Ok(data)
     }
 
-    pub fn list_shop_ship(&self, station_id: u64) -> Result<Vec<Value>, Value> {
+    pub fn shop_list_ship(&self, station_id: u64) -> Result<Vec<Value>, Value> {
         let all = self.get(format!("/station/{station_id}/shipyard/list"))?;
         let Value::Object(mut omap) = all else {
             unreachable!();
@@ -524,7 +531,7 @@ impl SimeisSDK {
         self.post(format!("/station/{station_id}/shop/cargo/buy/{ncargo}"))
     }
 
-    pub fn get_ship_crew_upgrades(
+    pub fn list_ship_crew_upgrades(
         &self,
         station_id: u64,
         ship_id: u64,
@@ -538,7 +545,7 @@ impl SimeisSDK {
         Ok(result)
     }
 
-    pub fn get_ship_module_upgrades(
+    pub fn list_ship_module_upgrades(
         &self,
         station_id: u64,
         ship_id: u64,
@@ -583,5 +590,80 @@ impl SimeisSDK {
         self.post(format!(
             "/station/{station_id}/shipyard/upgrade/{ship_id}/{upgtype}"
         ))
+    }
+
+    pub fn compute_mining_rate(
+        &self,
+        modtype: &str,
+        modrank: u8,
+        oprank: u8,
+        planet: (u64, u64, u64),
+    ) -> Result<HashMap<String, f64>, Value> {
+        let data = self.post_with_body(
+            "/calc/mining_rate",
+            json!({
+                "module_type": modtype,
+                "module_rank": modrank,
+                "operator_rank": oprank,
+                "planet_coord": planet,
+            }),
+        )?;
+        let mut result = HashMap::new();
+        for (res, rate) in data.as_object().unwrap() {
+            result.insert(res.clone(), rate.as_f64().unwrap());
+        }
+        Ok(result)
+    }
+
+    pub fn compute_upgrade_ship(
+        &self,
+        start_reactor: u8,
+        end_reactor: u8,
+        start_shield: u8,
+        end_shield: u8,
+        start_pilot: u8,
+        end_pilot: u8,
+    ) -> ApiResult {
+        self.post_with_body(
+            "/calc/upgrade/ship",
+            json!({
+                "pilot_start_rank": start_pilot,
+                "pilot_end_rank": end_pilot,
+                "start_reactor_power": start_reactor,
+                "end_reactor_power": end_reactor,
+                "start_shield_power": start_shield,
+                "end_shield_power": end_shield,
+            }),
+        )
+    }
+
+    pub fn compute_upgrade_module(
+        &self,
+        modtype: &str,
+        start_mod: u8,
+        end_mod: u8,
+        start_op: u8,
+        end_op: u8,
+    ) -> ApiResult {
+        self.post_with_body(
+            "/calc/upgrade/module",
+            json!({
+                "module_type": modtype,
+                "module_start_rank": start_mod,
+                "module_end_rank": end_mod,
+                "crew_start_rank": start_op,
+                "crew_end_rank": end_op,
+            }),
+        )
+    }
+
+    pub fn compute_upgrade_trader(&self, start_rank: u8, end_rank: u8) -> ApiResult {
+        self.post_with_body(
+            "/calc/upgrade/trader",
+            json!({
+                "trader_start_rank": start_rank,
+                "trader_end_rank": end_rank,
+            }),
+        )
     }
 }

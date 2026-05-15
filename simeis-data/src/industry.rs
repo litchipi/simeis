@@ -21,16 +21,16 @@ const ABASE_REQ: f64 = 7.5;
 // The resource cost (in credits) should be the same whatever the unit is
 // As long as it's the same class (simple / advanced)
 pub const fn get_simple_industry_resources_cost() -> f64 {
-    (SBASE_REQ * Resource::Hydrogen.base_price())
-        + (SBASE_REQ * 0.2 * Resource::Oxygen.base_price())
-        + (SBASE_REQ * 1.25 * Resource::Carbon.base_price())
-        + (SBASE_REQ * 0.4 * Resource::Water.base_price())
+    (SBASE_REQ * Resource::Hydrogen.base_price())             // Gas 1
+        + (SBASE_REQ * 0.2 * Resource::Oxygen.base_price())   // Gas 2
+        + (SBASE_REQ * 1.25 * Resource::Iron.base_price())    // Solid 1
+        + (SBASE_REQ * 0.4 * Resource::Water.base_price()) // Liquid 1
 }
 
 pub const fn get_advanced_industry_resources_cost() -> f64 {
-    (ABASE_REQ * Resource::Carbon.base_price())
-        + (ABASE_REQ * 0.4 * Resource::Oil.base_price())
-        + (ABASE_REQ * 0.2 * Resource::Helium.base_price())
+    (ABASE_REQ * Resource::Iron.base_price())                     // Solid 1
+        + (ABASE_REQ * 0.4 * Resource::SulfuricAcid.base_price()) // Liquid 4
+        + (ABASE_REQ * 0.2 * Resource::Helium.base_price()) // Gas 3
 }
 
 pub const fn get_sbase_produce_base() -> f64 {
@@ -135,17 +135,17 @@ impl IndustryUnit {
             IndustryUnitType::SimpleFuelRefinery => {
                 let sbase = SBASE_REQ * (self.rank as f64);
                 vec![
-                    (Resource::Hydrogen, sbase),      // Gas 1
-                    (Resource::Oxygen, sbase * 0.2),  // Gas 2
-                    (Resource::Carbon, sbase * 1.25), // Solid 1
-                    (Resource::Water, sbase * 0.4),   // Liquid 1
+                    (Resource::Hydrogen, sbase),     // Gas 1
+                    (Resource::Oxygen, sbase * 0.2), // Gas 2
+                    (Resource::Iron, sbase * 1.25),  // Solid 1
+                    (Resource::Water, sbase * 0.4),  // Liquid 1
                 ]
             }
             IndustryUnitType::SimpleHullFoundry => {
                 let sbase = SBASE_REQ * (self.rank as f64);
                 vec![
-                    (Resource::Carbon, sbase),          // Solid 1
-                    (Resource::Iron, sbase * 0.2),      // Solid 2
+                    (Resource::Iron, sbase),            // Solid 1
+                    (Resource::Copper, sbase * 0.2),    // Solid 2
                     (Resource::Hydrogen, sbase * 1.25), // Gas 1
                     (Resource::Water, 0.5 * 0.4),       // Liquid 1
                 ]
@@ -153,17 +153,17 @@ impl IndustryUnit {
             IndustryUnitType::AdvancedFuelRefinery => {
                 let abase = ABASE_REQ * (self.rank as f64);
                 vec![
-                    (Resource::Carbon, abase),       // Solid 1
-                    (Resource::Oil, abase * 0.4),    // Liquid 3
-                    (Resource::Helium, abase * 0.2), // Gas 3
+                    (Resource::Iron, abase),               // Solid 1
+                    (Resource::SulfuricAcid, abase * 0.4), // Liquid 3
+                    (Resource::Helium, abase * 0.2),       // Gas 3
                 ]
             }
             IndustryUnitType::AdvancedHullFoundry => {
                 let abase = ABASE_REQ * (self.rank as f64);
                 vec![
-                    (Resource::Hydrogen, abase),     // Gas 1
-                    (Resource::Copper, abase * 0.4), // Solid 3
-                    (Resource::Oil, abase * 0.2),    // Liquid 3
+                    (Resource::Hydrogen, abase),       // Gas 1
+                    (Resource::Titanium, abase * 0.4), // Solid 3
+                    (Resource::Brine, abase * 0.2),    // Liquid 3
                 ]
             }
         }

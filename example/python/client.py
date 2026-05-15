@@ -2,6 +2,24 @@ import sys
 import time
 from sdk import SimeisSDK
 
+# En fonction de la densité de resources disponible sur la planète
+# On choisi un module plutôt qu'un autre
+def decide_mod_to_buy(planet):
+    res = planet["resources_density"]
+    print("Deciding which resource to extract from planet", planet["position"])
+    print("Iron:", res["Iron"])
+    print("Water:", res["Water"])
+    print("Hydrogen:", res["Hydrogen"])
+    # More iron -> Miner
+    if res["Iron"] > res["Water"] and res["Iron"] > res["Hydrogen"]:
+        return "Miner"
+    # More water -> Pump
+    elif res["Water"] > res["Hydrogen"]:
+        return "Pump"
+    # More gas -> GasSucker
+    else:
+        return "GasSucker"
+
 class Game:
     def __init__(self, username, ip, port):
         self.sdk = SimeisSDK(username, ip, port)
@@ -12,7 +30,7 @@ class Game:
 
         # On a besoin de savoir quelle planète miner pour équiper notre vaisseau
         nearest_planet = self.sdk.scan_planets(sta)[0]
-        print("Targeting planet", nearest_planet)
+        print("Targeting planet", nearest_planet["position"])
 
         # Si on commence une nouvelle partie, on s'équipe
         if len(status["ships"]) == 0:
@@ -24,11 +42,8 @@ class Game:
             ship = all_ships[0]
             self.sdk.buy_ship(sta, ship["id"])
 
-            # En fonction de la planète, on achète un module de minage différent
-            if nearest_planet["solid"]:
-                mod = "Miner"
-            else:
-                mod = "GasSucker"
+            mod = decide_mod_to_buy(nearest_planet)
+            print("Buying a", mod, "extraction module")
             mod = self.sdk.buy_module_on_ship(sta, ship["id"], mod)
 
             # On embauche du personnel
@@ -74,6 +89,7 @@ class Game:
                 print(f"{res}: {amnt} /sec")
                 totpersec += amnt * prices[res]
             print(f"Total: {totpersec} credits / sec")
+            print("Time to fill cargo:", info["time_fill_cargo"], "secs")
 
             # On attends que l'extraction termine
             # Elle se termine automatiquement quand le cargo est plein
