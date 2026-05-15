@@ -39,7 +39,6 @@
       exit 1;
     fi
 
-    tail -n 5 /tmp/${key}_simeis_logs
     echo "[*] Killing server"
     kill "$(jobs -p)"
     echo "[*] Finished"
