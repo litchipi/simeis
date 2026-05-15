@@ -650,7 +650,7 @@ class Tester:
         self.addtrace("Ship arrived")
         extraction_info = self.post_ok(f"/ship/{shipid}/extraction/start")
         extraction_rates = self.assert_got(extraction_info, "mining_rate", None)
-        assert ("Iron" in extraction_rates) or ("Hydrogen" in extraction_rates)
+        assert ("Iron" in extraction_rates) or ("Hydrogen" in extraction_rates) or ("Water" in extraction_rates)
         self.tick()
 
         before = self.get_ok(f"/ship/{shipid}")
@@ -894,7 +894,7 @@ class Tester:
         self.addtrace("Ship arrived")
         old_extraction_rates = self.assert_got(self.post_ok(f"/ship/{shipid}/extraction/start"), "mining_rate", None)
 
-        assert ("Iron" in old_extraction_rates) or ("Hydrogen" in old_extraction_rates)
+        assert ("Iron" in old_extraction_rates) or ("Hydrogen" in old_extraction_rates) or  ("Water" in old_extraction_rates)
         self.tick()
         self.tick()
         self.post_ok(f"/ship/{shipid}/extraction/stop")

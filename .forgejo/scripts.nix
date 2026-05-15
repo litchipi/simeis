@@ -33,13 +33,15 @@
     echo "[*] Executing the command for ${key}"
     if ! ${exec}; then
       echo "!!! Error occured while executing ${key}"
-      jobs -p|xargs kill
+      kill "$(jobs -p)"
       echo "Server logs:"
       tail -n 150 /tmp/${key}_simeis_logs
       exit 1;
     fi
 
-    jobs -p|xargs kill
+    tail -n 5 /tmp/${key}_simeis_logs
+    echo "[*] Killing server"
+    kill "$(jobs -p)"
     echo "[*] Finished"
   '';
 in {
@@ -228,8 +230,10 @@ in {
                 fi
                 sleep 5
               done
-              echo "Test finished, killing client..."
-              echo "$client_pid" | xargs kill
+              echo "[*] Test finished, killing client..."
+              kill "$client_pid"
+              wait "$client_pid"
+              echo "[*] Client stopped"
             }
           '';
         };
