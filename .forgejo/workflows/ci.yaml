@@ -46,12 +46,14 @@ jobs:
       - name: "Functional tests"
         run: nix run .#functional_tests --show-trace -L
 
-  sdk-check:
+  api-check:
     runs-on: nix
     steps:
       - uses: actions/checkout@v4
       - name: "Check if SDKs are in sync"
         run: nix run .#check_sdk_sync --show-trace -L
+      - name: "Check if swagger and SDKs are in sync with API"
+        run: nix run .#api_sanity --show-trace -L
 
   code-check:
     runs-on: nix

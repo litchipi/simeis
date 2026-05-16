@@ -3,13 +3,114 @@ import sys
 import json
 import requests
 
+IS_CI = os.getenv("CI")
+
+PYSDK_IGNORE_CHECKS = {
+    "post": [
+        "/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/pilot"
+    ],
+    "get": [
+    ],
+}
+RSSDK_IGNORE_CHECKS = {
+    "post": [],
+    "get": [],
+}
+
 IGNORED_LINES = [
     "TO" + "DO",
-    "FIXME",
+    "FIX" + "ME",
 ]
 
 MDATA_KEYS = ["summary", "returns", "postbody"]
 OPT_KEYS = ["postbody"]
+
+def replace_params(fr, to):
+    if fr.count("{") != to.count("{"):
+        return None
+    params = [s.split("}")[0] for s in fr.split("{")[1:]]
+    if len(params) == 0:
+        return to
+    idx = 0
+    start = to.find("{")
+    result = to[:start]
+    for param in params:
+        end = to.find("}", start) + 1
+        result += "{" + param + "}"
+        start = to.find("{", end)
+        if start == -1:
+            start = len(to)
+        result += to[end:start]
+    return result
+
+def find_next_post(s, start):
+    n1 = s.find("self.post(", start)
+    n2 = s.find("self.post_with_body(", start)
+    if n1 < 0 and n2 < 0:
+        return None, None
+    if n1 >= 0:
+        n = n1
+        n1 += len("self.post(")
+    if n2 >= 0:
+        if n1 == -1:
+            n = n2
+        else:
+            n = min(n1, n2)
+        n2 += len("self.post_with_body(")
+    # print(n1, n2, n)
+    start = s.find("\"", n) + 1
+    assert start > 0 # -1 + 1 becomes 0
+    end = s.find("\"", start)
+    p = s[start:end]
+    return p, end
+
+def find_next_get(s, start):
+    n = s.find("self.get(", start)
+    if n < 0:
+        return None, None
+    n += len("self.get(")
+    start = s.find("\"", n) + 1
+    assert start > 0 # -1 + 1 becomes 0
+    end = s.find("\"", start)
+    p = s[start:end]
+    return p, end
+
+def match_a_path(s, paths, method):
+    np = s.count("{")
+    for checkpath, data in paths.items():
+        if method not in data.keys():
+            continue
+        if checkpath.count("{") != np:
+            continue
+        if replace_params(checkpath, s) == checkpath:
+            return checkpath
+    return None
+
+def check_missing_sdk(sdkcode, paths, ign):
+    done = {
+        "get": {p:False for p in paths if "get" in paths[p]},
+        "post": {p:False for p in paths if "post" in paths[p]},
+    }
+    next_get, idx = find_next_get(sdkcode, 0)
+    while next_get is not None:
+        matched = match_a_path(next_get, paths, "get")
+        if matched is not None:
+            done["get"][matched] = True
+        next_get, idx = find_next_get(sdkcode, idx)
+
+    next_post, idx = find_next_post(sdkcode, 0)
+    while next_post is not None:
+        matched = match_a_path(next_post, paths, "post")
+        if matched is not None:
+            done["post"][matched] = True
+        next_post, idx = find_next_post(sdkcode, idx)
+
+    missing = []
+    for m, data in done.items():
+        for p, d in data.items():
+            if not d and p not in ign[m]:
+                missing.append((m, p))
+    return missing
 
 def check_all_metadata(trace, mdata):
     for k in MDATA_KEYS:
@@ -89,13 +190,15 @@ def mk_schema(val):
         raise Exception(f"Unsupported type for OpenAPI type: {ty}")
 
 class ApiChecker:
-    def __init__(self, host, port, root):
+    def __init__(self, host, port, root, check=False):
+        self.check_paths_only = check
         self.host = host
         self.port = port
         self.root = root
         self.examples = {}
         self.path_params = {}
         self.bodies = {}
+        self.return_code = 0
         version = get_version(os.path.join(root, "../Cargo.toml"))
         with open(os.path.join(root, "main.rs"), "r") as f:
             main = f.read().split("\n")
@@ -115,6 +218,8 @@ class ApiChecker:
         assert self.get("/ping")["error"] == "ok"
 
     def get(self, path, timeout=5):
+        if self.check_paths_only:
+            return {"error": "ok"}
         headers = {}
         if hasattr(self, "key"):
             headers["Simeis-Key"] = str(self.key)
@@ -126,6 +231,8 @@ class ApiChecker:
         return json.loads(got.text)
 
     def post(self, path, timeout=5, body=None):
+        if self.check_paths_only:
+            return {"error": "ok"}
         headers = {}
         if hasattr(self, "key"):
             headers["Simeis-Key"] = str(self.key)
@@ -237,11 +344,23 @@ class ApiChecker:
             self.swagger["paths"][path] = { method: data }
             code = code[nline+1:]
 
-    def check_rust_sdk(self):
-        pass
+    # Check if all swagger paths are found in Rust SDK
+    def check_missing_rust_sdk(self):
+        with open(os.path.join(self.root, "../../sdk/rust/src/lib.rs"), "r") as f:
+            rssdk = f.read()
+        missing = check_missing_sdk(rssdk, self.swagger["paths"], RSSDK_IGNORE_CHECKS)
+        for m, p in missing:
+            print("!!! Missing method from Rust SDK: ", m, p)
+            self.return_code = 1
 
-    def check_python_sdk(self):
-        pass
+    # Check if all swagger parts are found in Python SDK
+    def check_missing_python_sdk(self):
+        with open(os.path.join(self.root, "../../sdk/python.py"), "r") as f:
+            pysdk = f.read()
+        missing = check_missing_sdk(pysdk, self.swagger["paths"], PYSDK_IGNORE_CHECKS)
+        for m, p in missing:
+            print("!!! Missing method from Python SDK: ", m, p)
+            self.return_code = 1
 
     def check_func_tests(self):
         pass
@@ -268,6 +387,14 @@ class ApiChecker:
         pass
 
     def generate_swagger(self, outfile):
+        with open(outfile, "r") as f:
+            current = json.load(f)
+        ckeys = list(current["paths"].keys())
+        skeys = list(self.swagger["paths"].keys())
+        if ckeys != skeys:
+            print("[*] Swagger generation is required")
+            if IS_CI:
+                self.return_code = 1
         with open(outfile, "w") as f:
             json.dump(self.swagger, f, indent=2)
 
@@ -403,17 +530,19 @@ class ApiChecker:
             "trader_end_rank": 3,
         })
 
-ip = sys.argv[1]
-port = sys.argv[2]
+if __name__ == "__main__":
+    ip = sys.argv[1]
+    port = sys.argv[2]
 
-proj = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-rootd = os.path.join(proj, "simeis-server/src")
+    proj = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    rootd = os.path.join(proj, "simeis-server/src")
 
-checker = ApiChecker(ip, port, rootd)
-checker.prepare_examples()
-checker.crawl()
-checker.check_rust_sdk()
-checker.check_python_sdk()
-checker.check_func_tests()
-checker.generate_swagger(os.path.join(proj, "doc/swagger.json"))
-checker.generate_html_file(proj, os.path.join(proj, "doc/swagger-ui.html"))
+    checker = ApiChecker(ip, port, rootd)
+    checker.prepare_examples()
+    checker.crawl()
+    checker.check_missing_rust_sdk()
+    checker.check_missing_python_sdk()
+    checker.check_func_tests()
+    checker.generate_swagger(os.path.join(proj, "doc/swagger.json"))
+    checker.generate_html_file(proj, os.path.join(proj, "doc/swagger-ui.html"))
+    sys.exit(checker.return_code)

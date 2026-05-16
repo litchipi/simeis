@@ -33,15 +33,14 @@
     echo "[*] Executing the command for ${key}"
     if ! ${exec}; then
       echo "!!! Error occured while executing ${key}"
-      kill "$(jobs -p)"
+      jobs -p | xargs kill 2>/dev/null
       echo "Server logs:"
-      tail -n 150 /tmp/${key}_simeis_logs
+      tail -n 15 /tmp/${key}_simeis_logs
       exit 1;
     fi
 
-    tail -n 5 /tmp/${key}_simeis_logs
     echo "[*] Killing server"
-    kill "$(jobs -p)"
+    jobs -p | xargs kill 2>/dev/null
     echo "[*] Finished"
   '';
 in {
@@ -184,17 +183,17 @@ in {
     };
     in "${app}/bin/check-todos";
 
-    apiSanity = let
+    api_sanity = let
       app = pkgs.writeShellApplication {
-        name = "apiSanity";
+        name = "api_sanity";
         runtimeInputs = deps ++ [ python pkgs.ripgrep ];
         text = compile_and_run {
           key = "apisanity";
           features = ["testing"];
-          exec = "python3 .forgejo/generate_swagger.py 127.0.0.1 9345 \"$@\"";
+          exec = "python3 .forgejo/check_api_sanity.py 127.0.0.1 9345 \"$@\"";
         };
       };
-    in "${app}/bin/apiSanity";
+    in "${app}/bin/api_sanity";
 
     client_run_well = let
       app = pkgs.writeShellApplication {
@@ -211,8 +210,8 @@ in {
               python3 example/python/client.py ci 127.0.0.1 8080 1>/tmp/client_runwell_clilogs 2>&1 &
               client_pid=$!
               sleep 3
-              if ! jobs -p |rg "$client_pid" 1>/dev/null; then
-                echo "Client failed to start"
+              if ! kill -0 "$client_pid" 2>/dev/null; then
+                echo "!!! Client failed to start"
                 return 1
               fi
               echo "[*] Client started"
@@ -265,7 +264,8 @@ in {
           | rg -v "${ignored}" \
           | awk -F '(' '{print $1}' \
           | awk '{print $NF}' \
-          | sed 's/assign_crew.*/assign_crew_to_ship/' \
+          | sed 's/assign_crew_to_ship_module/assign_crew_to_ship/' \
+          | sed 's/assign_crew_as_ship_pilot/assign_crew_to_ship/' \
           | sort -u > rsmethods
 
           if ! diff pymethods rsmethods; then
