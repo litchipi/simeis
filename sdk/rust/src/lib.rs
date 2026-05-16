@@ -336,20 +336,26 @@ impl SimeisSDK {
 
     pub fn compute_travel_cost(&self, ship_id: u64, position: (u64, u64, u64)) -> ApiResult {
         let (x, y, z) = position;
-        self.post_with_body("/calc/navigation", json!({
-            "x": x,
-            "y": y,
-            "z": z,
-        }))
+        self.post_with_body(
+            "/calc/navigation",
+            json!({
+                "x": x,
+                "y": y,
+                "z": z,
+            }),
+        )
     }
 
     pub fn travel(&self, ship_id: u64, position: (u64, u64, u64), wait_end: bool) -> ApiResult {
         let (x, y, z) = position;
-        let costs = self.post_with_body(format!("/ship/{ship_id}/navigate"), json!({
-            "x": x,
-            "y": y,
-            "z": z,
-        }))?;
+        let costs = self.post_with_body(
+            format!("/ship/{ship_id}/navigate"),
+            json!({
+                "x": x,
+                "y": y,
+                "z": z,
+            }),
+        )?;
         if wait_end {
             let duration = json_get_float("duration", &costs).unwrap();
             std::thread::sleep(Duration::from_secs_f64(duration));
@@ -712,22 +718,35 @@ impl SimeisSDK {
     }
 
     pub fn get_industry_production(&self, station_id: u64, industry_id: u64) -> ApiResult {
-        self.get(format!("/station/{station_id}/industry/production/{industry_id}"))
+        self.get(format!(
+            "/station/{station_id}/industry/production/{industry_id}"
+        ))
     }
 
-    pub fn assign_crew_to_industry(&self, station_id: u64, crew_id: u64, industry_id: u64) -> ApiResult {
-        self.post(format!("/station/{station_id}/crew/assign/{crew_id}/industry/{industry_id}"))
+    pub fn assign_crew_to_industry(
+        &self,
+        station_id: u64,
+        crew_id: u64,
+        industry_id: u64,
+    ) -> ApiResult {
+        self.post(format!(
+            "/station/{station_id}/crew/assign/{crew_id}/industry/{industry_id}"
+        ))
     }
 
-    pub fn start_industry(&self,  station_id: u64, industry_id: u64) -> ApiResult {
-        self.post(format!("/station/{station_id}/industry/start/{industry_id}"))
+    pub fn start_industry(&self, station_id: u64, industry_id: u64) -> ApiResult {
+        self.post(format!(
+            "/station/{station_id}/industry/start/{industry_id}"
+        ))
     }
 
-    pub fn stop_industry(&self,  station_id: u64, industry_id: u64) -> ApiResult {
+    pub fn stop_industry(&self, station_id: u64, industry_id: u64) -> ApiResult {
         self.post(format!("/station/{station_id}/industry/stop/{industry_id}"))
     }
 
     pub fn upgrade_industry(&self, station_id: u64, industry_id: u64) -> ApiResult {
-        self.post(format!("/station/{station_id}/industry/upgrade/{industry_id}"))
+        self.post(format!(
+            "/station/{station_id}/industry/upgrade/{industry_id}"
+        ))
     }
 }
