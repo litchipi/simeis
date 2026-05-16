@@ -81,7 +81,8 @@ class SimeisSDK:
 
         # Try to get the profile
         try:
-            player = self.get("/player/{}".format(self.player["playerId"]))
+            id = self.players["playerId"]
+            player = self.get(f"/player/{id}")
 
         # If we fail, that must be that the player doesn't exist on the server
         except SimeisError:
@@ -98,7 +99,8 @@ class SimeisSDK:
         return self.get("/ping")
 
     def get_player_status(self):
-        return self.get("/player/" + str(self.player["playerId"]))
+        id = str(self.player["playerId"])
+        return self.get(f"/player/{id}")
 
     def get_ship_status(self, ship_id):
         return self.get(f"/ship/{ship_id}")
@@ -123,6 +125,9 @@ class SimeisSDK:
     def hire_crew(self, sta, crewtype):
         return self.post(f"/station/{sta}/crew/hire/{crewtype.lower()}")
 
+    def fire_crew(self, sta, crew_id):
+        return self.post(f"/station/{sta}/crew/fire/{crew_id}")
+
     def assign_crew_to_ship(self, sta, shipid, operator_id, role):
         return self.post(f"/station/{sta}/crew/assign/{operator_id}/ship/{shipid}/{role}")
 
@@ -146,6 +151,9 @@ class SimeisSDK:
         if wait_end:
             time.sleep(costs["duration"])
             self.wait_until_ship_idle(ship_id)
+
+    def stop_travel(self, ship_id):
+        return self.post(f"/ship/{ship_id}/navigation/stop")
 
     def wait_until_ship_idle(self, ship_id, ts=0.2):
         ship = self.get(f"/ship/{ship_id}")
@@ -228,6 +236,9 @@ class SimeisSDK:
 
     def start_extraction(self, ship_id):
         return self.post(f"/ship/{ship_id}/extraction/start")
+
+    def stop_extraction(self, ship_id):
+        return self.post(f"/ship/{ship_id}/extraction/stop")
 
     def unload(self, sta, ship_id, res, amnt):
         return self.post(f"/ship/{ship_id}/unload/{sta}/{res}/{amnt}")
@@ -333,4 +344,32 @@ class SimeisSDK:
             "trader_end_rank": end,
         })
 
-    # TODO (#33) Industry
+    def game_version(self):
+        return self.get("/version")
+
+    def get_game_stats(self):
+        return self.get("/gamestats")
+
+    def get_fee_rate(self, sta):
+        return self.get(f"/market/{sta}/fee_rate")
+
+    def list_industry_to_buy(self, sta):
+        return self.get(f"/station/{sta}/industry/buy")
+
+    def buy_industry(self, sta, name):
+        return self.post(f"/station/{sta}/industry/buy/{name}")
+
+    def get_industry_production(self, sta, iid):
+        return self.get(f"/station/{sta}/industry/production/{iid}")
+
+    def assign_crew_to_industry(self, sta, crew_id, iid):
+        return self.post(f"/station/{sta}/crew/assign/{crew_id}/industry/{iid}")
+
+    def start_industry(self, sta, iid):
+        return self.post(f"/station/{sta}/industry/start/{iid}")
+
+    def stop_industry(self, sta, iid):
+        return self.post(f"/station/{sta}/industry/stop/{iid}")
+
+    def upgrade_industry(self, sta, iid):
+        return self.post(f"/station/{sta}/industry/upgrade/{iid}")

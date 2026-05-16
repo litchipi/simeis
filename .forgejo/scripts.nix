@@ -35,7 +35,7 @@
       echo "!!! Error occured while executing ${key}"
       kill "$(jobs -p)"
       echo "Server logs:"
-      tail -n 150 /tmp/${key}_simeis_logs
+      tail -n 15 /tmp/${key}_simeis_logs
       exit 1;
     fi
 
@@ -183,17 +183,17 @@ in {
     };
     in "${app}/bin/check-todos";
 
-    apiSanity = let
+    api_sanity = let
       app = pkgs.writeShellApplication {
-        name = "apiSanity";
+        name = "api_sanity";
         runtimeInputs = deps ++ [ python pkgs.ripgrep ];
         text = compile_and_run {
           key = "apisanity";
           features = ["testing"];
-          exec = "python3 .forgejo/generate_swagger.py 127.0.0.1 9345 \"$@\"";
+          exec = "python3 .forgejo/check_api_sanity.py 127.0.0.1 9345 \"$@\"";
         };
       };
-    in "${app}/bin/apiSanity";
+    in "${app}/bin/api_sanity";
 
     client_run_well = let
       app = pkgs.writeShellApplication {
