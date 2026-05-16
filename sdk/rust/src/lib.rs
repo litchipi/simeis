@@ -334,14 +334,24 @@ impl SimeisSDK {
         ))
     }
 
-    pub fn compute_travel_cost(&self, ship_id: u64, position: (u64, u64, u64)) -> ApiResult {
-        let (x, y, z) = position;
+    pub fn compute_travel_cost(
+        &self,
+        origin: (u64, u64, u64),
+        dest: (u64, u64, u64),
+        speed: f64,
+        fuelcons: f64,
+        hullusage: f64,
+    ) -> ApiResult {
         self.post_with_body(
             "/calc/navigation",
             json!({
-                "x": x,
-                "y": y,
-                "z": z,
+                "origin": origin,
+                "dest": dest,
+                "ship_stats": json!({
+                    "speed": speed,
+                    "fuel_consumption": fuelcons,
+                    "hull_usage_rate": hullusage,
+                }),
             }),
         )
     }
@@ -696,7 +706,8 @@ impl SimeisSDK {
     }
 
     pub fn game_version(&self) -> Result<String, Value> {
-        self.get("/version")
+        let res = self.get("/version")?;
+        Ok(json_get_string("version", &res).unwrap().to_string())
     }
 
     pub fn get_game_stats(&self) -> ApiResult {
@@ -705,7 +716,7 @@ impl SimeisSDK {
 
     pub fn get_fee_rate(&self, station_id: u64) -> Result<f64, Value> {
         let res = self.get(format!("/market/{station_id}/fee_rate"))?;
-        let fr = json_get_float("fee_rate", res).unwrap();
+        let fr = json_get_float("fee_rate", &res).unwrap();
         Ok(fr)
     }
 
