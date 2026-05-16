@@ -33,14 +33,14 @@
     echo "[*] Executing the command for ${key}"
     if ! ${exec}; then
       echo "!!! Error occured while executing ${key}"
-      kill "$(jobs -p)"
+      jobs -p | xargs kill 2>/dev/null
       echo "Server logs:"
       tail -n 15 /tmp/${key}_simeis_logs
       exit 1;
     fi
 
     echo "[*] Killing server"
-    kill "$(jobs -p)"
+    jobs -p | xargs kill 2>/dev/null
     echo "[*] Finished"
   '';
 in {
@@ -210,8 +210,8 @@ in {
               python3 example/python/client.py ci 127.0.0.1 8080 1>/tmp/client_runwell_clilogs 2>&1 &
               client_pid=$!
               sleep 3
-              if ! jobs -p |rg "$client_pid" 1>/dev/null; then
-                echo "Client failed to start"
+              if ! kill -0 "$client_pid" 2>/dev/null; then
+                echo "!!! Client failed to start"
                 return 1
               fi
               echo "[*] Client started"
