@@ -81,7 +81,7 @@ class SimeisSDK:
 
         # Try to get the profile
         try:
-            id = self.players["playerId"]
+            id = self.player["playerId"]
             player = self.get(f"/player/{id}")
 
         # If we fail, that must be that the player doesn't exist on the server
