@@ -264,7 +264,8 @@ in {
           | rg -v "${ignored}" \
           | awk -F '(' '{print $1}' \
           | awk '{print $NF}' \
-          | sed 's/assign_crew.*/assign_crew_to_ship/' \
+          | sed 's/assign_crew_to_ship_module/assign_crew_to_ship/' \
+          | sed 's/assign_crew_as_ship_pilot/assign_crew_to_ship/' \
           | sort -u > rsmethods
 
           if ! diff pymethods rsmethods; then
