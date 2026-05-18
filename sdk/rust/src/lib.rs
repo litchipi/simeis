@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use serde_json::{Value, json};
 
 use std::collections::{BTreeMap, HashMap};
@@ -130,6 +132,7 @@ impl SimeisSDK {
             }
             let mut data = vec![];
             if let Some(ref b) = body {
+                req = req.header("Content-Type", "application/json");
                 serde_json::to_writer(&mut data, b).unwrap()
             }
             req.send(&data)
@@ -169,14 +172,17 @@ impl SimeisSDK {
     }
 
     pub fn get<T: ToString>(&self, path: T) -> ApiResult {
+        log::debug!("GET {}", path.to_string());
         self.api(path, true, None)
     }
 
     pub fn post<T: ToString>(&self, path: T) -> ApiResult {
+        log::debug!("POST {}", path.to_string());
         self.api(path, false, None)
     }
 
     pub fn post_with_body<T: ToString>(&self, path: T, body: Value) -> ApiResult {
+        log::debug!("POST {} with body {body:?}", path.to_string());
         self.api(path, false, Some(body))
     }
 
