@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use strum::{EnumIter, EnumString, IntoStaticStr};
 
 use super::resources::Resource;
 use crate::crew::{Crew, CrewId, CrewMemberType};
+use crate::define_type_enum;
 use crate::galaxy::planet::Planet;
 
 const MOD_UPG_POWF_DIV: f64 = 75.0;
@@ -12,25 +12,11 @@ const BASE_EXTRACTION_MULT: f64 = 30.0;
 
 pub type ShipModuleId = u16;
 
-#[derive(
-    EnumIter,
-    EnumString,
-    IntoStaticStr,
-    Debug,
-    Clone,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-)]
-#[strum(ascii_case_insensitive)]
-pub enum ShipModuleType {
+define_type_enum!(ShipModuleType {
     Miner,
     GasSucker,
     Pump,
-}
+});
 
 impl ShipModuleType {
     pub fn new_module(self) -> ShipModule {

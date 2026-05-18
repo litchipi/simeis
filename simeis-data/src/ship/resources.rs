@@ -1,28 +1,12 @@
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
-use strum::{EnumIter, EnumString, IntoStaticStr};
+use crate::define_type_enum;
+use crate::galaxy::planet::Planet;
+use crate::ship::module::ShipModuleType;
+use crate::ship::{cargo::ShipCargo, Ship};
 
-use crate::{galaxy::planet::Planet, ship::module::ShipModuleType};
-
-use super::{cargo::ShipCargo, Ship};
-
-#[derive(
-    EnumIter,
-    EnumString,
-    IntoStaticStr,
-    Debug,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Clone,
-    Copy,
-)]
-#[strum(ascii_case_insensitive)]
-pub enum Resource {
+define_type_enum!(Resource {
     // Solid
     Iron,
     Copper,
@@ -44,7 +28,7 @@ pub enum Resource {
     // Crafted
     Fuel,
     Hull,
-}
+});
 
 impl Resource {
     pub fn scored(&self) -> bool {

@@ -1,32 +1,18 @@
-use serde::{Deserialize, Serialize};
-use strum::{EnumIter, EnumString, IntoStaticStr};
+use serde::Serialize;
+
+use crate::define_type_enum;
 
 use super::{Ship, CARGO_CAP_PRICE, HULL_RESIS_PRICE, REACTOR_POWER_PRICE, SHIELD_PRICE};
 
 const CARGO_EXP_ADD_CAP: f64 = 120.0;
 const HULL_UPG_ADD: f64 = 100.0;
 
-#[derive(
-    EnumIter,
-    EnumString,
-    IntoStaticStr,
-    Debug,
-    Serialize,
-    Deserialize,
-    Ord,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-)]
-#[strum(ascii_case_insensitive)]
-pub enum ShipUpgrade {
+define_type_enum!(ShipUpgrade {
     CargoExpansion,
     Reactor,
     HullUpgrade,
     Shield,
-}
+});
 
 impl ShipUpgrade {
     pub fn get_price(&self) -> f64 {

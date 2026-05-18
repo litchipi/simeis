@@ -184,7 +184,7 @@ class Tester:
         elif liquid > solid and liquid > gas:
             return "pump"
         elif gas > solid and gas > liquid:
-            return "gassucker"
+            return "gas_sucker"
         self.addtrace("Unable to decide which mod to buy")
         assert False
 
@@ -647,7 +647,7 @@ class Tester:
         self.setup_crew(shipid, trader=False)
 
         self.setup_mod(self.station, shipid, "miner")
-        self.setup_mod(self.station, shipid, "gassucker")
+        self.setup_mod(self.station, shipid, "gas_sucker")
         self.setup_mod(self.station, shipid, "pump")
         self.addtrace("Got ship all set up")
 
@@ -807,7 +807,7 @@ class Tester:
 
         before = self.get_ok(f"/ship/{shipid}")
 
-        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/cargoexpansion")
+        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/cargo_expansion")
         assert self.assert_got(got, "cost", None) > 0
 
         got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/reactor")
@@ -816,7 +816,7 @@ class Tester:
         got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/shield")
         assert self.assert_got(got, "cost", None) > 0
 
-        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/hullupgrade")
+        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/hull_upgrade")
         assert self.assert_got(got, "cost", None) > 0
 
         after = self.get_ok(f"/ship/{shipid}")
@@ -1022,7 +1022,7 @@ class Tester:
 
         list_industry = self.get_ok(f"/station/{sta}/industry/buy")
         self.post_error(f"/station/{sta}/industry/buy/toto", errtype="InvalidArgument(\"industry_type\")")
-        got = self.post_ok(f"/station/{sta}/industry/buy/simplefuelrefinery")
+        got = self.post_ok(f"/station/{sta}/industry/buy/simple_fuel_refinery")
         new_money = self.get_ok(f"/player/{self.id}")["money"]
         assert new_money == (money - got["cost"])
         iid = got["id"]
@@ -1162,6 +1162,18 @@ class Tester:
         self.assert_got(little, "Iron", None) < self.assert_got(mid, "Iron", None)
         self.assert_got(mid, "Iron", None) < self.assert_got(big, "Iron", None)
         self.assert_got(little, "Oxygen", None, negate=True)
+        wpump = self.post_ok("/calc/mining_rate",body={
+            "module_type": "pump",
+            "module_rank": 3,
+            "operator_rank": 2,
+            "planet_coord": planet,
+        })
+        wgassucker = self.post_ok("/calc/mining_rate",body={
+            "module_type": "gas_sucker",
+            "module_rank": 3,
+            "operator_rank": 2,
+            "planet_coord": planet,
+        })
 
     @functest
     def test_compute_upgrade_module(self):

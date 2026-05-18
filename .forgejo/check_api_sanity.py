@@ -454,7 +454,7 @@ class ApiChecker:
         self.prepare_post("/market/{station_id}/buy/{resource}/{amnt}", resource="Fuel", amnt=100)
         self.prepare_post("/market/{station_id}/buy/{resource}/{amnt}", resource="Hull", amnt=100)
 
-        industry = self.prepare_post("/station/{station_id}/industry/buy/{name}", name="simplefuelrefinery")
+        industry = self.prepare_post("/station/{station_id}/industry/buy/{name}", name="simple_fuel_refinery")
         operator = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="operator")
         self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/industry/{industry_id}", crew_id=operator["id"], industry_id=industry["id"])
 

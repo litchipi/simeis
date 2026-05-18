@@ -103,7 +103,7 @@ async fn compute_upgrade_module(body: Json<UpgradeModule>) -> impl web::Responde
         crew_end_rank,
     } = body.0;
 
-    let mut start_module = ShipModule::new(module_type.clone(), module_start_rank);
+    let mut start_module = ShipModule::new(module_type, module_start_rank);
     let mut operator = CrewMember::from(CrewMemberType::Operator);
     operator.rank = crew_start_rank;
     let start_wage = operator.wage();
