@@ -68,7 +68,6 @@ impl ShipModule {
 
     pub fn can_extract(&self, crew: &Crew, planet: &Planet) -> Vec<(Resource, f64)> {
         let Some(ref opid) = self.operator else {
-            log::debug!("No operator");
             return vec![];
         };
 
@@ -83,7 +82,6 @@ impl ShipModule {
 }
 
 pub fn calc_extraction_rate(resource: &Resource, modrank: u8, oprank: u8, density: f64) -> f64 {
-    log::debug!("Calc extraction rate of {resource:?}");
     let rank = ((oprank - resource.min_rank()) as f64) * (modrank as f64);
     let difficulty = resource.extraction_difficulty().powf(EXRATE_DIFF_FACT);
     BASE_EXTRACTION_MULT * density * (rank / difficulty).powf(EXRATE_FACT)

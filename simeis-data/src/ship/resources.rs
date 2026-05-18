@@ -31,6 +31,7 @@ define_type_enum!(Resource {
 });
 
 impl Resource {
+    #[inline]
     pub fn scored(&self) -> bool {
         matches!(self, Resource::Fuel | Resource::Hull)
     }
