@@ -15,7 +15,7 @@ use crate::ship::module::ShipModuleId;
 use crate::ship::resources::Resource;
 use crate::ship::upgrade::ShipUpgrade;
 use crate::ship::Ship;
-use crate::utils::ShardedLockedData;
+use crate::utils::{ShardedLockedData, PLAYER_SHARDS};
 
 use super::scan::ScanResult;
 use super::{Galaxy, SpaceCoord};
@@ -83,7 +83,7 @@ impl Station {
             id,
             position,
             shipyard: RwLock::new(Ship::init_shipyard(position)),
-            player_data: ShardedLockedData::new(100),
+            player_data: ShardedLockedData::new(PLAYER_SHARDS),
         }
     }
 

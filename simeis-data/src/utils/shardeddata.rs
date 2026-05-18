@@ -3,6 +3,8 @@ use std::hash::Hasher;
 
 use mea::rwlock::RwLock;
 
+pub const PLAYER_SHARDS: usize = 4;
+
 pub trait ShardDataKey: Ord + Clone {
     fn get_shard_idx(&self, totcap: usize) -> usize;
 }
