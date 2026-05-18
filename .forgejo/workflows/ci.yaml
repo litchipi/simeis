@@ -133,5 +133,7 @@ jobs:
             .cargohome/git/db/
             target/
           key: ${{ runner.os }}-clientrun-${{ steps.cargo-lock-hash.outputs.hash }}
-      - name: "Check if base client runs well"
-        run: nix run .#client_run_well
+      - name: "Check if Python base client runs well"
+        run: nix run .#client_run_well_py
+      - name: "Check if Rust base client runs well"
+        run: nix run .#client_run_well_rs

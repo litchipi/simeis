@@ -1,17 +1,39 @@
 mod sdk;
 
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use sdk::*;
+
+fn get_density(key: &str, densities: &HashMap<&String, &serde_json::Value>) -> f64 {
+    let key = key.to_string();
+    let val : &serde_json::Value = densities.get(&key).unwrap();
+    val.as_f64().unwrap()
+}
+
+// Planets have different resources densities, that influences the extraction rate
+// We want to extract the resource that is the most dense on the planet
+fn decide_mod_to_buy(planet: &serde_json::Value) -> &'static str {
+    let res_densities = json_get_dict("resources_density", planet).unwrap();
+    let iron = get_density("Iron", &res_densities);
+    let water = get_density("Water", &res_densities);
+    let hydrogen = get_density("Hydrogen", &res_densities);
+    if iron > water && iron > hydrogen {
+        "miner"
+    } else if water > hydrogen {
+        "pump"
+    } else {
+        "gas_sucker"
+    }
+}
 
 pub struct Game {
     sdk: sdk::SimeisSDK,
 }
 
 impl Game {
-    pub fn new(username: String) -> Game {
+    pub fn new(username: String, ip: &str, port: u16) -> Game {
         Game {
-            sdk: sdk::SimeisSDK::new(username, "0.0.0.0", 8080),
+            sdk: sdk::SimeisSDK::new(username, ip, port),
         }
     }
 
@@ -35,19 +57,14 @@ impl Game {
         let ship_id;
         if all_my_ships.is_empty() {
             println!("Buying first ship");
-            let list_all_ships = self.sdk.list_shop_ship(station_id)?;
+            let list_all_ships = self.sdk.shop_list_ship(station_id)?;
             ship = list_all_ships.first().unwrap();
             ship_id = get_id(ship);
 
             self.sdk.buy_ship(station_id, ship_id)?;
 
             // En fonction de la planète, on achète un module de minage différent
-            let planet_is_solid = json_get_bool("solid", nearest_planet).unwrap();
-            let module = if planet_is_solid {
-                "Miner"
-            } else {
-                "GasSucker"
-            };
+            let module = decide_mod_to_buy(nearest_planet);
             let module = self.sdk.buy_module_on_ship(station_id, ship_id, module)?;
             let mod_id = get_id(&module);
 
@@ -182,9 +199,16 @@ impl Game {
 }
 
 fn main() {
-    let name = std::env::args()
-        .nth(1)
-        .expect("Requires the username as an argument");
-    let game = Game::new(name);
+    env_logger::Builder::new()
+        .parse_default_env()
+        .filter_module("ureq_proto", log::LevelFilter::Warn)
+        .filter_module("ureq", log::LevelFilter::Warn)
+        .init();
+    let mut args = std::env::args();
+    let name = args.nth(1).expect("Requires the username as an argument");
+    let ip = args.next().expect("Requires the IP of the server as an argument");
+    let port = args.next().expect("Requires the port of the server as an argument");
+    let port : u16 = port.parse().expect("Invalid port value");
+    let game = Game::new(name, &ip, port);
     game.gameloop().expect("Uncaught error when calling API");
 }
