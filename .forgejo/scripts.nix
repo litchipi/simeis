@@ -58,7 +58,7 @@
     echo "[*] Client started"
     tstart=$(date +%s)
     while [ $(($(date +%s) - tstart)) -lt 600 ]; do
-      TBL=$(cat /tmp/client_runwell_rs_clilogs|rg "time left before lost"|tail -n 1|awk '{print $11}')
+      TBL=$(cat /tmp/client_runwell_${tail}_clilogs|rg "time left before lost"|tail -n 1|awk '{print $11}')
       if [ -z "$TBL" ]; then
         sleep 1
         continue;
