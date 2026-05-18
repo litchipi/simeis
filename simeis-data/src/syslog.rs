@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use strum::IntoStaticStr;
 
 use crate::player::PlayerId;
-use crate::utils::ShardedLockedData;
+use crate::utils::{ShardedLockedData, PLAYER_SHARDS};
 
 const SYSLOG_FIFO_MAX_SIZE: usize = 10;
 
@@ -102,7 +102,7 @@ impl SyslogRecv {
         SyslogRecv {
             recv: Mutex::new(recv),
             tstart,
-            fifo: Arc::new(RwLock::new(ShardedLockedData::new(100))),
+            fifo: Arc::new(RwLock::new(ShardedLockedData::new(PLAYER_SHARDS))),
         }
     }
 
@@ -150,6 +150,7 @@ pub enum SyslogEvent {
     // General game events
     GameStarted,
     GameLost,
+    IndustryStopped(crate::industry::IndustryUnitId),
 
     // Ship
     ShipDestroyed(crate::ship::ShipId),

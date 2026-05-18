@@ -1,11 +1,19 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use strum::{EnumString, IntoStaticStr};
+
+use crate::define_type_enum;
 
 const WAGE_INC_RANK_POWF: f64 = 0.85;
 const RANK_PRICE_WAGE_MULT: f64 = 1900.0;
 
 pub type CrewId = u32;
+
+define_type_enum!(CrewMemberType {
+    Pilot,
+    Operator,
+    Trader,
+    Soldier,
+});
 
 #[derive(Debug, Clone, Deserialize, Default, Serialize)]
 pub struct Crew(pub BTreeMap<CrewId, CrewMember>);
@@ -46,13 +54,4 @@ impl CrewMember {
     pub fn price_next_rank(&self) -> f64 {
         self.wage().powf(1.75) * RANK_PRICE_WAGE_MULT
     }
-}
-
-#[derive(EnumString, IntoStaticStr, Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[strum(ascii_case_insensitive)]
-pub enum CrewMemberType {
-    Pilot,
-    Operator,
-    Trader,
-    Soldier,
 }

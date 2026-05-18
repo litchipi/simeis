@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
 use rand::RngExt;
-use serde::{Deserialize, Serialize};
-use strum::{EnumIter, EnumString, IntoStaticStr};
+use serde::Serialize;
 
 use crate::{
     crew::{CrewId, CrewMember, CrewMemberType},
+    define_type_enum,
     ship::resources::Resource,
 };
 
@@ -43,27 +43,13 @@ pub const fn get_abase_produce_base() -> f64 {
     acost / (1.75 * Resource::Fuel.base_price())
 }
 
-#[derive(
-    EnumIter,
-    EnumString,
-    IntoStaticStr,
-    Debug,
-    Clone,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-)]
-#[strum(ascii_case_insensitive)]
-pub enum IndustryUnitType {
+define_type_enum!(IndustryUnitType {
     SimpleFuelRefinery,
     AdvancedFuelRefinery,
 
     SimpleHullFoundry,
     AdvancedHullFoundry,
-}
+});
 
 impl IndustryUnitType {
     pub fn new_unit(self) -> IndustryUnit {
@@ -91,7 +77,7 @@ impl IndustryUnitType {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct IndustryUnit {
     pub id: IndustryUnitId,
     pub unittype: IndustryUnitType,

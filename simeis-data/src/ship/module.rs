@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use strum::{EnumIter, EnumString, IntoStaticStr};
 
 use super::resources::Resource;
 use crate::crew::{Crew, CrewId, CrewMemberType};
+use crate::define_type_enum;
 use crate::galaxy::planet::Planet;
 
 const MOD_UPG_POWF_DIV: f64 = 75.0;
@@ -12,25 +12,11 @@ const BASE_EXTRACTION_MULT: f64 = 30.0;
 
 pub type ShipModuleId = u16;
 
-#[derive(
-    EnumIter,
-    EnumString,
-    IntoStaticStr,
-    Debug,
-    Clone,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-)]
-#[strum(ascii_case_insensitive)]
-pub enum ShipModuleType {
+define_type_enum!(ShipModuleType {
     Miner,
     GasSucker,
     Pump,
-}
+});
 
 impl ShipModuleType {
     pub fn new_module(self) -> ShipModule {
@@ -82,7 +68,6 @@ impl ShipModule {
 
     pub fn can_extract(&self, crew: &Crew, planet: &Planet) -> Vec<(Resource, f64)> {
         let Some(ref opid) = self.operator else {
-            log::debug!("No operator");
             return vec![];
         };
 
@@ -97,7 +82,6 @@ impl ShipModule {
 }
 
 pub fn calc_extraction_rate(resource: &Resource, modrank: u8, oprank: u8, density: f64) -> f64 {
-    log::debug!("Calc extraction rate of {resource:?}");
     let rank = ((oprank - resource.min_rank()) as f64) * (modrank as f64);
     let difficulty = resource.extraction_difficulty().powf(EXRATE_DIFF_FACT);
     BASE_EXTRACTION_MULT * density * (rank / difficulty).powf(EXRATE_FACT)

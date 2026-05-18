@@ -1,28 +1,12 @@
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
-use strum::{EnumIter, EnumString, IntoStaticStr};
+use crate::define_type_enum;
+use crate::galaxy::planet::Planet;
+use crate::ship::module::ShipModuleType;
+use crate::ship::{cargo::ShipCargo, Ship};
 
-use crate::{galaxy::planet::Planet, ship::module::ShipModuleType};
-
-use super::{cargo::ShipCargo, Ship};
-
-#[derive(
-    EnumIter,
-    EnumString,
-    IntoStaticStr,
-    Debug,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Clone,
-    Copy,
-)]
-#[strum(ascii_case_insensitive)]
-pub enum Resource {
+define_type_enum!(Resource {
     // Solid
     Iron,
     Copper,
@@ -44,9 +28,10 @@ pub enum Resource {
     // Crafted
     Fuel,
     Hull,
-}
+});
 
 impl Resource {
+    #[inline]
     pub fn scored(&self) -> bool {
         matches!(self, Resource::Fuel | Resource::Hull)
     }
@@ -167,6 +152,7 @@ impl ExtractionInfo {
                 }
             }
         }
+        apply_power_attribution(&ship.power_attribution, &mut extraction);
         ExtractionInfo {
             mining_rate: extraction,
             time_fill_cargo: ship.cargo.capacity / cap_per_sec,
@@ -179,4 +165,16 @@ impl ExtractionInfo {
         }
         cargo.is_full()
     }
+}
+
+pub fn apply_power_attribution(attrs: &BTreeMap<Resource, u8>, r: &mut BTreeMap<Resource, f64>) {
+    let powtot: u16 = r
+        .keys()
+        .map(|r| *attrs.get(r).unwrap_or(&u8::MAX) as u16)
+        .sum();
+    r.iter_mut().for_each(|(res, rate)| {
+        let power = attrs.get(res).unwrap_or(&u8::MAX);
+        let power_f = (*power as f64) / (powtot as f64);
+        *rate *= power_f;
+    });
 }

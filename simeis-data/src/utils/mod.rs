@@ -1,3 +1,4 @@
+mod macros;
 mod shardeddata;
 use std::{
     future::Future,
@@ -8,7 +9,7 @@ use std::{
 
 pub type BoxFuture<'a, T> = std::pin::Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-pub use shardeddata::ShardedLockedData;
+pub use shardeddata::{ShardedLockedData, PLAYER_SHARDS};
 
 pub struct AsyncSleepFuture {
     start: Instant,

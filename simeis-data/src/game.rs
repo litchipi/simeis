@@ -30,7 +30,7 @@ use crate::player::{Player, PlayerId, PlayerKey};
 use crate::ship::resources::{ExtractionInfo, Resource};
 use crate::ship::{Ship, ShipId, ShipState};
 use crate::syslog::{SyslogEvent, SyslogFifo, SyslogRecv, SyslogSend};
-use crate::utils::{BoxFuture, ShardedLockedData};
+use crate::utils::{BoxFuture, ShardedLockedData, PLAYER_SHARDS};
 
 #[cfg(not(feature = "extraspeed"))]
 const ITER_PERIOD: Duration = Duration::from_millis(20);
@@ -79,9 +79,9 @@ impl Game {
             send_sig: send_stop,
             galaxy: Arc::new(RwLock::new(galaxy)),
             market: Arc::new(Market::init()),
-            taken_names: Arc::new(ShardedLockedData::new(100)),
-            players: Arc::new(ShardedLockedData::new(100)),
-            player_index: Arc::new(ShardedLockedData::new(100)),
+            taken_names: Arc::new(ShardedLockedData::new(PLAYER_SHARDS)),
+            players: Arc::new(ShardedLockedData::new(PLAYER_SHARDS)),
+            player_index: Arc::new(ShardedLockedData::new(PLAYER_SHARDS)),
             syslog: syssend.clone(),
             fifo_events: sysrecv.fifo.clone(),
             tstart,
@@ -150,7 +150,7 @@ impl Game {
 
             for (_, station) in player.stations.iter() {
                 station
-                    .update_crafting(ITER_PERIOD.as_secs_f64(), &player_id)
+                    .update_crafting(syslog, ITER_PERIOD.as_secs_f64(), &player_id)
                     .await;
             }
 

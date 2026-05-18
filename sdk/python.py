@@ -301,12 +301,13 @@ class SimeisSDK:
     def buy_ship_upgrade(self, sta, ship_id, upgtype):
         return self.post(f"/station/{sta}/shipyard/upgrade/{ship_id}/{upgtype}")
 
-    def compute_mining_rate(self, modtype, modrank, oprank, planet):
+    def compute_mining_rate(self, modtype, modrank, oprank, planet, power_attr={}):
         return  self.post("/calc/mining_rate", body={
             "module_type": modtype,
             "module_rank": modrank,
             "operator_rank": oprank,
             "planet_coord": planet,
+            "power_attribution": power_attr,
         })
 
     def compute_upgrade_ship(self, start_reactor, start_shield, start_pilot, end_reactor=None, end_shield=None, end_pilot=None):
@@ -373,3 +374,9 @@ class SimeisSDK:
 
     def upgrade_industry(self, sta, iid):
         return self.post(f"/station/{sta}/industry/upgrade/{iid}")
+
+    def get_extraction_power_attribution(self, ship_id):
+        return self.get(f"/ship/{ship_id}/extraction/power_attribution")
+
+    def set_extraction_power_attribution(self, ship_id, res, pow):
+        return self.post(f"/ship/{ship_id}/extraction/power_attribution/{res}/{pow}")

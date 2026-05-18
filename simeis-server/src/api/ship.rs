@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use ntex::router::IntoPattern;
@@ -15,6 +16,7 @@ use simeis_data::syslog::SyslogEvent;
 use simeis_data::errors::Errcode;
 use simeis_data::galaxy::station::StationId;
 use simeis_data::ship::ShipId;
+use strum::IntoEnumIterator;
 
 use crate::api::build_response;
 use crate::api::GameState;
@@ -144,6 +146,66 @@ async fn stop_extraction(
     build_response(data)
 }
 
+// @summary Get the attribution of power for all the mineable resources by the ship
+// @returns The current power attribution set for all mineable resources by the ship
+#[web::get("/extraction/power_attribution")]
+async fn get_extraction_power_attribution(
+    srv: GameState,
+    id: Path<ShipId>,
+    req: HttpRequest,
+) -> impl web::Responder {
+    let pkey = get_player_key!(req);
+    let ship_id = *id;
+    let data = srv
+        .map_player(&pkey, |player| {
+            Box::pin(async move {
+                let ship = player.get_ship(&ship_id)?;
+                let mut result = BTreeMap::new();
+                for res in Resource::iter() {
+                    for (_, smod) in ship.modules.iter() {
+                        let Some(opid) = smod.operator else {
+                            continue;
+                        };
+                        let opcrew = ship.crew.0.get(&opid).unwrap();
+                        if res.extractable(&smod.modtype, opcrew.rank) {
+                            let powattr = ship.power_attribution.get(&res).unwrap_or(&u8::MAX);
+                            result.insert(res, *powattr);
+                        }
+                    }
+                }
+                Ok(json!({"power_attribution": result }))
+            })
+        })
+        .await;
+    build_response(data)
+}
+
+// @summary Set the attribution of power for a specific mineable resource
+// @returns Nothing
+// Setting the power attribution for a non-mineable resource will have no effect
+#[web::post("/extraction/power_attribution/{resource}/{pow}")]
+async fn set_extraction_power_attribution(
+    srv: GameState,
+    args: Path<(ShipId, Resource, u8)>,
+    req: HttpRequest,
+) -> impl web::Responder {
+    let pkey = get_player_key!(req);
+    let (ship_id, res, pow) = (args.0, args.1, args.2);
+    // let Ok(res) = Resource::from_str(res) else {
+    //     return build_response(Err(Errcode::InvalidArgument("resource")));
+    // };
+    let data = srv
+        .map_player_mut(&pkey, |player| {
+            Box::pin(async move {
+                let ship = player.get_ship_mut(&ship_id)?;
+                ship.power_attribution.insert(res, pow);
+                Ok(json!({}))
+            })
+        })
+        .await;
+    build_response(data)
+}
+
 // @summary Unload the whole cargo of a ship into a station
 // @returns How much of each resource were unloaded, and if the ship cargo is empty or not
 #[web::post("/unload/{station_id}/all")]
@@ -218,6 +280,8 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
             .service(stop_navigation)
             .service(start_extraction)
             .service(stop_extraction)
+            .service(get_extraction_power_attribution)
+            .service(set_extraction_power_attribution)
             .service(unload_all_ship_cargo)
             .service(unload_ship_cargo),
     );
