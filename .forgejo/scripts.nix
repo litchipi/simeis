@@ -44,14 +44,17 @@
     echo "[*] Finished"
   '';
 
-  ensure_works_well = ''
+  ensure_runs_well = tail: (''
     #!/bin/bash
     client_pid=$!
     sleep 3
     if ! kill -0 "$client_pid" 2>/dev/null; then
       echo "!!! Client failed to start"
+      tail -n 20 /tmp/client_runwell_${tail}_clilogs
       return 1
     fi
+  '' + ''
+    #!/bin/bash
     echo "[*] Client started"
     tstart=$(date +%s)
     while [ $(($(date +%s) - tstart)) -lt 600 ]; do
@@ -71,7 +74,7 @@
     kill "$client_pid"
     wait "$client_pid"
     echo "[*] Client stopped"
-  '';
+  '');
 in {
   prepare_class = let
     app = pkgs.writeShellApplication {
@@ -237,7 +240,7 @@ in {
             #!/bin/bash
             function start_client_test() {
               python3 example/python/client.py ci 127.0.0.1 8080 1>/tmp/client_runwell_py_clilogs 2>&1 &
-              ${ensure_works_well}
+              ${ensure_runs_well "py"}
             }
           '';
         };
@@ -263,7 +266,7 @@ in {
               cargo check
               cargo build --release
               ./target/release/simeis-rust-example ci 0.0.0.0 8080 1>/tmp/client_runwell_rs_clilogs 2>&1 &
-              ${ensure_works_well}
+              ${ensure_runs_well "rs"}
             }
           '';
         };
