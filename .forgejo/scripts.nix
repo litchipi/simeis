@@ -43,6 +43,38 @@
     jobs -p | xargs kill 2>/dev/null
     echo "[*] Finished"
   '';
+
+  ensure_runs_well = tail: (''
+    #!/bin/bash
+    client_pid=$!
+    sleep 3
+    if ! kill -0 "$client_pid" 2>/dev/null; then
+      echo "!!! Client failed to start"
+      tail -n 20 /tmp/client_runwell_${tail}_clilogs
+      return 1
+    fi
+  '' + ''
+    #!/bin/bash
+    echo "[*] Client started"
+    tstart=$(date +%s)
+    while [ $(($(date +%s) - tstart)) -lt 600 ]; do
+      TBL=$(cat /tmp/client_runwell_${tail}_clilogs|rg "time left before lost"|tail -n 1|awk '{print $11}')
+      if [ -z "$TBL" ]; then
+        sleep 1
+        continue;
+      fi
+      echo "Time before lost: $TBL"
+      if [ "$TBL" -gt 5000 ]; then
+        echo "Reached 5000 secs before lost, considering it a success"
+        break
+      fi
+      sleep 5
+    done
+    echo "[*] Test finished, killing client..."
+    kill "$client_pid"
+    wait "$client_pid"
+    echo "[*] Client stopped"
+  '');
 in {
   prepare_class = let
     app = pkgs.writeShellApplication {
@@ -195,44 +227,46 @@ in {
       };
     in "${app}/bin/api_sanity";
 
-    client_run_well = let
+    client_run_well_py = let
       app = pkgs.writeShellApplication {
         name = "client-run-well";
         runtimeInputs = deps ++ [ pkgs.ripgrep pkgs.gawk python ];
         text = compile_and_run {
-          key = "client_runwell";
+          key = "client_runwell_py";
           features = ["extraspeed"];
           release=true;
           exec = "start_client_test";
           head = ''
             #!/bin/bash
             function start_client_test() {
-              python3 example/python/client.py ci 127.0.0.1 8080 1>/tmp/client_runwell_clilogs 2>&1 &
-              client_pid=$!
-              sleep 3
-              if ! kill -0 "$client_pid" 2>/dev/null; then
-                echo "!!! Client failed to start"
-                return 1
-              fi
-              echo "[*] Client started"
-              tstart=$(date +%s)
-              while [ $(($(date +%s) - tstart)) -lt 600 ]; do
-                TBL=$(cat /tmp/client_runwell_clilogs|rg "time left before lost"|tail -n 1|awk '{print $11}')
-                if [ -z "$TBL" ]; then
-                  sleep 1
-                  continue;
-                fi
-                echo "Time before lost: $TBL"
-                if [ "$TBL" -gt 5000 ]; then
-                  echo "Reached 5000 secs before lost, considering it a success"
-                  break
-                fi
-                sleep 5
-              done
-              echo "[*] Test finished, killing client..."
-              kill "$client_pid"
-              wait "$client_pid"
-              echo "[*] Client stopped"
+              python3 example/python/client.py ci 127.0.0.1 8080 1>/tmp/client_runwell_py_clilogs 2>&1 &
+              ${ensure_runs_well "py"}
+            }
+          '';
+        };
+      };
+    in "${app}/bin/client-run-well";
+
+    client_run_well_rs = let
+      app = pkgs.writeShellApplication {
+        name = "client-run-well";
+        runtimeInputs = deps ++ [ pkgs.ripgrep pkgs.gawk ];
+        text = compile_and_run {
+          key = "client_runwell_rs";
+          features = ["extraspeed"];
+          release=true;
+          exec = "start_client_test";
+          head = ''
+            #!/bin/bash
+            function start_client_test() {
+              cp -r example/rust /tmp/client
+              rm -f /tmp/client/src/sdk.rs
+              cp sdk/rust/src/lib.rs /tmp/client/src/sdk.rs
+              cd /tmp/client
+              cargo check
+              cargo build --release
+              ./target/release/simeis-rust-example ci 0.0.0.0 8080 1>/tmp/client_runwell_rs_clilogs 2>&1 &
+              ${ensure_runs_well "rs"}
             }
           '';
         };
