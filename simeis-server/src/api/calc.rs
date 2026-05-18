@@ -7,7 +7,7 @@ use simeis_data::crew::{CrewMember, CrewMemberType};
 use simeis_data::errors::Errcode;
 use simeis_data::market::fee_rate;
 use simeis_data::ship::module::{calc_extraction_rate, ShipModule, ShipModuleType};
-use simeis_data::ship::resources::Resource;
+use simeis_data::ship::resources::{apply_power_attribution, Resource};
 use simeis_data::ship::upgrade::ShipUpgrade;
 use strum::IntoEnumIterator;
 
@@ -46,6 +46,8 @@ pub struct MiningRateComputation {
     module_rank: u8,
     operator_rank: u8,
     planet_coord: SpaceCoord,
+    #[serde(default)]
+    power_attribution: BTreeMap<Resource, u8>,
 }
 
 // @summary Compute how much resources can be extracted from a given planet
@@ -60,6 +62,7 @@ async fn compute_mining_rate(
         module_rank,
         operator_rank,
         planet_coord,
+        power_attribution,
     } = body.0;
     let data = srv
         .map_galaxy_coord(&planet_coord, |spaceobj| {
@@ -73,8 +76,9 @@ async fn compute_mining_rate(
                         continue;
                     }
                     let rate = calc_extraction_rate(res, module_rank, operator_rank, *density);
-                    result.insert(res, rate);
+                    result.insert(*res, rate);
                 }
+                apply_power_attribution(&power_attribution, &mut result);
                 Ok(to_value(result).unwrap())
             })
         })

@@ -1287,6 +1287,64 @@ class Tester:
         assert after["fee_before"] == base_fee
         assert after["fee_after"] < base_fee
 
+    @functest
+    def test_power_attribution(self):
+        player = self.create_test_player("test-rich-power-atttribution")
+        shipid =  self.buy_a_ship()
+        self.setup_crew(shipid)
+        target = self.target_planet(self.station, shipid)
+        mod = self.decide_modtype(target)
+        modid, opid = self.setup_mod(self.station, shipid, mod)
+        self.upgrade_ship_crew(self.station, shipid, opid, 15)
+        self.upgrade_ship_module(self.station, shipid, modid, 15)
+
+        init_pow_attr = self.assert_got(
+            self.get_ok(f"/ship/{shipid}/extraction/power_attribution"),
+            "power_attribution",
+            None
+        )
+        for res, attr in init_pow_attr.items():
+            assert attr == 255
+        testres = list(init_pow_attr.keys())[0]
+        calcmr_body={
+            "module_type": mod,
+            "module_rank": 15,
+            "operator_rank": 15,
+            "planet_coord": target["position"],
+            "power_attribution": init_pow_attr,
+        }
+        init_mining_rate = self.post_ok("/calc/mining_rate", body=calcmr_body)
+        self.post_ok(f"/ship/{shipid}/extraction/power_attribution/{testres}/250")
+        after_pow_attr = self.get_ok(f"/ship/{shipid}/extraction/power_attribution")["power_attribution"]
+        self.assert_got(after_pow_attr, testres, 250)
+        calcmr_body["power_attribution"] = after_pow_attr
+        after_mining_rate = self.post_ok("/calc/mining_rate", body=calcmr_body)
+        for res, after_rate in after_mining_rate.items():
+            before_rate = init_mining_rate[res]
+            if res == testres:
+                assert before_rate > after_rate
+            else:
+                assert before_rate < after_rate
+        cost = self.post_ok(f"/ship/{shipid}/navigate", body={
+            "x": target["position"][0],
+            "y": target["position"][1],
+            "z": target["position"][2]
+        })
+        self.tick_dur(cost["duration"])
+        extraction_info = self.post_ok(f"/ship/{shipid}/extraction/start")
+        real_extraction_rates = self.assert_got(extraction_info, "mining_rate", None)
+        for res, rate in real_extraction_rates.items():
+            self.addtrace(res, "calc", after_mining_rate[res], "real", rate, "eq", after_mining_rate[res] == rate)
+            self.assert_got(after_mining_rate, res, rate)
+
+        self.tick()
+        self.post_ok(f"/ship/{shipid}/extraction/stop")
+        self.tick()
+        self.post_ok(f"/ship/{shipid}/extraction/power_attribution/{testres}/0")
+        extraction_info = self.post_ok(f"/ship/{shipid}/extraction/start")
+        mr = self.assert_got(extraction_info, "mining_rate", None)
+        self.assert_got(mr, testres, 0.0)
+
 def compute_distance(a, b):
     sum = 0
     sum += (b[0] - a[0]) ** 2

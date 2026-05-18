@@ -65,6 +65,8 @@ pub struct Ship {
     pub state: ShipState,
     #[serde(default)]
     pub stats: shipstats::ShipStats,
+    #[serde(default)]
+    pub power_attribution: BTreeMap<Resource, u8>,
 }
 
 impl Ship {
