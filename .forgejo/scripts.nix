@@ -35,7 +35,7 @@
       echo "!!! Error occured while executing ${key}"
       jobs -p | xargs kill 2>/dev/null
       echo "Server logs:"
-      tail -n 15 /tmp/${key}_simeis_logs
+      tail -n 40 /tmp/${key}_simeis_logs
       exit 1;
     fi
 
