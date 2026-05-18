@@ -12,13 +12,13 @@ def decide_mod_to_buy(planet):
     print("Hydrogen:", res["Hydrogen"])
     # More iron -> Miner
     if res["Iron"] > res["Water"] and res["Iron"] > res["Hydrogen"]:
-        return "Miner"
+        return "miner"
     # More water -> Pump
     elif res["Water"] > res["Hydrogen"]:
-        return "Pump"
+        return "pump"
     # More gas -> GasSucker
     else:
-        return "GasSucker"
+        return "gas_sucker"
 
 class Game:
     def __init__(self, username, ip, port):
