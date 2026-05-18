@@ -15,6 +15,7 @@ use crate::ship::module::ShipModuleId;
 use crate::ship::resources::Resource;
 use crate::ship::upgrade::ShipUpgrade;
 use crate::ship::Ship;
+use crate::syslog::{SyslogEvent, SyslogRecv};
 use crate::utils::{ShardedLockedData, PLAYER_SHARDS};
 
 use super::scan::ScanResult;
@@ -553,16 +554,23 @@ impl Station {
         })
     }
 
-    pub async fn update_crafting(&self, tdelta: f64, id: &PlayerId) {
+    pub async fn update_crafting(&self, syslog: &SyslogRecv, tdelta: f64, id: &PlayerId) {
         let Some(pd) = self.player_data.clone_val(id).await else {
             return;
         };
         let mut pd = pd.write().await;
-        let all_industry = pd.industry.clone();
-        for (_, industry) in all_industry.iter() {
-            if let Some(ratio) = industry.can_work(&tdelta, &pd.cargo.resources) {
+        let StationPlayerData {
+            cargo, industry, ..
+        } = &mut *pd;
+        for (iid, industry) in industry.iter_mut() {
+            if let Some(ratio) = industry.can_work(&tdelta, &cargo.resources) {
+                if ratio < 0.01 {
+                    industry.started = false;
+                    syslog.event(*id, SyslogEvent::IndustryStopped(*iid)).await;
+                    continue;
+                }
                 let t = tdelta * ratio;
-                industry.work(t, &mut pd.cargo.resources);
+                industry.work(t, &mut cargo.resources);
             }
         }
     }

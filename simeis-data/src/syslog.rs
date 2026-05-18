@@ -150,6 +150,7 @@ pub enum SyslogEvent {
     // General game events
     GameStarted,
     GameLost,
+    IndustryStopped(crate::industry::IndustryUnitId),
 
     // Ship
     ShipDestroyed(crate::ship::ShipId),

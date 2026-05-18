@@ -91,7 +91,7 @@ impl IndustryUnitType {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct IndustryUnit {
     pub id: IndustryUnitId,
     pub unittype: IndustryUnitType,

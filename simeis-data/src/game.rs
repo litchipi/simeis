@@ -150,7 +150,7 @@ impl Game {
 
             for (_, station) in player.stations.iter() {
                 station
-                    .update_crafting(ITER_PERIOD.as_secs_f64(), &player_id)
+                    .update_crafting(syslog, ITER_PERIOD.as_secs_f64(), &player_id)
                     .await;
             }
 
