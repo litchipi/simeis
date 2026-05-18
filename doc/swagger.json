@@ -43,9 +43,9 @@
                   "events": [
                     {
                       "event": {
-                        "ShipFlightFinished": 12730750065492144288
+                        "ShipFlightFinished": 15637695361758404895
                       },
-                      "timestamp": 1778924767.8029716,
+                      "timestamp": 1779105400.825155,
                       "type": "ShipFlightFinished"
                     }
                   ],
@@ -197,14 +197,14 @@
               "application/json": {
                 "example": {
                   "1809641971439093430": {
-                    "age": 3,
+                    "age": 2,
                     "lost": false,
-                    "money": 719898606.9367181,
+                    "money": 719898609.5034065,
                     "name": "test-rich-swagger",
                     "potential": 404.0,
                     "score": -445.06252313054154,
                     "stations": {
-                      "48414": {
+                      "16971": {
                         "cargo": {
                           "capacity": 1001.0,
                           "resources": {
@@ -215,23 +215,23 @@
                           "usage": 205.75
                         },
                         "crew": {
-                          "2589572468": {
-                            "member_type": "Trader",
-                            "rank": 2
-                          },
-                          "3407136385": {
+                          "2137895046": {
                             "member_type": "Operator",
                             "rank": 1
+                          },
+                          "2638212607": {
+                            "member_type": "Trader",
+                            "rank": 2
                           }
                         },
-                        "id": 48414,
+                        "id": 16971,
                         "idle_crew": {},
                         "position": [
-                          4241800315,
-                          4293639296,
-                          2524969477
+                          2733421176,
+                          263570199,
+                          3627424437
                         ],
-                        "trader": 2589572468
+                        "trader": 2638212607
                       }
                     }
                   },
@@ -243,19 +243,19 @@
                     "potential": 0.0,
                     "score": 0.0,
                     "stations": {
-                      "48414": {
+                      "16971": {
                         "cargo": {
                           "capacity": 1000.0,
                           "resources": {},
                           "usage": 0.0
                         },
                         "crew": {},
-                        "id": 48414,
+                        "id": 16971,
                         "idle_crew": {},
                         "position": [
-                          4241800315,
-                          4293639296,
-                          2524969477
+                          2733421176,
+                          263570199,
+                          3627424437
                         ],
                         "trader": null
                       }
@@ -471,7 +471,7 @@
               "application/json": {
                 "example": {
                   "error": "ok",
-                  "key": "FT2mtoiWaMGQLI3js+c5vAoeqBYbL5//6Y3QRlBDDm2pUNO2mTToBGAG2ZyyIUs8PMU4OYijKNCaEEm+CgApopncM0w14XQI5O3kwxksD6/4XIbJgRyl+mpSaL6mPSpPI3YzDEk+qOfzfaVtpMm1koGrPPIWSZQl71T/FLUzr7U=",
+                  "key": "PKEtwloZ88x0Z1ICFiCKXA8nDlhOSJw3LBFw84+fwjyInnfRfH9uDSOnnrBl5ijUWoX4XIPTTp9cVVvRpW6d7P8TyeSN7PGeIY56FdvQ8Go/ampTv3ttUpOrLt+nZPAPzVWII9gBLLDrojPjYI0zQ1db3cZvtQiEVdOfkTW3kSE=",
                   "playerId": 7104837252786233073
                 }
               }
@@ -503,40 +503,43 @@
                   "cargo": {
                     "capacity": 200.0,
                     "resources": {
-                      "Iron": 132.07205865583387
+                      "Iron": 132.01856066079168
                     },
-                    "usage": 99.054
+                    "usage": 99.014
                   },
                   "crew": {
-                    "2324512067": {
+                    "1548910388": {
                       "member_type": "Pilot",
                       "rank": 1
                     },
-                    "2569063773": {
+                    "3097757315": {
                       "member_type": "Operator",
                       "rank": 1
                     }
                   },
                   "error": "ok",
-                  "fuel_tank": 997.1947744761101,
+                  "fuel_tank": 997.1992664960972,
                   "fuel_tank_capacity": 1000.0,
-                  "hull_decay": 50.093312926977035,
+                  "hull_decay": 50.01309828434991,
                   "hull_resistance": 3000.0,
-                  "id": 12730750065492144288,
+                  "id": 15637695361758404895,
                   "modules": {
                     "1": {
                       "modtype": "Miner",
-                      "operator": 2569063773,
+                      "operator": 3097757315,
                       "rank": 1
                     }
                   },
                   "owner": 1809641971439093430,
-                  "pilot": 2324512067,
+                  "pilot": 1548910388,
                   "position": [
-                    4241800315,
-                    4293639296,
-                    2524969477
+                    2733421176,
+                    263570199,
+                    3627424437
                   ],
+                  "power_attribution": {
+                    "Iron": 50
+                  },
                   "reactor_power": 2,
                   "shield_power": 0,
                   "state": "Idle",
@@ -592,6 +595,37 @@
         "summary": "Compute how much wages cost per second for this ship"
       }
     },
+    "/ship/{ship_id}/extraction/power_attribution": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "The current power attribution set for all mineable resources by the ship",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "ok",
+                  "power_attribution": {
+                    "Iron": 50
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ship"
+        ],
+        "parameters": [
+          {
+            "name": "ship_id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "summary": "Get the attribution of power for all the mineable resources by the ship"
+      }
+    },
     "/ship/{ship_id}/navigate": {
       "post": {
         "description": "Ship will have the state InFlight during the travel",
@@ -602,15 +636,15 @@
               "application/json": {
                 "example": {
                   "direction": [
-                    -0.4252064548226232,
-                    -0.8823533006178379,
-                    -0.2016237180144833
+                    0.6338339572519512,
+                    0.27792719261205434,
+                    -0.7218109103090045
                   ],
-                  "distance": 500.9331292697659,
-                  "duration": 5.009331292697659,
+                  "distance": 500.13098284349473,
+                  "duration": 5.001309828434947,
                   "error": "ok",
-                  "fuel_consumption": 1.4026127619553448,
-                  "hull_usage": 25.046656463488297
+                  "fuel_consumption": 1.4003667519617853,
+                  "hull_usage": 25.006549142174737
                 }
               }
             }
@@ -645,9 +679,9 @@
                 }
               },
               "example": {
-                "x": 4241800315,
-                "y": 4293639296,
-                "z": 2524969477
+                "x": 2733421176,
+                "y": 263570199,
+                "z": 3627424437
               }
             }
           },
@@ -667,9 +701,9 @@
                 "example": {
                   "error": "ok",
                   "position": [
-                    4241800315,
-                    4293639296,
-                    2524969477
+                    2733421176,
+                    263570199,
+                    3627424437
                   ]
                 }
               }
@@ -700,9 +734,9 @@
                 "example": {
                   "error": "ok",
                   "mining_rate": {
-                    "Iron": 18.329484663337983
+                    "Iron": 18.787932296722033
                   },
-                  "time_fill_cargo": 14.548508676844817
+                  "time_fill_cargo": 14.193507963257485
                 }
               }
             }
@@ -749,6 +783,44 @@
         "summary": "Stop the extraction of resources on the planet, the ship state will be Idle"
       }
     },
+    "/ship/{ship_id}/extraction/power_attribution/{resource}/{pow}": {
+      "post": {
+        "description": "Setting the power attribution for a non-mineable resource will have no effect",
+        "responses": {
+          "200": {
+            "description": "Nothing",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "ok"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ship"
+        ],
+        "parameters": [
+          {
+            "name": "ship_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "resource",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "pow",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "summary": "Set the attribution of power for a specific mineable resource"
+      }
+    },
     "/ship/{ship_id}/unload/{station_id}/all": {
       "post": {
         "description": "",
@@ -761,7 +833,7 @@
                   "emptied": true,
                   "error": "ok",
                   "unloaded": {
-                    "Iron": 132.07205865583387
+                    "Iron": 132.01856066079168
                   }
                 }
               }
@@ -846,12 +918,12 @@
                   },
                   "crew": {},
                   "error": "ok",
-                  "id": 48414,
+                  "id": 16971,
                   "idle_crew": {},
                   "position": [
-                    4241800315,
-                    4293639296,
-                    2524969477
+                    2733421176,
+                    263570199,
+                    3627424437
                   ],
                   "trader": null
                 }
@@ -915,180 +987,180 @@
                   "planets": [
                     {
                       "position": [
-                        4241800528,
-                        4293639738,
-                        2524969578
+                        2733420859,
+                        263570060,
+                        3627424798
                       ],
                       "resources_density": {
-                        "Ammonia": 0.9421045246975019,
-                        "Brine": 0.1795146110678021,
-                        "Copper": 0.23770339392882867,
-                        "Helium": 0.22208496731881544,
-                        "Hydrogen": 0.19863891836494485,
-                        "Iron": 0.6109828221112661,
-                        "Oxygen": 0.07598830546019397,
-                        "Ozone": 0.014395017050196302,
-                        "SulfuricAcid": 0.7045010247786556,
-                        "Titanium": 0.8900993374074011,
-                        "Uranium": 0.7287900026300529,
-                        "Water": 0.6984864947037712
+                        "Ammonia": 0.7135685684257,
+                        "Brine": 0.27245056313014104,
+                        "Copper": 0.11265147762223449,
+                        "Helium": 0.7940200056336606,
+                        "Hydrogen": 0.8165653080538724,
+                        "Iron": 0.6262644098907344,
+                        "Oxygen": 0.1423664468880319,
+                        "Ozone": 0.024644455367655693,
+                        "SulfuricAcid": 0.07447892805310685,
+                        "Titanium": 0.5781691499287864,
+                        "Uranium": 0.6053731658691979,
+                        "Water": 0.5472171383441258
                       }
                     },
                     {
                       "position": [
-                        4241800676,
-                        4293639687,
-                        2524968012
+                        2733421171,
+                        263570872,
+                        3627423517
                       ],
                       "resources_density": {
-                        "Ammonia": 0.650298504091535,
-                        "Brine": 0.9000253856031022,
-                        "Copper": 0.8970244293229788,
-                        "Helium": 0.5751439973097363,
-                        "Hydrogen": 0.5316335233182778,
-                        "Iron": 0.23830918021290026,
-                        "Oxygen": 0.5366341680094022,
-                        "Ozone": 0.026135910303406007,
-                        "SulfuricAcid": 0.9046491092003133,
-                        "Titanium": 0.33341539839564205,
-                        "Uranium": 0.6545689930665983,
-                        "Water": 0.5582946920913574
+                        "Ammonia": 0.8694893818802543,
+                        "Brine": 0.7702818657862565,
+                        "Copper": 0.22664359819227298,
+                        "Helium": 0.0722412786650879,
+                        "Hydrogen": 0.5857527299600502,
+                        "Iron": 0.6901172704249525,
+                        "Oxygen": 0.008071478843014512,
+                        "Ozone": 0.3013535965531242,
+                        "SulfuricAcid": 0.95161673656133,
+                        "Titanium": 0.5345169556547613,
+                        "Uranium": 0.44771065106755237,
+                        "Water": 0.933065826012476
                       }
                     },
                     {
                       "position": [
-                        4241801200,
-                        4293635551,
-                        2524966639
+                        2733421282,
+                        263573042,
+                        3627422606
                       ],
                       "resources_density": {
-                        "Ammonia": 0.8589802670742546,
-                        "Brine": 0.5835687877632476,
-                        "Copper": 0.5629621863277616,
-                        "Helium": 0.9084306018930806,
-                        "Hydrogen": 0.34270577225846943,
-                        "Iron": 0.8420697495207572,
-                        "Oxygen": 0.3229858315820249,
-                        "Ozone": 0.3453754870916228,
-                        "SulfuricAcid": 0.8417181910399649,
-                        "Titanium": 0.14024132495806896,
-                        "Uranium": 0.3393461287245185,
-                        "Water": 0.9274934514930251
+                        "Ammonia": 0.17172236026296583,
+                        "Brine": 0.46523007736940625,
+                        "Copper": 0.941458814674782,
+                        "Helium": 0.6915413460467157,
+                        "Hydrogen": 0.6760751184838791,
+                        "Iron": 0.05373546121960415,
+                        "Oxygen": 0.19719121106184834,
+                        "Ozone": 0.7781094156591561,
+                        "SulfuricAcid": 0.8343184131466446,
+                        "Titanium": 0.11167042018157702,
+                        "Uranium": 0.34362249315869886,
+                        "Water": 0.7134450436790076
                       }
                     },
                     {
                       "position": [
-                        4241801467,
-                        4293638315,
-                        2524965461
+                        2733421847,
+                        263574054,
+                        3627420051
                       ],
                       "resources_density": {
-                        "Ammonia": 0.9094923077151147,
-                        "Brine": 0.4518571658995121,
-                        "Copper": 0.8279696624064037,
-                        "Helium": 0.7210778371506301,
-                        "Hydrogen": 0.05649487957889443,
-                        "Iron": 0.9826434902695036,
-                        "Oxygen": 0.7693098657031607,
-                        "Ozone": 0.42061376358600033,
-                        "SulfuricAcid": 0.030275079917585712,
-                        "Titanium": 0.7202157771951714,
-                        "Uranium": 0.3404557692373167,
-                        "Water": 0.6214573244958381
+                        "Ammonia": 0.19919943359627768,
+                        "Brine": 0.18131351450341704,
+                        "Copper": 0.05329030612836805,
+                        "Helium": 0.26665318729961873,
+                        "Hydrogen": 0.507205911265413,
+                        "Iron": 0.8212432544149,
+                        "Oxygen": 0.5204033713413805,
+                        "Ozone": 0.3574087409554343,
+                        "SulfuricAcid": 0.29962070571401345,
+                        "Titanium": 0.6756786765559906,
+                        "Uranium": 0.6993261624530778,
+                        "Water": 0.7873733835602277
                       }
                     },
                     {
                       "position": [
-                        4241801606,
-                        4293639376,
-                        2524965825
+                        2733422168,
+                        263574001,
+                        3627420597
                       ],
                       "resources_density": {
-                        "Ammonia": 0.4409676861374028,
-                        "Brine": 0.7004078980057162,
-                        "Copper": 0.7618088331147352,
-                        "Helium": 0.38665172191178576,
-                        "Hydrogen": 0.1501076859813688,
-                        "Iron": 0.8029969392418972,
-                        "Oxygen": 0.31792335548039263,
-                        "Ozone": 0.7903487550366495,
-                        "SulfuricAcid": 0.31384200965226783,
-                        "Titanium": 0.9038392289876895,
-                        "Uranium": 0.4235315106522832,
-                        "Water": 0.49912625773829666
+                        "Ammonia": 0.8532360010311146,
+                        "Brine": 0.03904883538183901,
+                        "Copper": 0.8080284543695129,
+                        "Helium": 0.3596327798151857,
+                        "Hydrogen": 0.5338274341875531,
+                        "Iron": 0.4421532303442768,
+                        "Oxygen": 0.15585024369871125,
+                        "Ozone": 0.12150396227562621,
+                        "SulfuricAcid": 0.12942615997355178,
+                        "Titanium": 0.6880775554977165,
+                        "Uranium": 0.008712281525632859,
+                        "Water": 0.5362407576479977
                       }
                     },
                     {
                       "position": [
-                        4241802463,
-                        4293636677,
-                        2524968064
+                        2733422500,
+                        263573697,
+                        3627423860
                       ],
                       "resources_density": {
-                        "Ammonia": 0.12643030236637998,
-                        "Brine": 0.12480183844531645,
-                        "Copper": 0.9267672706171146,
-                        "Helium": 0.247356513652349,
-                        "Hydrogen": 0.06766893333962432,
-                        "Iron": 0.9210734848723203,
-                        "Oxygen": 0.8872705240074341,
-                        "Ozone": 0.19191704749252048,
-                        "SulfuricAcid": 0.39616496396862644,
-                        "Titanium": 0.782747889262577,
-                        "Uranium": 0.1601311122989435,
-                        "Water": 0.49082060303525243
+                        "Ammonia": 0.27377748188828166,
+                        "Brine": 0.43108821293892263,
+                        "Copper": 0.6781389550484807,
+                        "Helium": 0.5462458886573172,
+                        "Hydrogen": 0.24871010444440889,
+                        "Iron": 0.7348810491715241,
+                        "Oxygen": 0.968299362606722,
+                        "Ozone": 0.30285394301276614,
+                        "SulfuricAcid": 0.08162648130127503,
+                        "Titanium": 0.019672858713457142,
+                        "Uranium": 0.25880574710331716,
+                        "Water": 0.7977839999070035
                       }
                     },
                     {
                       "position": [
-                        4241803217,
-                        4293638965,
-                        2524969114
+                        2733423387,
+                        263570684,
+                        3627420938
                       ],
                       "resources_density": {
-                        "Ammonia": 0.22696184519871943,
-                        "Brine": 0.9340273386211633,
-                        "Copper": 0.3920393784004761,
-                        "Helium": 0.7377296324599407,
-                        "Hydrogen": 0.5211831517441461,
-                        "Iron": 0.10798996807202332,
-                        "Oxygen": 0.4692940045602958,
-                        "Ozone": 0.7219496890864092,
-                        "SulfuricAcid": 0.6680918510364289,
-                        "Titanium": 0.5162146582773135,
-                        "Uranium": 0.6230010259150092,
-                        "Water": 0.3698178163376613
+                        "Ammonia": 0.4136771584683938,
+                        "Brine": 0.591745028805448,
+                        "Copper": 0.9171339643986531,
+                        "Helium": 0.5337747184571393,
+                        "Hydrogen": 0.7106976894718975,
+                        "Iron": 0.603897484309714,
+                        "Oxygen": 0.966505620270844,
+                        "Ozone": 0.9334129809924967,
+                        "SulfuricAcid": 0.769483408120303,
+                        "Titanium": 0.7096510930929314,
+                        "Uranium": 0.7437096900402242,
+                        "Water": 0.13624118660556084
                       }
                     },
                     {
                       "position": [
-                        4241804614,
-                        4293636886,
-                        2524967666
+                        2733424944,
+                        263570807,
+                        3627421818
                       ],
                       "resources_density": {
-                        "Ammonia": 0.9790808183640654,
-                        "Brine": 0.9344914168524914,
-                        "Copper": 0.43001976450050017,
-                        "Helium": 0.7895446772311279,
-                        "Hydrogen": 0.15621553745457906,
-                        "Iron": 0.15729100046100042,
-                        "Oxygen": 0.793231897198782,
-                        "Ozone": 0.7218829169487937,
-                        "SulfuricAcid": 0.48614184308911246,
-                        "Titanium": 0.3659976183177036,
-                        "Uranium": 0.1263154855034616,
-                        "Water": 0.449857973016486
+                        "Ammonia": 0.347950452208734,
+                        "Brine": 0.17330577592281982,
+                        "Copper": 0.46465293721233203,
+                        "Helium": 0.7943143808183215,
+                        "Hydrogen": 0.6892142044406562,
+                        "Iron": 0.8691826911577278,
+                        "Oxygen": 0.9556990164472934,
+                        "Ozone": 0.6487841962179324,
+                        "SulfuricAcid": 0.8886082057935971,
+                        "Titanium": 0.8878483736086566,
+                        "Uranium": 0.8095147149881676,
+                        "Water": 0.7629430888186115
                       }
                     }
                   ],
                   "stations": [
                     {
-                      "id": 48414,
+                      "id": 16971,
                       "position": [
-                        4241800315,
-                        4293639296,
-                        2524969477
+                        2733421176,
+                        263570199,
+                        3627424437
                       ]
                     }
                   ]
@@ -1119,7 +1191,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "added-fuel": 2.8052255238899306,
+                  "added-fuel": 2.8007335039028476,
                   "error": "ok"
                 }
               }
@@ -1153,7 +1225,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "added-hull": 50.093312926977035,
+                  "added-hull": 50.01309828434991,
                   "error": "ok"
                 }
               }
@@ -1193,7 +1265,7 @@
                       "cargo_capacity": 200.0,
                       "fuel_tank_capacity": 1000.0,
                       "hull_resistance": 3000.0,
-                      "id": 12730750065492144288,
+                      "id": 15637695361758404895,
                       "modules": {},
                       "price": 65000.0,
                       "reactor_power": 1
@@ -1202,7 +1274,7 @@
                       "cargo_capacity": 400.0,
                       "fuel_tank_capacity": 2000.0,
                       "hull_resistance": 6000.0,
-                      "id": 18314598424572428063,
+                      "id": 8050442815570693917,
                       "modules": {},
                       "price": 134000.0,
                       "reactor_power": 3
@@ -1211,7 +1283,7 @@
                       "cargo_capacity": 1200.0,
                       "fuel_tank_capacity": 4000.0,
                       "hull_resistance": 20000.0,
-                      "id": 15102269945458710149,
+                      "id": 5119524622239815181,
                       "modules": {},
                       "price": 364000.0,
                       "reactor_power": 10
@@ -1290,7 +1362,7 @@
               "application/json": {
                 "example": {
                   "error": "ok",
-                  "id": 12730750065492144288
+                  "id": 15637695361758404895
                 }
               }
             }
@@ -1362,12 +1434,12 @@
             "content": {
               "application/json": {
                 "example": {
-                  "2324512067": {
+                  "1548910388": {
                     "member-type": "Pilot",
                     "price": 43703.70833044504,
                     "rank": 2
                   },
-                  "2569063773": {
+                  "3097757315": {
                     "member-type": "Operator",
                     "price": 1148.4466146364105,
                     "rank": 2
@@ -1406,7 +1478,7 @@
               "application/json": {
                 "example": {
                   "error": "ok",
-                  "id": 2569063773
+                  "id": 3097757315
                 }
               }
             }
@@ -1979,7 +2051,7 @@
                 "example": {
                   "cost": 8000.0,
                   "error": "ok",
-                  "id": 2460021667
+                  "id": 1477624791
                 }
               }
             }
@@ -2200,7 +2272,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "Iron": 72.97099277025205,
+                  "Iron": 74.79610567198678,
                   "error": "ok"
                 }
               }
@@ -2240,9 +2312,9 @@
                 "module_rank": 5,
                 "operator_rank": 2,
                 "planet_coord": [
-                  4241800528,
-                  4293639738,
-                  2524969578
+                  2733420859,
+                  263570060,
+                  3627424798
                 ]
               }
             }

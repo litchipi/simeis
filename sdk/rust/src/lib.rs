@@ -760,4 +760,28 @@ impl SimeisSDK {
             "/station/{station_id}/industry/upgrade/{industry_id}"
         ))
     }
+
+    pub fn get_extraction_power_attribution(
+        &self,
+        ship_id: u64,
+    ) -> Result<HashMap<String, u8>, Value> {
+        let res = self.get(format!("/ship/{ship_id}/extraction/power_attribution"))?;
+        let hmap = json_get_dict("power_attribution", &res).unwrap();
+        let mut result = HashMap::new();
+        for (res, val) in hmap.into_iter() {
+            result.insert(res.clone(), u8::try_from(val.as_u64().unwrap()).unwrap());
+        }
+        Ok(result)
+    }
+
+    pub fn set_extraction_power_attribution(
+        &self,
+        ship_id: u64,
+        res: String,
+        pow: u8,
+    ) -> ApiResult {
+        self.post(format!(
+            "/ship/{ship_id}/extraction/power_attribution/{res}/{pow}"
+        ))
+    }
 }
