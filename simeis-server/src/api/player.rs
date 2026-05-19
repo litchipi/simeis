@@ -12,6 +12,7 @@ use simeis_data::errors::Errcode;
 
 use crate::api::build_response;
 use crate::api::GameState;
+use crate::AdminToken;
 
 // @summary Creates a new player in the game
 // @returns The ID of the player, and its authentication secret key
@@ -31,7 +32,19 @@ async fn new_player(srv: GameState, name: Path<String>) -> impl web::Responder {
 // @summary Get the status from the player of a given id.
 // @returns Information about the player, complete if it's you, minimal if it's another player
 #[web::get("/{player_id}")]
-async fn get_player(srv: GameState, id: Path<PlayerId>, req: HttpRequest) -> impl web::Responder {
+async fn get_player(
+    srv: GameState,
+    tok: AdminToken,
+    id: Path<PlayerId>,
+    req: HttpRequest,
+) -> impl web::Responder {
+    if got_admin_token!(req, tok) {
+        let data = srv
+            .sync_map_player_by_id(&id, |p| Ok(p.export_json(true)))
+            .await;
+        return build_response(data);
+    }
+
     let pkey = get_player_key!(req);
     let id = id.as_ref();
     let data = srv.player_to_json(&pkey, id).await;

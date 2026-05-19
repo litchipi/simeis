@@ -73,6 +73,7 @@ async fn shipyard_buy_ship(
             })
         })
         .await;
+    srv.update_ships_owners(&key).await.unwrap();
     build_response(data)
 }
 

@@ -20,6 +20,7 @@ use strum::IntoEnumIterator;
 
 use crate::api::build_response;
 use crate::api::GameState;
+use crate::AdminToken;
 
 // @summary Get the status of the ship
 // @returns The data for the ship
@@ -28,7 +29,20 @@ async fn get_ship_status(
     srv: GameState,
     id: Path<ShipId>,
     req: HttpRequest,
+    tok: AdminToken,
 ) -> impl web::Responder {
+    if got_admin_token!(req, tok) {
+        let Some(owner) = srv.get_ship_owner(&id).await else {
+            return build_response(Err(Errcode::ShipNotFound(*id)));
+        };
+        let data = srv
+            .sync_map_player_by_id(&owner, |p| {
+                p.export_ship_json(&id).ok_or(Errcode::ShipNotFound(*id))
+            })
+            .await;
+        return build_response(data);
+    }
+
     let pkey = get_player_key!(req);
     let ship_id = *id;
     let data = srv

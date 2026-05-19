@@ -6,6 +6,23 @@ use crate::GameState;
 
 pub type ApiResult = Result<Value, Errcode>;
 
+macro_rules! got_admin_token {
+    ($req:ident, $tok:ident) => {
+        'tok: {
+            let Some(tok) = $req.headers().get("Simeis-Admin-Token") else {
+                break 'tok false;
+            };
+            let admin_tok: &str = $tok.as_ref();
+            if admin_tok != tok {
+                log::warn!("Invalid admin token");
+                break 'tok false;
+            } else {
+                break 'tok true;
+            }
+        }
+    };
+}
+
 macro_rules! get_player_key {
     ($req:ident) => {
         'getk: {
@@ -55,6 +72,7 @@ fn build_response(res: ApiResult) -> HttpResponse {
         .json(&body)
 }
 
+mod admin;
 mod market;
 mod player;
 mod ship;
@@ -77,4 +95,5 @@ pub fn configure(srv: &mut ServiceConfig) {
     ship::configure("/ship/{ship_id}", srv);
     station::configure("/station/{station_id}", srv);
     calc::configure("/calc", srv);
+    admin::configure("/admin", srv);
 }

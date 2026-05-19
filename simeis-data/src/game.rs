@@ -9,6 +9,7 @@
 // - SyslogFifo
 // - PlayerFifo
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -60,6 +61,9 @@ pub struct Game {
     pub fifo_events: SyslogFifo,
     pub tstart: f64,
     pub send_sig: BoundedSender<GameSignal>,
+
+    // Tracking data
+    pub ship_owners: Arc<RwLock<BTreeMap<ShipId, PlayerId>>>,
 }
 
 impl Game {
@@ -86,6 +90,7 @@ impl Game {
             fifo_events: sysrecv.fifo.clone(),
             tstart,
             init_station,
+            ship_owners: Arc::new(RwLock::new(BTreeMap::new())),
         };
 
         let thread_data = data.clone();
@@ -344,6 +349,18 @@ impl Game {
         data
     }
 
+    pub async fn sync_map_player_by_id<F, T>(&self, pid: &PlayerId, f: F) -> Result<T, Errcode>
+    where
+        F: for<'a> FnOnce(&'a Player) -> Result<T, Errcode>,
+    {
+        let Some(player) = self.players.clone_val(pid).await else {
+            return Err(Errcode::PlayerNotFound(*pid));
+        };
+        let player = player.read().await;
+
+        f(&player)
+    }
+
     pub async fn map_player<F, T>(&self, pkey: &PlayerKey, f: F) -> Result<T, Errcode>
     where
         F: for<'a> FnOnce(&'a Player) -> BoxFuture<'a, Result<T, Errcode>>,
@@ -372,13 +389,22 @@ impl Game {
         let (pid, player) = self.get_player(pkey).await?;
         let player = player.read().await;
         if pid == *id {
-            Ok(player.export_json())
+            Ok(player.export_json(true))
         } else {
-            Ok(serde_json::json!({
-                "id": id,
-                "name": player.name,
-            }))
+            self.export_player_data(id, false).await
         }
+    }
+
+    pub async fn export_player_data(
+        &self,
+        id: &PlayerId,
+        full: bool,
+    ) -> Result<serde_json::Value, Errcode> {
+        let Some(player) = self.players.clone_val(id).await else {
+            return Err(Errcode::PlayerNotFound(*id));
+        };
+        let player = player.read().await;
+        Ok(player.export_json(full))
     }
 
     pub async fn scan_galaxy(
@@ -448,5 +474,20 @@ impl Game {
         player.money += tx.added_money.unwrap();
         player.score += tx.added_money.unwrap();
         Ok(tx)
+    }
+
+    pub async fn update_ships_owners(&self, pkey: &PlayerKey) -> Result<(), Errcode> {
+        let (pid, player) = self.get_player(pkey).await?;
+        let player = player.read().await;
+        let mut ships = self.ship_owners.write().await;
+        for (shipid, _) in player.ships.iter() {
+            ships.insert(*shipid, pid);
+        }
+        Ok(())
+    }
+
+    pub async fn get_ship_owner(&self, ship_id: &ShipId) -> Option<PlayerId> {
+        let ships = self.ship_owners.read().await;
+        ships.get(ship_id).cloned()
     }
 }

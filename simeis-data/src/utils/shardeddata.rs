@@ -45,6 +45,16 @@ impl<K: ShardDataKey, T> ShardedLockedData<K, T> {
 
     pub async fn map<F, V>(&self, key: &K, f: F) -> Option<V>
     where
+        F: FnOnce(&T) -> V,
+    {
+        let shard = self.get_shard(key);
+        let sref = shard.read().await;
+        let val = sref.get(key)?;
+        Some(f(val))
+    }
+
+    pub async fn map_mut<F, V>(&self, key: &K, f: F) -> Option<V>
+    where
         F: FnOnce(&mut T) -> V,
     {
         let shard = self.get_shard(key);

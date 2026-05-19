@@ -17,6 +17,8 @@ SOLID=["Iron", "Copper", "Titanium", "Uranium"]
 LIQUID=["Water", "Ammonia", "SulfuricAcid", "Brine"]
 GAS=["Hydrogen", "Helium", "Oxygen", "Ozone"]
 
+ADMIN_TOKEN=os.getenv("SIMEIS_ADMIN_TOKEN")
+
 def functest(f):
     assert f.__name__.startswith("test_")
     name = f.__name__.removeprefix("test_").replace("_", " ").capitalize()
@@ -64,7 +66,8 @@ class Tester:
     def disp_ok(self):
         print("  * Test", self.current_test, " "*(self.indent - len(self.current_test)), "OK")
 
-    def request(self, endpoint, expcode=200, timeout=1, method="GET", headers={}, key=None, body=None, **kwargs):
+    # TODO If admin=True, add admin token to header
+    def request(self, endpoint, expcode=200, timeout=1, method="GET", headers={}, key=None, body=None, admin=False, **kwargs):
         self.addtrace(method, endpoint, "expected code", expcode)
         if key is None:
             if self.key is not None:

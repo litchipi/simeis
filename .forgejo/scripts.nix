@@ -14,6 +14,7 @@
     rcmd = "${targetdir}/simeis-server 1>/tmp/${key}_simeis_logs 2>&1 &";
   in ''
     #!/bin/bash
+    export SIMEIS_ADMIN_TOKEN="testingadmintoken${key}"
     export CARGO_HOME=$PWD/.cargohome
     export RUST_BACKTRACE=full
     export RUST_LOG=debug

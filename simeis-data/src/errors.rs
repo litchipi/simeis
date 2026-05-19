@@ -33,6 +33,8 @@ pub enum Errcode {
     NoSuchIndustryUnit,
     NothingAtThisCoord,
     NotAPlanet,
+    NotAnAdmin,
+    InvalidAdminToken,
 }
 
 impl Errcode {
@@ -79,6 +81,8 @@ impl Errcode {
             Errcode::NoSuchIndustryUnit => "The provided industry unit doesn't exist".to_string(),
             Errcode::NothingAtThisCoord => "There is nothing at the specified space coordinates".to_string(),
             Errcode::NotAPlanet => "The specified space coordinates doesn't point to a planet".to_string(),
+            Errcode::NotAnAdmin => "You are not an administrator".to_string(),
+            Errcode::InvalidAdminToken => "The administrator token you provided is wrong".to_string(),
         }
     }
 }
