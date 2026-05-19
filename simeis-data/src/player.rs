@@ -288,4 +288,18 @@ impl Player {
         self.money -= cost;
         Ok(station.add_cargo_cap(&self.id, amnt).await)
     }
+
+    pub fn export_json(&self) -> serde_json::Value {
+        let stations = self.stations.keys().cloned().collect::<Vec<StationId>>();
+        let ships =
+            serde_json::to_value(self.ships.keys().cloned().collect::<Vec<ShipId>>()).unwrap();
+        serde_json::json!({
+            "id": self.id,
+            "name": self.name,
+            "stations": stations,
+            "money": self.money,
+            "ships": ships,
+            "costs": self.costs,
+        })
+    }
 }

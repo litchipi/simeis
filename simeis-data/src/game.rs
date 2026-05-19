@@ -372,17 +372,7 @@ impl Game {
         let (pid, player) = self.get_player(pkey).await?;
         let player = player.read().await;
         if pid == *id {
-            let stations = player.stations.keys().cloned().collect::<Vec<StationId>>();
-            let ships =
-                serde_json::to_value(player.ships.values().collect::<Vec<&Ship>>()).unwrap();
-            Ok(serde_json::json!({
-                "id": id,
-                "name": player.name,
-                "stations": stations,
-                "money": player.money,
-                "ships": ships,
-                "costs": player.costs,
-            }))
+            Ok(player.export_json())
         } else {
             Ok(serde_json::json!({
                 "id": id,

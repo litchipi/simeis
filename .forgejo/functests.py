@@ -150,7 +150,7 @@ class Tester:
         after = self.get_ok(f"/player/{self.id}")
         assert len(after["ships"]) > 0
         ship = after["ships"][retind]
-        return self.assert_got(ship, "id", None)
+        return ship
 
     def setup_crew(self, shipid, trader=True):
         pilot = self.post_ok(f"/station/{self.station}/crew/hire/pilot")
@@ -347,7 +347,7 @@ class Tester:
         aftermoney = self.assert_got(after, "money", None)
         ships = self.assert_got(after, "ships", None)
         assert len(ships) > 0
-        assert ships[0]["id"] == sid_can
+        assert ships[0] == sid_can
         assert aftermoney < beforemoney
 
         # TODO (#22)    Sell ship with given ID
@@ -690,8 +690,7 @@ class Tester:
     def test_unload_cargo(self):
         player = self.get_ok(f"/player/{self.id}")
         stationid = player["stations"][0]
-        ship = player["ships"][0]
-        shipid = ship["id"]
+        shipid = player["ships"][0]
 
         dest = self.get_ok(f"/station/{stationid}")["position"]
         cost = self.post_ok(f"/ship/{shipid}/navigate", body={
@@ -699,6 +698,7 @@ class Tester:
         })
         self.tick_dur(cost["duration"])
 
+        ship = self.get_ok(f"/ship/{shipid}")
         resname = list(ship["cargo"]["resources"].keys())[0]
         resamnt = ship["cargo"]["resources"][resname]
         resname = resname.lower()
@@ -941,8 +941,8 @@ class Tester:
     @functest
     def test_buy_crew_upgrade(self):
         player = self.get_ok(f"/player/{self.id}")
-        ship = player["ships"][0]
-        shipid = ship["id"]
+        shipid = player["ships"][0]
+        ship = self.get_ok(f"/ship/{shipid}")
         shippos = ship["position"]
         dest = [shippos[0] + 30, shippos[1] + 30, shippos[2] + 30]
         beforewages = player["costs"]
