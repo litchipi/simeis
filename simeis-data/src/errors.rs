@@ -35,6 +35,7 @@ pub enum Errcode {
     NotAPlanet,
     NotAnAdmin,
     InvalidAdminToken,
+    MissingQueryArgument(&'static str),
 }
 
 impl Errcode {
@@ -83,6 +84,7 @@ impl Errcode {
             Errcode::NotAPlanet => "The specified space coordinates doesn't point to a planet".to_string(),
             Errcode::NotAnAdmin => "You are not an administrator".to_string(),
             Errcode::InvalidAdminToken => "The administrator token you provided is wrong".to_string(),
+            Errcode::MissingQueryArgument(key) => format!("The query argument {key:?} is missing"),
         }
     }
 }

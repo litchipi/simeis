@@ -11,6 +11,7 @@ use simeis_data::{
 };
 
 mod api;
+mod utils;
 
 pub type GameState = ntex::web::types::State<Game>;
 pub type AdminToken = ntex::web::types::State<String>;
