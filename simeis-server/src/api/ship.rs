@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::str::FromStr;
 
 use ntex::router::IntoPattern;
 use ntex::web;
@@ -204,10 +203,7 @@ async fn set_extraction_power_attribution(
     req: HttpRequest,
 ) -> impl web::Responder {
     let pkey = get_player_key!(req);
-    let (ship_id, res, pow) = (args.0, args.1, args.2);
-    // let Ok(res) = Resource::from_str(res) else {
-    //     return build_response(Err(Errcode::InvalidArgument("resource")));
-    // };
+    let (ship_id, res, pow) = *args;
     let data = srv
         .map_player_mut(&pkey, |player| {
             Box::pin(async move {
@@ -250,13 +246,10 @@ async fn unload_all_ship_cargo(
 #[web::post("/unload/{station_id}/{resource}/{amnt}")]
 async fn unload_ship_cargo(
     srv: GameState,
-    args: Path<(ShipId, StationId, String, f64)>,
+    args: Path<(ShipId, StationId, Resource, f64)>,
     req: HttpRequest,
 ) -> impl web::Responder {
-    let (ship_id, station_id, resource, amnt) = args.clone();
-    let Ok(resource) = Resource::from_str(&resource) else {
-        return build_response(Err(Errcode::InvalidArgument("resource")));
-    };
+    let (ship_id, station_id, resource, amnt) = *args;
     let pkey = get_player_key!(req);
 
     let data = srv

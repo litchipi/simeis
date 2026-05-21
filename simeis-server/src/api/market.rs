@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use ntex::router::IntoPattern;
 use ntex::web;
 use ntex::web::scope;
@@ -30,14 +28,11 @@ async fn get_market_prices(srv: GameState) -> impl web::Responder {
 #[web::post("/{station_id}/buy/{resource}/{amnt}")]
 async fn buy_resource(
     srv: GameState,
-    args: Path<(StationId, String, f64)>,
+    args: Path<(StationId, Resource, f64)>,
     req: HttpRequest,
 ) -> impl web::Responder {
     let pkey = get_player_key!(req);
-    let (station_id, resource, amnt) = args.clone();
-    let Ok(resource) = Resource::from_str(&resource) else {
-        return build_response(Err(Errcode::InvalidArgument("resource")));
-    };
+    let (station_id, resource, amnt) = *args;
     let data = srv
         .player_market_buy(&pkey, &station_id, &resource, amnt)
         .await
@@ -50,14 +45,11 @@ async fn buy_resource(
 #[web::post("/{station_id}/sell/{resource}/{amnt}")]
 async fn sell_resource(
     srv: GameState,
-    args: Path<(StationId, String, f64)>,
+    args: Path<(StationId, Resource, f64)>,
     req: HttpRequest,
 ) -> impl web::Responder {
     let pkey = get_player_key!(req);
-    let (station_id, resource, amnt) = args.clone();
-    let Ok(resource) = Resource::from_str(&resource) else {
-        return build_response(Err(Errcode::InvalidArgument("resource")));
-    };
+    let (station_id, resource, amnt) = *args;
     let data = srv
         .player_market_sell(&pkey, &station_id, &resource, amnt)
         .await

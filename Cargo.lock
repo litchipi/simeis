@@ -1571,6 +1571,7 @@ version = "0.2.0"
 dependencies = [
  "base64",
  "env_logger",
+ "heck",
  "log",
  "mea",
  "rand",

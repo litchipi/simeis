@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::str::FromStr;
 
 use ntex::router::IntoPattern;
 use ntex::web;
@@ -52,14 +51,11 @@ async fn get_prices_ship_module(
 #[web::post("/modules/{ship_id}/buy/{modtype}")]
 async fn buy_ship_module(
     srv: GameState,
-    args: Path<(StationId, ShipId, String)>,
+    args: Path<(StationId, ShipId, ShipModuleType)>,
     req: HttpRequest,
 ) -> impl web::Responder {
     let pkey = get_player_key!(req);
-    let (station_id, ship_id, modtype) = args.clone();
-    let Ok(modtype) = ShipModuleType::from_str(modtype.as_str()) else {
-        return build_response(Err(Errcode::InvalidArgument("modtype")));
-    };
+    let (station_id, ship_id, modtype) = *args;
     let cost = modtype.get_price_buy();
 
     let data = srv

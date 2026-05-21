@@ -187,7 +187,7 @@ class Tester:
         elif liquid > solid and liquid > gas:
             return "pump"
         elif gas > solid and gas > liquid:
-            return "gas_sucker"
+            return "Gas-Sucker"
         self.addtrace("Unable to decide which mod to buy")
         assert False
 
