@@ -598,4 +598,9 @@ impl Station {
         let outputs = industry.output(op.rank);
         Ok((inputs, outputs))
     }
+
+    pub async fn reset(&self) {
+        self.player_data.reset().await;
+        *self.shipyard.write().await = Ship::init_shipyard(self.position);
+    }
 }

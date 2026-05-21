@@ -55,7 +55,7 @@ pub struct Game {
     pub taken_names: Arc<ShardedLockedData<String, PlayerId>>,
     pub galaxy: Arc<RwLock<Galaxy>>,
 
-    pub init_station: (StationId, Arc<Station>),
+    pub init_station: Arc<RwLock<(StationId, Arc<Station>)>>,
     pub market: Arc<Market>,
     pub syslog: SyslogSend,
     pub fifo_events: SyslogFifo,
@@ -73,7 +73,7 @@ impl Game {
         let (send_stop, recv_stop) = mea::mpsc::bounded(5);
         let (syssend, sysrecv) = SyslogSend::channel();
         let mut galaxy = Galaxy::init();
-        let init_station = galaxy.init_new_station().await;
+        let init_station = Arc::new(RwLock::new(galaxy.init_new_station().await));
         let data = Game {
             send_sig: send_stop,
             galaxy: Arc::new(RwLock::new(galaxy)),
@@ -204,7 +204,8 @@ impl Game {
             return Err(Errcode::PlayerAlreadyExists(name));
         }
 
-        let player = Player::new(self.init_station.clone(), name.clone());
+        let init_station = self.init_station.read().await;
+        let player = Player::new(init_station.clone(), name.clone());
         let pid = player.id;
         self.taken_names.insert(name.clone(), pid).await;
 
@@ -324,5 +325,18 @@ impl Game {
     pub async fn get_ship_owner(&self, ship_id: &ShipId) -> Option<PlayerId> {
         let ships = self.ship_owners.read().await;
         ships.get(ship_id).cloned()
+    }
+
+    pub async fn reset(&self) {
+        self.taken_names.reset().await;
+        self.player_index.reset().await;
+        self.players.reset().await;
+        let mut init_station = self.init_station.write().await;
+        *self.ship_owners.write().await = BTreeMap::new();
+        let mut new_galaxy = Galaxy::init();
+        *init_station = new_galaxy.init_new_station().await;
+        *self.galaxy.write().await = new_galaxy;
+        self.market.reset().await;
+        self.fifo_events.write().await.reset().await;
     }
 }

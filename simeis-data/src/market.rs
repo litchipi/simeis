@@ -38,6 +38,12 @@ impl Market {
         Market { prices }
     }
 
+    pub async fn reset(&self) {
+        for (r, p) in self.prices.iter() {
+            *p.write().await = r.base_price();
+        }
+    }
+
     pub async fn to_json(&self) -> serde_json::Value {
         let mut resources = BTreeMap::new();
         for (res, price) in self.prices.iter() {

@@ -22,6 +22,13 @@ impl<K: ShardDataKey, T> ShardedLockedData<K, T> {
         ShardedLockedData { shards }
     }
 
+    pub async fn reset(&self) {
+        for shard in self.shards.iter() {
+            let mut s = shard.write().await;
+            *s = BTreeMap::new();
+        }
+    }
+
     fn get_shard(&self, key: &K) -> &RwLock<BTreeMap<K, T>> {
         let idx = key.get_shard_idx(self.shards.len());
         debug_assert!(idx < self.shards.len());
