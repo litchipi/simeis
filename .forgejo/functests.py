@@ -35,6 +35,7 @@ class Tester:
     def __init__(self, host, port):
         self.host = host
         self.port = port
+        self.admintoken = "testingadmintokenfunctests"
         self.key = None
         self.current_test = "No Test"
         self.trace = []
@@ -66,7 +67,6 @@ class Tester:
     def disp_ok(self):
         print("  * Test", self.current_test, " "*(self.indent - len(self.current_test)), "OK")
 
-    # TODO If admin=True, add admin token to header
     def request(self, endpoint, expcode=200, timeout=1, method="GET", headers={}, key=None, body=None, admin=False, **kwargs):
         self.addtrace(method, endpoint, "expected code", expcode)
         if key is None:
@@ -74,7 +74,12 @@ class Tester:
                 headers["Simeis-Key"] = self.key
         else:
             headers["Simeis-Key"] = str(key)
-
+        if admin:
+            self.addtrace("Execute as admin")
+            headers["Simeis-Admin-Token"] = self.admintoken
+        elif "Simeis-Admin-Token" in headers:
+            self.addtrace("TOKEN IN HEADERS EVEN IF NOT ADMIN")
+            headers.pop("Simeis-Admin-Token")
         url = f"http://{self.host}:{self.port}/{endpoint}"
         qry = urllib.parse.urlencode(kwargs)
         if len(qry) > 0:
@@ -85,6 +90,7 @@ class Tester:
                 headers["Content-Type"] = "application/x-www-form-urlencoded"
             else:
                 headers["Content-Type"] = "application/json"
+            self.addtrace("Headers: \n", json.dumps(headers, indent=2))
             if method == "GET":
                 got = requests.get(url, headers=headers, timeout=timeout)
             elif method == "POST":
@@ -230,11 +236,11 @@ class Tester:
     def assert_err(self, endpoint, errtype=None, method="POST", **kwargs):
         got = self.request(endpoint, method=method, **kwargs)
         self.addtrace("Expect this data to be ERR", errtype)
+        if "expcode" in kwargs and kwargs["expcode"] >= 400:
+            return got
+        assert got["error"] != "ok"
         assert "type" in got
-        if errtype is None:
-            self.addtrace("Expect this data to have any error")
-            assert got["error"] != "ok"
-        else:
+        if errtype is not None:
             self.addtrace("Expect this data to have an error", errtype, "got", got["type"])
             assert got["type"] == errtype
         return got
@@ -1348,9 +1354,62 @@ class Tester:
         mr = self.assert_got(extraction_info, "mining_rate", None)
         self.assert_got(mr, testres, 0.0)
 
-    # TODO Test admin endpoints
-    # TODO Test reset game
-    #     Test reset game during very heavy duty
+    @functest
+    def test_get_admin_data(self):
+        self.create_test_player("other_admin_player")
+        other_ship_id = self.buy_a_ship()
+        other = self.get_ok(f"/player/{self.id}")
+        othersta_init = self.get_ok(f"/station/{self.station}")
+        self.create_test_player()
+        me = self.get_ok(f"/player/{self.id}")
+
+        medata = self.get_ok(f"/player/{self.id}")
+        stations = self.assert_got(medata, "stations", None)
+        otherdata = self.get_ok(f"/player/{other["id"]}")
+        assert "stations" not in otherdata
+        otherdata = self.get_ok(f"/player/{other["id"]}", admin=True)
+        self.assert_got(otherdata, "stations", stations)
+
+        shipid = self.buy_a_ship()
+        self.setup_crew(shipid)
+        target = self.target_planet(self.station, shipid)
+
+        data = self.get_err(f"/admin/planet/{target["id"]}", errtype="NotAnAdmin")
+        data = self.get_ok(f"/admin/planet/{target["id"]}", admin=True)
+        self.assert_got(data, "id", None)
+
+        self.addtrace(other["id"], other_ship_id, shipid)
+        self.get_err(f"/ship/{other_ship_id}", errtype=f"ShipNotFound({other_ship_id})")
+        self.get_ok(f"/ship/{other_ship_id}", admin=True)
+
+        mestation = self.get_ok(f"/station/{self.station}")
+        mestation2 = self.get_ok(f"/station/{self.station}?player={other["id"]}")
+        assert mestation == mestation2
+        othersta = self.get_ok(f"/station/{self.station}?player={other["id"]}", admin=True)
+        assert othersta != mestation
+        assert othersta == othersta_init
+
+        self.post_err(f"/admin/player/remove/{other["id"]}", errtype="NotAnAdmin")
+        self.post_ok(f"/admin/player/remove/{other["id"]}", admin=True)
+        self.get_err(f"/player/{other["id"]}")
+
+    @functest
+    def test_reset_game(self):
+        self.create_test_player()
+        got = self.get_ok(f"/player/{self.id}")
+        self.post_err("/admin/reset", admin=False, errtype="NotAnAdmin")
+        self.post_ok("/admin/reset", admin=True)
+        self.get_err(f"/player/{self.id}", errtype="NoPlayerWithKey")
+
+        self.create_test_player()
+        got = self.get_ok(f"/player/{self.id}")
+        self.post_err("/admin/reset/12", admin=False, errtype="NotAnAdmin")
+        self.post_ok("/admin/reset/12", admin=True)
+        t = time.time()
+        while (time.time() - t) < 12:
+            self.get_ok(f"/player/{self.id}")
+            time.sleep(0.15)
+        self.get_err(f"/player/{self.id}", errtype="NoPlayerWithKey")
 
 def compute_distance(a, b):
     sum = 0
