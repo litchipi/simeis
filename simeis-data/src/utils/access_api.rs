@@ -211,4 +211,18 @@ impl Game {
         let player = player.read().await;
         Ok(player.export_json(full))
     }
+
+    #[inline]
+    pub async fn remove_player(&self, id: &PlayerId) -> Result<(), Errcode> {
+        let val = self
+            .players
+            .remove(id)
+            .await
+            .ok_or(Errcode::PlayerNotFound(*id))?;
+        self.player_index.remove_value(id).await;
+        self.taken_names.remove_value(id).await;
+        let mut player = val.write().await;
+        player.lost = true;
+        Ok(())
+    }
 }

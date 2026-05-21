@@ -1,8 +1,10 @@
 use ntex::router::IntoPattern;
 use ntex::web::types::Path;
 use ntex::web::{self, scope, HttpRequest, ServiceConfig};
+use serde_json::json;
 use simeis_data::errors::Errcode;
 use simeis_data::galaxy::planet::{PlanetId, PlanetInfo};
+use simeis_data::player::PlayerId;
 
 use crate::api::build_response;
 use crate::{AdminToken, GameState};
@@ -28,6 +30,23 @@ async fn get_planet(
     }
 }
 
+// @summary
+// @returns
+#[web::post("/player/remove/{id}")]
+async fn remove_player(
+    srv: GameState,
+    id: Path<PlayerId>,
+    req: HttpRequest,
+    tok: AdminToken,
+) -> impl web::Responder {
+    if got_admin_token!(req, tok) {
+        let data = srv.remove_player(&id).await.map(|_| json!({}));
+        build_response(data)
+    } else {
+        build_response(Err(Errcode::NotAnAdmin))
+    }
+}
+
 pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
-    srv.service(scope(base).service(get_planet));
+    srv.service(scope(base).service(get_planet).service(remove_player));
 }
