@@ -1348,6 +1348,8 @@ class Tester:
         mr = self.assert_got(extraction_info, "mining_rate", None)
         self.assert_got(mr, testres, 0.0)
 
+    # TODO Test admin endpoints
+
 def compute_distance(a, b):
     sum = 0
     sum += (b[0] - a[0]) ** 2
