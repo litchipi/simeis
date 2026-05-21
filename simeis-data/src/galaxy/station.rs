@@ -430,12 +430,15 @@ impl Station {
     //    If len == 10, take one of the last 7 ships, and replace it with random
 
     pub async fn buy_ship(&self, index: usize) -> Ship {
+        let mut shipyard = self.shipyard.write().await;
+
         // Ship starters, always keep them
         let mut ship = if index < 3 {
-            let shipyard = self.shipyard.read().await;
-            shipyard.get(index).unwrap().clone()
+            let ship = shipyard.get_mut(index).unwrap();
+            let got = ship.clone();
+            ship.id = rand::rng().random();
+            got
         } else {
-            let mut shipyard = self.shipyard.write().await;
             let ship = shipyard.remove(index);
             shipyard.push(Ship::random(self.position));
             ship
