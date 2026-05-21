@@ -14,6 +14,7 @@ use crate::{AdminToken, GameState};
 
 // @summary Get the informations about a planet from its ID
 // @returns Planet informations
+// @noswagger
 #[web::get("/planet/{id}")]
 async fn get_planet(
     srv: GameState,
@@ -35,6 +36,7 @@ async fn get_planet(
 
 // @summary Removes a player by his ID
 // @returns Nothing
+// @noswagger
 #[web::post("/player/remove/{id}")]
 async fn remove_player(
     srv: GameState,
@@ -52,6 +54,7 @@ async fn remove_player(
 
 // @summary Resets the game completely
 // @returns Nothing
+// @noswagger
 #[web::post("/reset")]
 async fn reset_game(srv: GameState, req: HttpRequest, tok: AdminToken) -> impl web::Responder {
     if got_admin_token!(req, tok) {
@@ -64,6 +67,7 @@ async fn reset_game(srv: GameState, req: HttpRequest, tok: AdminToken) -> impl w
 
 // @summary Resets the game completely in N seconds
 // @returns Nothing
+// @noswagger
 #[web::post("/reset/{n}")]
 async fn reset_game_cooldown(
     srv: GameState,
