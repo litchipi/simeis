@@ -76,16 +76,19 @@ async fn reset_game_cooldown(
     tok: AdminToken,
 ) -> impl web::Responder {
     if got_admin_token!(req, tok) {
-        let mut n = *n;
-        while n > 10 {
-            simeis_data::utils::sleep(Duration::from_secs(10)).await;
-            n -= 10;
+        ntex::rt::spawn(async move {
+            let mut n = *n;
             srv.notify_all_players(SyslogEvent::ResetIn(n)).await;
-        }
-        if n > 0 {
-            simeis_data::utils::sleep(Duration::from_secs(n)).await;
-        }
-        srv.reset().await;
+            while n > 10 {
+                simeis_data::utils::sleep(Duration::from_secs(10)).await;
+                n -= 10;
+                srv.notify_all_players(SyslogEvent::ResetIn(n)).await;
+            }
+            if n > 0 {
+                simeis_data::utils::sleep(Duration::from_secs(n)).await;
+            }
+            srv.reset().await;
+        });
         build_response(Ok(json!({})))
     } else {
         build_response(Err(Errcode::NotAnAdmin))
