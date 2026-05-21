@@ -80,6 +80,27 @@ impl<K: ShardDataKey, T: Clone> ShardedLockedData<K, T> {
     }
 }
 
+impl<K: ShardDataKey, T: Eq> ShardedLockedData<K, T> {
+    pub async fn remove_value(&self, val: &T) {
+        for shard in self.shards.iter() {
+            let s = shard.read().await;
+            let mut torm = vec![];
+            for (k, v) in s.iter() {
+                if v == val {
+                    torm.push(k.clone());
+                }
+            }
+            drop(s);
+            if !torm.is_empty() {
+                let mut s = shard.write().await;
+                for key in torm {
+                    s.remove(&key);
+                }
+            }
+        }
+    }
+}
+
 impl ShardDataKey for u16 {
     fn get_shard_idx(&self, totcap: usize) -> usize {
         let sep = (u16::MAX as usize) / totcap;
