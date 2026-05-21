@@ -145,6 +145,7 @@ pub enum SyslogEvent {
     // General game events
     GameStarted,
     GameLost,
+    ResetIn(u64), // The game will be resetted in X seconds
     IndustryStopped(crate::industry::IndustryUnitId),
 
     // Ship

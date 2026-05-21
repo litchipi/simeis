@@ -340,4 +340,12 @@ impl Game {
         self.market.reset().await;
         self.fifo_events.write().await.reset().await;
     }
+
+    #[inline]
+    pub async fn notify_all_players(&self, ev: SyslogEvent) {
+        let all_players = self.players.get_all_keys().await;
+        for pid in all_players {
+            self.syslog.event(&pid, ev.clone()).await;
+        }
+    }
 }

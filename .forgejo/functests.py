@@ -1349,6 +1349,8 @@ class Tester:
         self.assert_got(mr, testres, 0.0)
 
     # TODO Test admin endpoints
+    # TODO Test reset game
+    #     Test reset game during very heavy duty
 
 def compute_distance(a, b):
     sum = 0
