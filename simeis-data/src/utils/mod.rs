@@ -37,3 +37,10 @@ pub fn sleep(dur: Duration) -> AsyncSleepFuture {
         start: std::time::Instant::now(),
     }
 }
+
+pub fn timestamp() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64()
+}

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use strum::IntoStaticStr;
 
 use crate::player::PlayerId;
-use crate::utils::{ShardedLockedData, PLAYER_SHARDS};
+use crate::utils::{timestamp, ShardedLockedData, PLAYER_SHARDS};
 
 const SYSLOG_FIFO_MAX_SIZE: usize = 10;
 
@@ -71,19 +71,17 @@ impl<T> Fifo<T> {
 #[derive(Clone)]
 pub struct SyslogSend {
     sender: BoundedSender<SyslogData>,
-    tstart: std::time::Instant,
 }
 
 impl SyslogSend {
     pub fn channel() -> (SyslogSend, SyslogRecv) {
         let (sender, recv) = mea::mpsc::bounded(1000);
-        let tstart = std::time::Instant::now();
-        let syslogsend = SyslogSend { sender, tstart };
-        (syslogsend, SyslogRecv::init(recv, tstart))
+        let syslogsend = SyslogSend { sender };
+        (syslogsend, SyslogRecv::init(recv))
     }
 
     pub async fn event(&self, player: &PlayerId, evt: SyslogEvent) {
-        let ns = self.tstart.elapsed().as_secs_f64();
+        let ns = timestamp();
         self.sender.send((*player, ns, evt)).await.unwrap();
     }
 }
@@ -94,14 +92,12 @@ pub type SyslogFifo =
 pub struct SyslogRecv {
     recv: Mutex<BoundedReceiver<SyslogData>>,
     pub(crate) fifo: SyslogFifo,
-    tstart: std::time::Instant,
 }
 
 impl SyslogRecv {
-    pub fn init(recv: BoundedReceiver<SyslogData>, tstart: std::time::Instant) -> SyslogRecv {
+    pub fn init(recv: BoundedReceiver<SyslogData>) -> SyslogRecv {
         SyslogRecv {
             recv: Mutex::new(recv),
-            tstart,
             fifo: Arc::new(RwLock::new(ShardedLockedData::new(PLAYER_SHARDS))),
         }
     }
@@ -121,8 +117,7 @@ impl SyslogRecv {
     }
 
     pub async fn event(&self, player: PlayerId, evt: SyslogEvent) {
-        self.add_to_fifo(player, self.tstart.elapsed().as_secs_f64(), evt)
-            .await;
+        self.add_to_fifo(player, timestamp(), evt).await;
     }
 
     async fn add_to_fifo(&self, id: PlayerId, ns: f64, evt: SyslogEvent) {

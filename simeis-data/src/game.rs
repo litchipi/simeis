@@ -59,7 +59,6 @@ pub struct Game {
     pub market: Arc<Market>,
     pub syslog: SyslogSend,
     pub fifo_events: SyslogFifo,
-    pub tstart: f64,
     pub send_sig: BoundedSender<GameSignal>,
 
     // Tracking data
@@ -73,10 +72,6 @@ impl Game {
     {
         let (send_stop, recv_stop) = mea::mpsc::bounded(5);
         let (syssend, sysrecv) = SyslogSend::channel();
-        let tstart = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs_f64();
         let mut galaxy = Galaxy::init();
         let init_station = galaxy.init_new_station().await;
         let data = Game {
@@ -88,7 +83,6 @@ impl Game {
             player_index: Arc::new(ShardedLockedData::new(PLAYER_SHARDS)),
             syslog: syssend.clone(),
             fifo_events: sysrecv.fifo.clone(),
-            tstart,
             init_station,
             ship_owners: Arc::new(RwLock::new(BTreeMap::new())),
         };
