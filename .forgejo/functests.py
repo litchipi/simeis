@@ -227,7 +227,7 @@ class Tester:
         del got["error"]
         return got
 
-    def assert_error(self, endpoint, errtype=None, method="POST", **kwargs):
+    def assert_err(self, endpoint, errtype=None, method="POST", **kwargs):
         got = self.request(endpoint, method=method, **kwargs)
         self.addtrace("Expect this data to be ERR", errtype)
         assert "type" in got
@@ -242,14 +242,14 @@ class Tester:
     def get_ok(self, *args, **kwargs):
         return self.assert_ok(*args, method="GET", **kwargs)
 
-    def get_error(self, *args, **kwargs):
-        return self.assert_error(*args, method="GET", **kwargs)
+    def get_err(self, *args, **kwargs):
+        return self.assert_err(*args, method="GET", **kwargs)
 
     def post_ok(self, *args, **kwargs):
         return self.assert_ok(*args, method="POST", **kwargs)
 
-    def post_error(self, *args, **kwargs):
-        return self.assert_error(*args, method="POST", **kwargs)
+    def post_err(self, *args, **kwargs):
+        return self.assert_err(*args, method="POST", **kwargs)
 
     def assert_got(self, data, key, val, negate=False):
         if not negate:
@@ -281,8 +281,8 @@ class Tester:
 
     @functest
     def test_create_player(self):
-        self.get_error("/player/53", errtype="NoPlayerKey")
-        self.get_error("/player/53", errtype="NoPlayerWithKey", key=12341234)
+        self.get_err("/player/53", errtype="NoPlayerKey")
+        self.get_err("/player/53", errtype="NoPlayerWithKey", key=12341234)
 
         got = self.post_ok("/player/new/Testuser")
         self.key = self.assert_got(got, "key", None)
@@ -290,7 +290,7 @@ class Tester:
 
         pl2 = self.post_ok("/player/new/Testuser2")
         pl2id = self.assert_got(pl2, "playerId", None)
-        self.post_error("/player/new/Testuser2")
+        self.post_err("/player/new/Testuser2")
         pl2_key = self.assert_got(pl2, "key", None)
 
         pl1 = self.get_ok(f"/player/{self.id}")
@@ -337,10 +337,10 @@ class Tester:
         n = 0
         while n in ships.keys():
             n += 1
-        self.post_error(f"/station/{self.station}/shipyard/buy/{n}", errtype=f"ShipNotFound({n})")
+        self.post_err(f"/station/{self.station}/shipyard/buy/{n}", errtype=f"ShipNotFound({n})")
 
         sid_cant = [id for id, ship in ships.items() if ship["price"] > beforemoney ][0]
-        self.post_error(f"/station/{self.station}/shipyard/buy/{sid_cant}",
+        self.post_err(f"/station/{self.station}/shipyard/buy/{sid_cant}",
             errtype="NotEnoughMoney(72000.0, {})".format(ships[sid_cant]["price"])
         )
 
@@ -369,7 +369,7 @@ class Tester:
             assert len(idled) == nidle + 1
             assert idled[str(crew_id)] == { "member_type": ctype.capitalize(), "rank": 1 }
             nidle += 1
-        self.post_error(f"/station/{self.station}/crew/hire/noteist", errtype="InvalidArgument(\"crewtype\")")
+        self.post_err(f"/station/{self.station}/crew/hire/noteist", expcode=404)
 
     @functest
     def test_money(self):
@@ -406,7 +406,7 @@ class Tester:
         assert speed == 0
 
         operatorid = self.assert_got(operator, "id", None)
-        self.post_error(f"/station/{self.station}/crew/assign/{operatorid}/ship/{shipid}/pilot", errtype="WrongCrewType(Pilot)")
+        self.post_err(f"/station/{self.station}/crew/assign/{operatorid}/ship/{shipid}/pilot", errtype="WrongCrewType(Pilot)")
 
         self.post_ok(f"/station/{self.station}/crew/assign/" + str(pilot["id"]) + f"/ship/{shipid}/pilot")
         stationstatus = self.get_ok(f"/station/{self.station}")
@@ -419,7 +419,7 @@ class Tester:
         speed_after = self.assert_got(stats, "speed", None)
         assert speed_after > 0
 
-        self.post_error(
+        self.post_err(
             f"/station/{self.station}/crew/assign/" + str(pilot2["id"]) + f"/ship/{shipid}/pilot",
             errtype="CrewNotNeeded",
         )
@@ -431,8 +431,8 @@ class Tester:
         got = self.post_ok(f"/station/{self.station}/shop/modules/{shipid}/buy/miner")
         modid = self.assert_got(got, "id", 1)
         self.post_ok(f"/station/{self.station}/crew/assign/{operatorid}/ship/{shipid}/1")
-        self.post_error(f"/station/{self.station}/crew/assign/{operatorid}/ship/{shipid}/1", errtype=f"CrewMemberNotIdle({operatorid})")
-        self.post_error(f"/station/{self.station}/crew/assign/{operator2["id"]}/ship/{shipid}/1", errtype="CrewNotNeeded")
+        self.post_err(f"/station/{self.station}/crew/assign/{operatorid}/ship/{shipid}/1", errtype=f"CrewMemberNotIdle({operatorid})")
+        self.post_err(f"/station/{self.station}/crew/assign/{operator2["id"]}/ship/{shipid}/1", errtype="CrewNotNeeded")
 
     @functest
     def test_travel(self):
@@ -443,7 +443,7 @@ class Tester:
         ship = self.get_ok(f"/ship/{ship_id}")
         shippos = ship["position"]
 
-        self.post_error("/calc/navigation", errtype="NullDistance", body={
+        self.post_err("/calc/navigation", errtype="NullDistance", body={
             "origin": shippos,
             "dest": shippos,
             "ship_stats": ship["stats"],
@@ -682,7 +682,7 @@ class Tester:
         player = self.get_ok(f"/player/{self.id}")
         stationid = player["stations"][0]
         dest = self.assert_got(self.get_ok(f"/station/{stationid}"), "position", None)
-        self.post_error(
+        self.post_err(
             f"/ship/{shipid}/navigate", body={ "x": dest[0], "y": dest[1], "z": dest[2]},
             errtype="ShipNotIdle",
         )
@@ -743,13 +743,13 @@ class Tester:
         resname = "Iron"
         resamnt = 100
 
-        self.post_error(f"/market/{self.station}/sell/{resname}/{resamnt}", errtype="NoTraderAssigned")
+        self.post_err(f"/market/{self.station}/sell/{resname}/{resamnt}", errtype="NoTraderAssigned")
 
         trader = self.post_ok(f"/station/{self.station}/crew/hire/trader")
         traderid = self.assert_got(trader, "id", None)
         self.post_ok(f"/station/{self.station}/crew/assign/{traderid}/trading")
 
-        self.post_error(
+        self.post_err(
             f"/market/{self.station}/buy/{resname}/0",
             errtype="BuyNothing",
         )
@@ -777,7 +777,7 @@ class Tester:
         self.assert_got(cargo, "resources", {resname.capitalize(): 0.0})
         self.assert_got(cargo, "usage", 0)
 
-        self.post_error(
+        self.post_err(
             f"/market/{self.station}/sell/{resname}/{resamnt}",
             errtype="SellNothing",
         )
@@ -859,11 +859,11 @@ class Tester:
         before = (fuel, hull_decay)
         need = (fuel_tank - fuel, hull_decay)
 
-        self.post_error(
+        self.post_err(
             f"/station/{self.station}/refuel/{shipid}",
             errtype="NoFuelInCargo"
         )
-        self.post_error(
+        self.post_err(
             f"/station/{self.station}/repair/{shipid}",
             errtype="NoHullInCargo"
         )
@@ -1024,7 +1024,7 @@ class Tester:
         self.post_ok(f"/station/{sta}/crew/assign/{traderid}/trading")
 
         list_industry = self.get_ok(f"/station/{sta}/industry/buy")
-        self.post_error(f"/station/{sta}/industry/buy/toto", errtype="InvalidArgument(\"industry_type\")")
+        self.post_err(f"/station/{sta}/industry/buy/toto", expcode=404)
         got = self.post_ok(f"/station/{sta}/industry/buy/simple_fuel_refinery")
         new_money = self.get_ok(f"/player/{self.id}")["money"]
         assert new_money == (money - got["cost"])
@@ -1053,7 +1053,7 @@ class Tester:
         for input in self.assert_got(info, "inputs", None):
             self.assert_cmpf(cargo[input[0]], input[1])
 
-        self.post_error(f"/station/{sta}/industry/start/1", errtype="NoSuchIndustryUnit")
+        self.post_err(f"/station/{sta}/industry/start/1", errtype="NoSuchIndustryUnit")
         self.post_ok(f"/station/{sta}/industry/start/{iid}")
 
         stop = False
@@ -1129,7 +1129,7 @@ class Tester:
         scan = self.post_ok(f"/station/{self.station}/scan")
         planet = self.assert_got(scan, "planets", None)[0]["position"]
 
-        self.post_error("/calc/mining_rate",body={
+        self.post_err("/calc/mining_rate",body={
             "module_type": "Miner",
             "module_rank": 3,
             "operator_rank": 2,
@@ -1370,6 +1370,11 @@ if __name__ == "__main__":
         try:
             getattr(t, test)()
             nok += 1
+        except KeyError as exc:
+            t.disp_error(exc)
+            nerrors += 1
+            if FAILFAST:
+                break;
         except AssertionError as exc:
             t.disp_error(exc)
             nerrors += 1
