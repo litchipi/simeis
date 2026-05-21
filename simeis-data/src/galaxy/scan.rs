@@ -1,10 +1,11 @@
-use std::ops::Deref;
-
 use serde::{Deserialize, Serialize};
+
+use crate::galaxy::planet::Planet;
+use crate::galaxy::station::Station;
 
 use super::planet::PlanetInfo;
 use super::station::StationInfo;
-use super::{get_distance, SpaceCoord, SpaceObject};
+use super::{get_distance, SpaceCoord};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ScanResult {
@@ -20,15 +21,12 @@ impl ScanResult {
         }
     }
 
-    pub async fn add(&mut self, rank: u8, obj: &SpaceObject) {
-        match obj {
-            SpaceObject::BaseStation(_, station) => {
-                self.stations.push(StationInfo::scan(rank, station.deref()));
-            }
-            SpaceObject::Planet(planet) => {
-                self.planets.push(PlanetInfo::scan(rank, planet.as_ref()))
-            }
-        }
+    pub fn add_planet(&mut self, rank: u8, planet: &Planet) {
+        self.planets.push(PlanetInfo::scan(rank, planet));
+    }
+
+    pub fn add_station(&mut self, rank: u8, station: &Station) {
+        self.stations.push(StationInfo::scan(rank, station));
     }
 
     pub fn get_closest_planet(&self, pos: &SpaceCoord) -> Option<PlanetInfo> {

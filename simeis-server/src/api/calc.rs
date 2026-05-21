@@ -65,11 +65,12 @@ async fn compute_mining_rate(
         power_attribution,
     } = body.0;
     let data = srv
-        .map_galaxy_coord(&planet_coord, |spaceobj| {
+        .map_galaxy_coord(&planet_coord, |spaceobj, galaxy| {
             Box::pin(async move {
-                let SpaceObject::Planet(planet) = spaceobj else {
+                let SpaceObject::Planet(planet_id) = spaceobj else {
                     return Err(Errcode::NotAPlanet);
                 };
+                let planet = galaxy.planets.get(planet_id).unwrap();
                 let mut result = BTreeMap::new();
                 for (res, density) in planet.resources_density.iter() {
                     if !res.extractable(&module_type, operator_rank) {

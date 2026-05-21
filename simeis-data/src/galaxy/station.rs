@@ -89,8 +89,8 @@ impl Station {
     }
 
     // TODO (#8) Allow to build improvements for the scanner
-    pub async fn scan(&self, galaxy: &Galaxy) -> ScanResult {
-        galaxy.scan_sector(u8::MAX, &self.position).await
+    pub fn scan(&self, galaxy: &Galaxy) -> ScanResult {
+        galaxy.scan_sector(u8::MAX, &self.position)
     }
 
     pub async fn cargo_price(&self, player: &PlayerId) -> f64 {

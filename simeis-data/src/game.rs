@@ -268,13 +268,14 @@ impl Game {
 
     pub async fn map_galaxy_coord<F, T>(&self, coord: &SpaceCoord, f: F) -> Result<T, Errcode>
     where
-        F: for<'a> FnOnce(&'a SpaceObject) -> BoxFuture<'a, Result<T, Errcode>>,
+        F: for<'a> FnOnce(&'a SpaceObject, &'a Galaxy) -> BoxFuture<'a, Result<T, Errcode>>,
     {
         let galaxy = self.galaxy.read().await;
-        let Some(obj) = galaxy.get(coord) else {
+        let obj = galaxy.get_object(coord);
+        if obj.is_nothing() {
             return Err(Errcode::NothingAtThisCoord);
         };
-        let data = f(obj).await;
+        let data = f(obj, &galaxy).await;
         data
     }
 
@@ -430,7 +431,7 @@ impl Game {
         let Some(station) = player.stations.get(station_id) else {
             return Err(Errcode::NoSuchStation(*station_id));
         };
-        Ok(station.scan(&galaxy).await)
+        Ok(station.scan(&galaxy))
     }
 
     pub async fn start_player_extraction(
@@ -442,7 +443,7 @@ impl Game {
         let mut player = player.write().await;
         let ship = player.get_ship_mut(ship_id)?;
         let galaxy = self.galaxy.read().await;
-        let Some(planet) = galaxy.get_planet(&ship.position).await else {
+        let Some(planet) = galaxy.get_planet(&ship.position) else {
             return Err(Errcode::CannotExtractWithoutPlanet);
         };
         ship.start_extraction(&planet).await
