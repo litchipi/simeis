@@ -308,6 +308,18 @@ impl Ship {
             Ok(unloaded)
         }
     }
+
+    pub fn export_json(&self, full: bool) -> serde_json::Value {
+        if full {
+            serde_json::to_value(self).unwrap()
+        } else {
+            serde_json::json!({
+                "id": self.id,
+                "owner": self.owner,
+                "position": self.position,
+            })
+        }
+    }
 }
 
 #[test]

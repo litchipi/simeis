@@ -28,7 +28,9 @@ macro_rules! define_type_enum {
                 D: serde::Deserializer<'de>,
             {
                 let buf = <&str>::deserialize(deserializer)?;
-                <$name as std::str::FromStr>::from_str(buf).map_err(serde::de::Error::custom)
+                let conv = heck::AsSnakeCase(buf).to_string();
+                <$name as std::str::FromStr>::from_str(&conv).map_err(serde::de::Error::custom)
+                // <$name as std::str::FromStr>::from_str(buf).map_err(serde::de::Error::custom)
             }
         }
     };

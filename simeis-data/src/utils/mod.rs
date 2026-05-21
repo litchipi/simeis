@@ -1,5 +1,7 @@
+mod access_api;
 mod macros;
 mod shardeddata;
+
 use std::{
     future::Future,
     pin::Pin,
@@ -34,4 +36,11 @@ pub fn sleep(dur: Duration) -> AsyncSleepFuture {
         dur,
         start: std::time::Instant::now(),
     }
+}
+
+pub fn timestamp() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64()
 }

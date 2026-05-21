@@ -17,6 +17,8 @@ SOLID=["Iron", "Copper", "Titanium", "Uranium"]
 LIQUID=["Water", "Ammonia", "SulfuricAcid", "Brine"]
 GAS=["Hydrogen", "Helium", "Oxygen", "Ozone"]
 
+ADMIN_TOKEN=os.getenv("SIMEIS_ADMIN_TOKEN")
+
 def functest(f):
     assert f.__name__.startswith("test_")
     name = f.__name__.removeprefix("test_").replace("_", " ").capitalize()
@@ -33,6 +35,7 @@ class Tester:
     def __init__(self, host, port):
         self.host = host
         self.port = port
+        self.admintoken = "testingadmintokenfunctests"
         self.key = None
         self.current_test = "No Test"
         self.trace = []
@@ -64,14 +67,19 @@ class Tester:
     def disp_ok(self):
         print("  * Test", self.current_test, " "*(self.indent - len(self.current_test)), "OK")
 
-    def request(self, endpoint, expcode=200, timeout=1, method="GET", headers={}, key=None, body=None, **kwargs):
+    def request(self, endpoint, expcode=200, timeout=1, method="GET", headers={}, key=None, body=None, admin=False, **kwargs):
         self.addtrace(method, endpoint, "expected code", expcode)
         if key is None:
             if self.key is not None:
                 headers["Simeis-Key"] = self.key
         else:
             headers["Simeis-Key"] = str(key)
-
+        if admin:
+            self.addtrace("Execute as admin")
+            headers["Simeis-Admin-Token"] = self.admintoken
+        elif "Simeis-Admin-Token" in headers:
+            self.addtrace("TOKEN IN HEADERS EVEN IF NOT ADMIN")
+            headers.pop("Simeis-Admin-Token")
         url = f"http://{self.host}:{self.port}/{endpoint}"
         qry = urllib.parse.urlencode(kwargs)
         if len(qry) > 0:
@@ -82,6 +90,7 @@ class Tester:
                 headers["Content-Type"] = "application/x-www-form-urlencoded"
             else:
                 headers["Content-Type"] = "application/json"
+            self.addtrace("Headers: \n", json.dumps(headers, indent=2))
             if method == "GET":
                 got = requests.get(url, headers=headers, timeout=timeout)
             elif method == "POST":
@@ -150,7 +159,7 @@ class Tester:
         after = self.get_ok(f"/player/{self.id}")
         assert len(after["ships"]) > 0
         ship = after["ships"][retind]
-        return self.assert_got(ship, "id", None)
+        return ship
 
     def setup_crew(self, shipid, trader=True):
         pilot = self.post_ok(f"/station/{self.station}/crew/hire/pilot")
@@ -184,7 +193,7 @@ class Tester:
         elif liquid > solid and liquid > gas:
             return "pump"
         elif gas > solid and gas > liquid:
-            return "gas_sucker"
+            return "Gas-Sucker"
         self.addtrace("Unable to decide which mod to buy")
         assert False
 
@@ -224,14 +233,14 @@ class Tester:
         del got["error"]
         return got
 
-    def assert_error(self, endpoint, errtype=None, method="POST", **kwargs):
+    def assert_err(self, endpoint, errtype=None, method="POST", **kwargs):
         got = self.request(endpoint, method=method, **kwargs)
         self.addtrace("Expect this data to be ERR", errtype)
+        if "expcode" in kwargs and kwargs["expcode"] >= 400:
+            return got
+        assert got["error"] != "ok"
         assert "type" in got
-        if errtype is None:
-            self.addtrace("Expect this data to have any error")
-            assert got["error"] != "ok"
-        else:
+        if errtype is not None:
             self.addtrace("Expect this data to have an error", errtype, "got", got["type"])
             assert got["type"] == errtype
         return got
@@ -239,14 +248,14 @@ class Tester:
     def get_ok(self, *args, **kwargs):
         return self.assert_ok(*args, method="GET", **kwargs)
 
-    def get_error(self, *args, **kwargs):
-        return self.assert_error(*args, method="GET", **kwargs)
+    def get_err(self, *args, **kwargs):
+        return self.assert_err(*args, method="GET", **kwargs)
 
     def post_ok(self, *args, **kwargs):
         return self.assert_ok(*args, method="POST", **kwargs)
 
-    def post_error(self, *args, **kwargs):
-        return self.assert_error(*args, method="POST", **kwargs)
+    def post_err(self, *args, **kwargs):
+        return self.assert_err(*args, method="POST", **kwargs)
 
     def assert_got(self, data, key, val, negate=False):
         if not negate:
@@ -278,8 +287,8 @@ class Tester:
 
     @functest
     def test_create_player(self):
-        self.get_error("/player/53", errtype="NoPlayerKey")
-        self.get_error("/player/53", errtype="NoPlayerWithKey", key=12341234)
+        self.get_err("/player/53", errtype="NoPlayerKey")
+        self.get_err("/player/53", errtype="NoPlayerWithKey", key=12341234)
 
         got = self.post_ok("/player/new/Testuser")
         self.key = self.assert_got(got, "key", None)
@@ -287,7 +296,7 @@ class Tester:
 
         pl2 = self.post_ok("/player/new/Testuser2")
         pl2id = self.assert_got(pl2, "playerId", None)
-        self.post_error("/player/new/Testuser2")
+        self.post_err("/player/new/Testuser2")
         pl2_key = self.assert_got(pl2, "key", None)
 
         pl1 = self.get_ok(f"/player/{self.id}")
@@ -334,10 +343,10 @@ class Tester:
         n = 0
         while n in ships.keys():
             n += 1
-        self.post_error(f"/station/{self.station}/shipyard/buy/{n}", errtype=f"ShipNotFound({n})")
+        self.post_err(f"/station/{self.station}/shipyard/buy/{n}", errtype=f"ShipNotFound({n})")
 
         sid_cant = [id for id, ship in ships.items() if ship["price"] > beforemoney ][0]
-        self.post_error(f"/station/{self.station}/shipyard/buy/{sid_cant}",
+        self.post_err(f"/station/{self.station}/shipyard/buy/{sid_cant}",
             errtype="NotEnoughMoney(72000.0, {})".format(ships[sid_cant]["price"])
         )
 
@@ -347,7 +356,7 @@ class Tester:
         aftermoney = self.assert_got(after, "money", None)
         ships = self.assert_got(after, "ships", None)
         assert len(ships) > 0
-        assert ships[0]["id"] == sid_can
+        assert ships[0] == sid_can
         assert aftermoney < beforemoney
 
         # TODO (#22)    Sell ship with given ID
@@ -366,7 +375,7 @@ class Tester:
             assert len(idled) == nidle + 1
             assert idled[str(crew_id)] == { "member_type": ctype.capitalize(), "rank": 1 }
             nidle += 1
-        self.post_error(f"/station/{self.station}/crew/hire/noteist", errtype="InvalidArgument(\"crewtype\")")
+        self.post_err(f"/station/{self.station}/crew/hire/noteist", expcode=404)
 
     @functest
     def test_money(self):
@@ -403,7 +412,7 @@ class Tester:
         assert speed == 0
 
         operatorid = self.assert_got(operator, "id", None)
-        self.post_error(f"/station/{self.station}/crew/assign/{operatorid}/ship/{shipid}/pilot", errtype="WrongCrewType(Pilot)")
+        self.post_err(f"/station/{self.station}/crew/assign/{operatorid}/ship/{shipid}/pilot", errtype="WrongCrewType(Pilot)")
 
         self.post_ok(f"/station/{self.station}/crew/assign/" + str(pilot["id"]) + f"/ship/{shipid}/pilot")
         stationstatus = self.get_ok(f"/station/{self.station}")
@@ -416,7 +425,7 @@ class Tester:
         speed_after = self.assert_got(stats, "speed", None)
         assert speed_after > 0
 
-        self.post_error(
+        self.post_err(
             f"/station/{self.station}/crew/assign/" + str(pilot2["id"]) + f"/ship/{shipid}/pilot",
             errtype="CrewNotNeeded",
         )
@@ -428,8 +437,8 @@ class Tester:
         got = self.post_ok(f"/station/{self.station}/shop/modules/{shipid}/buy/miner")
         modid = self.assert_got(got, "id", 1)
         self.post_ok(f"/station/{self.station}/crew/assign/{operatorid}/ship/{shipid}/1")
-        self.post_error(f"/station/{self.station}/crew/assign/{operatorid}/ship/{shipid}/1", errtype=f"CrewMemberNotIdle({operatorid})")
-        self.post_error(f"/station/{self.station}/crew/assign/{operator2["id"]}/ship/{shipid}/1", errtype="CrewNotNeeded")
+        self.post_err(f"/station/{self.station}/crew/assign/{operatorid}/ship/{shipid}/1", errtype=f"CrewMemberNotIdle({operatorid})")
+        self.post_err(f"/station/{self.station}/crew/assign/{operator2["id"]}/ship/{shipid}/1", errtype="CrewNotNeeded")
 
     @functest
     def test_travel(self):
@@ -440,7 +449,7 @@ class Tester:
         ship = self.get_ok(f"/ship/{ship_id}")
         shippos = ship["position"]
 
-        self.post_error("/calc/navigation", errtype="NullDistance", body={
+        self.post_err("/calc/navigation", errtype="NullDistance", body={
             "origin": shippos,
             "dest": shippos,
             "ship_stats": ship["stats"],
@@ -679,7 +688,7 @@ class Tester:
         player = self.get_ok(f"/player/{self.id}")
         stationid = player["stations"][0]
         dest = self.assert_got(self.get_ok(f"/station/{stationid}"), "position", None)
-        self.post_error(
+        self.post_err(
             f"/ship/{shipid}/navigate", body={ "x": dest[0], "y": dest[1], "z": dest[2]},
             errtype="ShipNotIdle",
         )
@@ -690,8 +699,7 @@ class Tester:
     def test_unload_cargo(self):
         player = self.get_ok(f"/player/{self.id}")
         stationid = player["stations"][0]
-        ship = player["ships"][0]
-        shipid = ship["id"]
+        shipid = player["ships"][0]
 
         dest = self.get_ok(f"/station/{stationid}")["position"]
         cost = self.post_ok(f"/ship/{shipid}/navigate", body={
@@ -699,6 +707,7 @@ class Tester:
         })
         self.tick_dur(cost["duration"])
 
+        ship = self.get_ok(f"/ship/{shipid}")
         resname = list(ship["cargo"]["resources"].keys())[0]
         resamnt = ship["cargo"]["resources"][resname]
         resname = resname.lower()
@@ -740,13 +749,13 @@ class Tester:
         resname = "Iron"
         resamnt = 100
 
-        self.post_error(f"/market/{self.station}/sell/{resname}/{resamnt}", errtype="NoTraderAssigned")
+        self.post_err(f"/market/{self.station}/sell/{resname}/{resamnt}", errtype="NoTraderAssigned")
 
         trader = self.post_ok(f"/station/{self.station}/crew/hire/trader")
         traderid = self.assert_got(trader, "id", None)
         self.post_ok(f"/station/{self.station}/crew/assign/{traderid}/trading")
 
-        self.post_error(
+        self.post_err(
             f"/market/{self.station}/buy/{resname}/0",
             errtype="BuyNothing",
         )
@@ -774,7 +783,7 @@ class Tester:
         self.assert_got(cargo, "resources", {resname.capitalize(): 0.0})
         self.assert_got(cargo, "usage", 0)
 
-        self.post_error(
+        self.post_err(
             f"/market/{self.station}/sell/{resname}/{resamnt}",
             errtype="SellNothing",
         )
@@ -856,11 +865,11 @@ class Tester:
         before = (fuel, hull_decay)
         need = (fuel_tank - fuel, hull_decay)
 
-        self.post_error(
+        self.post_err(
             f"/station/{self.station}/refuel/{shipid}",
             errtype="NoFuelInCargo"
         )
-        self.post_error(
+        self.post_err(
             f"/station/{self.station}/repair/{shipid}",
             errtype="NoHullInCargo"
         )
@@ -941,8 +950,8 @@ class Tester:
     @functest
     def test_buy_crew_upgrade(self):
         player = self.get_ok(f"/player/{self.id}")
-        ship = player["ships"][0]
-        shipid = ship["id"]
+        shipid = player["ships"][0]
+        ship = self.get_ok(f"/ship/{shipid}")
         shippos = ship["position"]
         dest = [shippos[0] + 30, shippos[1] + 30, shippos[2] + 30]
         beforewages = player["costs"]
@@ -1021,7 +1030,7 @@ class Tester:
         self.post_ok(f"/station/{sta}/crew/assign/{traderid}/trading")
 
         list_industry = self.get_ok(f"/station/{sta}/industry/buy")
-        self.post_error(f"/station/{sta}/industry/buy/toto", errtype="InvalidArgument(\"industry_type\")")
+        self.post_err(f"/station/{sta}/industry/buy/toto", expcode=404)
         got = self.post_ok(f"/station/{sta}/industry/buy/simple_fuel_refinery")
         new_money = self.get_ok(f"/player/{self.id}")["money"]
         assert new_money == (money - got["cost"])
@@ -1050,7 +1059,7 @@ class Tester:
         for input in self.assert_got(info, "inputs", None):
             self.assert_cmpf(cargo[input[0]], input[1])
 
-        self.post_error(f"/station/{sta}/industry/start/1", errtype="NoSuchIndustryUnit")
+        self.post_err(f"/station/{sta}/industry/start/1", errtype="NoSuchIndustryUnit")
         self.post_ok(f"/station/{sta}/industry/start/{iid}")
 
         stop = False
@@ -1126,7 +1135,7 @@ class Tester:
         scan = self.post_ok(f"/station/{self.station}/scan")
         planet = self.assert_got(scan, "planets", None)[0]["position"]
 
-        self.post_error("/calc/mining_rate",body={
+        self.post_err("/calc/mining_rate",body={
             "module_type": "Miner",
             "module_rank": 3,
             "operator_rank": 2,
@@ -1345,6 +1354,63 @@ class Tester:
         mr = self.assert_got(extraction_info, "mining_rate", None)
         self.assert_got(mr, testres, 0.0)
 
+    @functest
+    def test_get_admin_data(self):
+        self.create_test_player("other_admin_player")
+        other_ship_id = self.buy_a_ship()
+        other = self.get_ok(f"/player/{self.id}")
+        othersta_init = self.get_ok(f"/station/{self.station}")
+        self.create_test_player()
+        me = self.get_ok(f"/player/{self.id}")
+
+        medata = self.get_ok(f"/player/{self.id}")
+        stations = self.assert_got(medata, "stations", None)
+        otherdata = self.get_ok(f"/player/{other["id"]}")
+        assert "stations" not in otherdata
+        otherdata = self.get_ok(f"/player/{other["id"]}", admin=True)
+        self.assert_got(otherdata, "stations", stations)
+
+        shipid = self.buy_a_ship()
+        self.setup_crew(shipid)
+        target = self.target_planet(self.station, shipid)
+
+        data = self.get_err(f"/admin/planet/{target["id"]}", errtype="NotAnAdmin")
+        data = self.get_ok(f"/admin/planet/{target["id"]}", admin=True)
+        self.assert_got(data, "id", None)
+
+        self.addtrace(other["id"], other_ship_id, shipid)
+        self.get_err(f"/ship/{other_ship_id}", errtype=f"ShipNotFound({other_ship_id})")
+        self.get_ok(f"/ship/{other_ship_id}", admin=True)
+
+        mestation = self.get_ok(f"/station/{self.station}")
+        mestation2 = self.get_ok(f"/station/{self.station}?player={other["id"]}")
+        assert mestation == mestation2
+        othersta = self.get_ok(f"/station/{self.station}?player={other["id"]}", admin=True)
+        assert othersta != mestation
+        assert othersta == othersta_init
+
+        self.post_err(f"/admin/player/remove/{other["id"]}", errtype="NotAnAdmin")
+        self.post_ok(f"/admin/player/remove/{other["id"]}", admin=True)
+        self.get_err(f"/player/{other["id"]}")
+
+    @functest
+    def test_reset_game(self):
+        self.create_test_player()
+        got = self.get_ok(f"/player/{self.id}")
+        self.post_err("/admin/reset", admin=False, errtype="NotAnAdmin")
+        self.post_ok("/admin/reset", admin=True)
+        self.get_err(f"/player/{self.id}", errtype="NoPlayerWithKey")
+
+        self.create_test_player()
+        got = self.get_ok(f"/player/{self.id}")
+        self.post_err("/admin/reset/12", admin=False, errtype="NotAnAdmin")
+        self.post_ok("/admin/reset/12", admin=True)
+        t = time.time()
+        while (time.time() - t) < 12:
+            self.get_ok(f"/player/{self.id}")
+            time.sleep(0.15)
+        self.get_err(f"/player/{self.id}", errtype="NoPlayerWithKey")
+
 def compute_distance(a, b):
     sum = 0
     sum += (b[0] - a[0]) ** 2
@@ -1363,6 +1429,11 @@ if __name__ == "__main__":
         try:
             getattr(t, test)()
             nok += 1
+        except KeyError as exc:
+            t.disp_error(exc)
+            nerrors += 1
+            if FAILFAST:
+                break;
         except AssertionError as exc:
             t.disp_error(exc)
             nerrors += 1

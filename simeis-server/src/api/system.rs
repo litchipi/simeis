@@ -51,7 +51,7 @@ async fn get_syslogs(srv: GameState, req: HttpRequest) -> impl web::Responder {
                 .map(|(t, ev)| {
                     let s: &'static str = ev.clone().into();
                     json!({
-                        "timestamp": srv.tstart + t,
+                        "timestamp": t,
                         "type": s,
                         "event": ev,
                     })

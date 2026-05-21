@@ -2,6 +2,7 @@
 // - Taken names
 // - Player index
 // - Player list
+// - Ship owners
 // - Player
 // - Station
 // - Galaxy
@@ -9,6 +10,7 @@
 // - SyslogFifo
 // - PlayerFifo
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -24,13 +26,13 @@ use rand::{Rng, RngExt};
 use crate::errors::Errcode;
 use crate::galaxy::scan::ScanResult;
 use crate::galaxy::station::{Station, StationId};
-use crate::galaxy::{Galaxy, SpaceCoord, SpaceObject};
+use crate::galaxy::Galaxy;
 use crate::market::{Market, MarketTx, MARKET_CHANGE_SEC};
 use crate::player::{Player, PlayerId, PlayerKey};
 use crate::ship::resources::{ExtractionInfo, Resource};
-use crate::ship::{Ship, ShipId, ShipState};
+use crate::ship::{ShipId, ShipState};
 use crate::syslog::{SyslogEvent, SyslogFifo, SyslogRecv, SyslogSend};
-use crate::utils::{BoxFuture, ShardedLockedData, PLAYER_SHARDS};
+use crate::utils::{ShardedLockedData, PLAYER_SHARDS};
 
 #[cfg(not(feature = "extraspeed"))]
 const ITER_PERIOD: Duration = Duration::from_millis(20);
@@ -54,12 +56,14 @@ pub struct Game {
     pub taken_names: Arc<ShardedLockedData<String, PlayerId>>,
     pub galaxy: Arc<RwLock<Galaxy>>,
 
-    pub init_station: (StationId, Arc<Station>),
+    pub init_station: Arc<RwLock<(StationId, Arc<Station>)>>,
     pub market: Arc<Market>,
     pub syslog: SyslogSend,
     pub fifo_events: SyslogFifo,
-    pub tstart: f64,
     pub send_sig: BoundedSender<GameSignal>,
+
+    // Tracking data
+    pub ship_owners: Arc<RwLock<BTreeMap<ShipId, PlayerId>>>,
 }
 
 impl Game {
@@ -69,12 +73,8 @@ impl Game {
     {
         let (send_stop, recv_stop) = mea::mpsc::bounded(5);
         let (syssend, sysrecv) = SyslogSend::channel();
-        let tstart = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs_f64();
         let mut galaxy = Galaxy::init();
-        let init_station = galaxy.init_new_station().await;
+        let init_station = Arc::new(RwLock::new(galaxy.init_new_station().await));
         let data = Game {
             send_sig: send_stop,
             galaxy: Arc::new(RwLock::new(galaxy)),
@@ -84,8 +84,8 @@ impl Game {
             player_index: Arc::new(ShardedLockedData::new(PLAYER_SHARDS)),
             syslog: syssend.clone(),
             fifo_events: sysrecv.fifo.clone(),
-            tstart,
             init_station,
+            ship_owners: Arc::new(RwLock::new(BTreeMap::new())),
         };
 
         let thread_data = data.clone();
@@ -205,7 +205,8 @@ impl Game {
             return Err(Errcode::PlayerAlreadyExists(name));
         }
 
-        let player = Player::new(self.init_station.clone(), name.clone());
+        let init_station = self.init_station.read().await;
+        let player = Player::new(init_station.clone(), name.clone());
         let pid = player.id;
         self.taken_names.insert(name.clone(), pid).await;
 
@@ -243,154 +244,6 @@ impl Game {
         Ok(fifo.remove_all())
     }
 
-    pub async fn map_station<F, T>(
-        &self,
-        pkey: &PlayerKey,
-        id: &StationId,
-        f: F,
-    ) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(&'a PlayerId, &'a Station) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (pid, player) = self.get_player(pkey).await?;
-        let player = player.read().await;
-        let Some(station) = player.stations.get(id) else {
-            return Err(Errcode::NoSuchStation(*id));
-        };
-        let data = f(&pid, station).await;
-        data
-    }
-
-    pub async fn map_galaxy_coord<F, T>(&self, coord: &SpaceCoord, f: F) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(&'a SpaceObject) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let galaxy = self.galaxy.read().await;
-        let Some(obj) = galaxy.get(coord) else {
-            return Err(Errcode::NothingAtThisCoord);
-        };
-        let data = f(obj).await;
-        data
-    }
-
-    pub async fn map_ship<F, T>(&self, pkey: &PlayerKey, id: &ShipId, f: F) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(PlayerId, &'a Ship) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (pid, player) = self.get_player(pkey).await?;
-        let player = player.read().await;
-        let ship = player.get_ship(id)?;
-        let data = f(pid, ship).await;
-        data
-    }
-
-    pub async fn map_ship_mut<F, T>(
-        &self,
-        pkey: &PlayerKey,
-        id: &ShipId,
-        f: F,
-    ) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(PlayerId, &'a mut Ship) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (pid, player) = self.get_player(pkey).await?;
-        let mut player = player.write().await;
-        let ship = player.get_ship_mut(id)?;
-        let data = f(pid, ship).await;
-        data
-    }
-
-    pub async fn map_ship_in_station<F, T>(
-        &self,
-        pkey: &PlayerKey,
-        station_id: &StationId,
-        ship_id: &ShipId,
-        f: F,
-    ) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(PlayerId, &'a Station, &'a Ship) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (pid, player) = self.get_player(pkey).await?;
-        let player = player.read().await;
-        if !player.ship_in_station(ship_id, station_id)? {
-            return Err(Errcode::ShipNotInStation);
-        }
-        // SAFETY Checked in function above
-        let ship = player.ships.get(ship_id).unwrap();
-        let station = player.stations.get(station_id).unwrap();
-        let data = f(pid, station, ship).await;
-        data
-    }
-
-    pub async fn map_ship_mut_in_station<F, T>(
-        &self,
-        pkey: &PlayerKey,
-        station_id: &StationId,
-        ship_id: &ShipId,
-        f: F,
-    ) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(PlayerId, &'a Station, &'a mut Ship) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (pid, player) = self.get_player(pkey).await?;
-        let mut player = player.write().await;
-        if !player.ship_in_station(ship_id, station_id)? {
-            return Err(Errcode::ShipNotInStation);
-        }
-        // SAFETY Checked in function above
-        let station = player.stations.get(station_id).unwrap().clone();
-        let ship = player.ships.get_mut(ship_id).unwrap();
-        let data = f(pid, &station, ship).await;
-        data
-    }
-
-    pub async fn map_player<F, T>(&self, pkey: &PlayerKey, f: F) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(&'a Player) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (_, player) = self.get_player(pkey).await?;
-        let player = player.read().await;
-        let data = f(&player).await;
-        data
-    }
-
-    pub async fn map_player_mut<F, T>(&self, pkey: &PlayerKey, f: F) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(&'a mut Player) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (_, player) = self.get_player(pkey).await?;
-        let mut player = player.write().await;
-        let data = f(&mut player).await;
-        data
-    }
-
-    pub async fn player_to_json(
-        &self,
-        pkey: &PlayerKey,
-        id: &PlayerId,
-    ) -> Result<serde_json::Value, Errcode> {
-        let (pid, player) = self.get_player(pkey).await?;
-        let player = player.read().await;
-        if pid == *id {
-            let stations = player.stations.keys().cloned().collect::<Vec<StationId>>();
-            let ships =
-                serde_json::to_value(player.ships.values().collect::<Vec<&Ship>>()).unwrap();
-            Ok(serde_json::json!({
-                "id": id,
-                "name": player.name,
-                "stations": stations,
-                "money": player.money,
-                "ships": ships,
-                "costs": player.costs,
-            }))
-        } else {
-            Ok(serde_json::json!({
-                "id": id,
-                "name": player.name,
-            }))
-        }
-    }
-
     pub async fn scan_galaxy(
         &self,
         pkey: &PlayerKey,
@@ -402,7 +255,7 @@ impl Game {
         let Some(station) = player.stations.get(station_id) else {
             return Err(Errcode::NoSuchStation(*station_id));
         };
-        Ok(station.scan(&galaxy).await)
+        Ok(station.scan(&galaxy))
     }
 
     pub async fn start_player_extraction(
@@ -414,7 +267,7 @@ impl Game {
         let mut player = player.write().await;
         let ship = player.get_ship_mut(ship_id)?;
         let galaxy = self.galaxy.read().await;
-        let Some(planet) = galaxy.get_planet(&ship.position).await else {
+        let Some(planet) = galaxy.get_planet(&ship.position) else {
             return Err(Errcode::CannotExtractWithoutPlanet);
         };
         ship.start_extraction(&planet).await
@@ -458,5 +311,41 @@ impl Game {
         player.money += tx.added_money.unwrap();
         player.score += tx.added_money.unwrap();
         Ok(tx)
+    }
+
+    pub async fn update_ships_owners(&self, pkey: &PlayerKey) -> Result<(), Errcode> {
+        let (pid, player) = self.get_player(pkey).await?;
+        let player = player.read().await;
+        let mut ships = self.ship_owners.write().await;
+        for (shipid, _) in player.ships.iter() {
+            ships.insert(*shipid, pid);
+        }
+        Ok(())
+    }
+
+    pub async fn get_ship_owner(&self, ship_id: &ShipId) -> Option<PlayerId> {
+        let ships = self.ship_owners.read().await;
+        ships.get(ship_id).cloned()
+    }
+
+    pub async fn reset(&self) {
+        self.taken_names.reset().await;
+        self.player_index.reset().await;
+        self.players.reset().await;
+        let mut init_station = self.init_station.write().await;
+        *self.ship_owners.write().await = BTreeMap::new();
+        let mut new_galaxy = Galaxy::init();
+        *init_station = new_galaxy.init_new_station().await;
+        *self.galaxy.write().await = new_galaxy;
+        self.market.reset().await;
+        self.fifo_events.write().await.reset().await;
+    }
+
+    #[inline]
+    pub async fn notify_all_players(&self, ev: SyslogEvent) {
+        let all_players = self.players.get_all_keys().await;
+        for pid in all_players {
+            self.syslog.event(&pid, ev.clone()).await;
+        }
     }
 }

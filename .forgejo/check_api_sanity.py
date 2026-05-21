@@ -395,8 +395,8 @@ class ApiChecker:
             print("[*] Swagger generation is required")
             if IS_CI:
                 self.return_code = 1
-        with open(outfile, "w") as f:
-            json.dump(self.swagger, f, indent=2)
+            with open(outfile, "w") as f:
+                json.dump(self.swagger, f, indent=2)
 
     def prepare_path(self, path, method=None, show=True, body=None, **params):
         method=method.upper()

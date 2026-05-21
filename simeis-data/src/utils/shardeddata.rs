@@ -22,6 +22,13 @@ impl<K: ShardDataKey, T> ShardedLockedData<K, T> {
         ShardedLockedData { shards }
     }
 
+    pub async fn reset(&self) {
+        for shard in self.shards.iter() {
+            let mut s = shard.write().await;
+            *s = BTreeMap::new();
+        }
+    }
+
     fn get_shard(&self, key: &K) -> &RwLock<BTreeMap<K, T>> {
         let idx = key.get_shard_idx(self.shards.len());
         debug_assert!(idx < self.shards.len());
@@ -45,6 +52,16 @@ impl<K: ShardDataKey, T> ShardedLockedData<K, T> {
 
     pub async fn map<F, V>(&self, key: &K, f: F) -> Option<V>
     where
+        F: FnOnce(&T) -> V,
+    {
+        let shard = self.get_shard(key);
+        let sref = shard.read().await;
+        let val = sref.get(key)?;
+        Some(f(val))
+    }
+
+    pub async fn map_mut<F, V>(&self, key: &K, f: F) -> Option<V>
+    where
         F: FnOnce(&mut T) -> V,
     {
         let shard = self.get_shard(key);
@@ -67,6 +84,27 @@ impl<K: ShardDataKey, T: Clone> ShardedLockedData<K, T> {
     pub async fn clone_val(&self, key: &K) -> Option<T> {
         let shard = self.get_shard(key);
         shard.write().await.get(key).cloned()
+    }
+}
+
+impl<K: ShardDataKey, T: Eq> ShardedLockedData<K, T> {
+    pub async fn remove_value(&self, val: &T) {
+        for shard in self.shards.iter() {
+            let s = shard.read().await;
+            let mut torm = vec![];
+            for (k, v) in s.iter() {
+                if v == val {
+                    torm.push(k.clone());
+                }
+            }
+            drop(s);
+            if !torm.is_empty() {
+                let mut s = shard.write().await;
+                for key in torm {
+                    s.remove(&key);
+                }
+            }
+        }
     }
 }
 

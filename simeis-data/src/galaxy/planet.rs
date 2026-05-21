@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::hash::{DefaultHasher, Hasher};
 
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
@@ -8,9 +9,12 @@ use crate::ship::resources::Resource;
 
 use super::SpaceCoord;
 
+pub type PlanetId = u64;
+
 // Informations that can be scanned from a planet
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PlanetInfo {
+    pub id: PlanetId,
     pub position: SpaceCoord,
     pub resources_density: BTreeMap<Resource, f64>,
 }
@@ -24,6 +28,7 @@ impl PlanetInfo {
             }
         }
         PlanetInfo {
+            id: planet.id,
             position: planet.position,
             resources_density,
         }
@@ -32,6 +37,7 @@ impl PlanetInfo {
 
 #[derive(Debug)]
 pub struct Planet {
+    pub id: PlanetId,
     pub position: SpaceCoord,
     pub resources_density: BTreeMap<Resource, f64>,
 }
@@ -47,6 +53,7 @@ impl Planet {
             }
         }
         Planet {
+            id: id_from_coord(coord),
             position: coord,
             resources_density,
         }
@@ -157,4 +164,13 @@ pub fn calc_resource_density(
         Resource::Hull | Resource::Fuel => 0.0,
     }
     .clamp(0.0, 1.0)
+}
+
+#[inline]
+fn id_from_coord(coord: SpaceCoord) -> PlanetId {
+    let mut hasher = DefaultHasher::new();
+    hasher.write_u32(coord.0);
+    hasher.write_u32(coord.1);
+    hasher.write_u32(coord.2);
+    hasher.finish()
 }

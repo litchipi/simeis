@@ -14,6 +14,8 @@ use simeis_data::ship::ShipId;
 
 use crate::api::build_response;
 use crate::api::GameState;
+use crate::utils::get_query_string_element;
+use crate::AdminToken;
 
 // @summary Get status of a station
 // @returns All the informations for the player on this station
@@ -22,7 +24,29 @@ async fn get_station_status(
     srv: GameState,
     id: Path<StationId>,
     req: HttpRequest,
+    tok: AdminToken,
 ) -> impl web::Responder {
+    if got_admin_token!(req, tok) {
+        let qry = req.query_string();
+        let Some(player_id) = get_query_string_element(qry, "player") else {
+            return build_response(Err(Errcode::MissingQueryArgument("player")));
+        };
+        let Ok(player_id) = player_id.parse() else {
+            return build_response(Err(Errcode::InvalidArgument("player_id")));
+        };
+        let data = srv
+            .map_player_by_id(&player_id, |p| {
+                Box::pin(async move {
+                    let Some(station) = p.stations.get(&id) else {
+                        return Err(Errcode::NoSuchStation(*id));
+                    };
+                    Ok(station.to_json(&player_id).await)
+                })
+            })
+            .await;
+        return build_response(data);
+    }
+
     let id = id.as_ref();
     let key = get_player_key!(req);
     let data = srv

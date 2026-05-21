@@ -1,3 +1,5 @@
+use rand::distr::Alphanumeric;
+use rand::RngExt;
 use std::thread::JoinHandle;
 
 use mea::mpsc::BoundedReceiver;
@@ -9,8 +11,18 @@ use simeis_data::{
 };
 
 mod api;
+mod utils;
 
 pub type GameState = ntex::web::types::State<Game>;
+pub type AdminToken = ntex::web::types::State<String>;
+
+pub fn generate_random_token(len: usize) -> String {
+    rand::rng()
+        .sample_iter(&Alphanumeric)
+        .take(len)
+        .map(char::from)
+        .collect()
+}
 
 #[cfg(feature = "compio")]
 fn start_game_thread(
@@ -66,11 +78,16 @@ async fn main() -> std::io::Result<()> {
     let (gamethread, state) = Game::init(start_game_thread).await;
     let stop_chan = state.send_sig.clone();
 
+    let admin_token =
+        std::env::var("SIMEIS_ADMIN_TOKEN").unwrap_or_else(|_| generate_random_token(32));
+    println!("SIMEIS_ADMIN_TOKEN={admin_token}");
+
     let res = web::HttpServer::new(async move || {
         let game_state = state.clone();
         web::App::new()
             .middleware(web::middleware::Logger::default())
             .state(game_state)
+            .state(admin_token.clone())
             .configure(api::configure)
     })
     .workers(64)

@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::str::FromStr;
 
 use ntex::router::IntoPattern;
 use ntex::web;
@@ -53,16 +52,12 @@ async fn list_buy_industry(
 // @returns The ID of the unit bought, and the cost of the transaction
 #[web::post("/buy/{name}")]
 async fn buy_industry(
-    args: Path<(StationId, String)>,
+    args: Path<(StationId, IndustryUnitType)>,
     srv: GameState,
     req: HttpRequest,
 ) -> impl web::Responder {
     let pkey = get_player_key!(req);
-    let (station_id, indutype) = args.clone();
-    let Ok(indutype) = IndustryUnitType::from_str(indutype.as_str()) else {
-        return build_response(Err(Errcode::InvalidArgument("industry_type")));
-    };
-
+    let (station_id, indutype) = *args;
     let data = srv
         .map_player_mut(&pkey, |player| {
             Box::pin(async move {

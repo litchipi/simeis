@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::str::FromStr;
 
 use ntex::router::IntoPattern;
 use ntex::web;
@@ -27,17 +26,14 @@ use crate::api::GameState;
 #[web::post("/hire/{crewtype}")]
 async fn hire_crew(
     srv: GameState,
-    args: Path<(StationId, String)>,
+    args: Path<(StationId, CrewMemberType)>,
     req: HttpRequest,
 ) -> impl web::Responder {
-    let (station_id, crewtype) = args.as_ref();
-    let Ok(crewtype) = CrewMemberType::from_str(crewtype.as_str()) else {
-        return build_response(Err(Errcode::InvalidArgument("crewtype")));
-    };
+    let (station_id, crewtype) = *args;
 
     let pkey = get_player_key!(req);
     let data = srv
-        .map_station(&pkey, station_id, |pid, station| {
+        .map_station(&pkey, &station_id, |pid, station| {
             Box::pin(async move {
                 let id = station.hire_crew(pid, crewtype).await;
                 Ok(json!({ "id": id}))

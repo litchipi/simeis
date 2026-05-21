@@ -33,6 +33,10 @@ pub enum Errcode {
     NoSuchIndustryUnit,
     NothingAtThisCoord,
     NotAPlanet,
+    PlanetNotFound(crate::galaxy::planet::PlanetId),
+    NotAnAdmin,
+    InvalidAdminToken,
+    MissingQueryArgument(&'static str),
 }
 
 impl Errcode {
@@ -79,6 +83,10 @@ impl Errcode {
             Errcode::NoSuchIndustryUnit => "The provided industry unit doesn't exist".to_string(),
             Errcode::NothingAtThisCoord => "There is nothing at the specified space coordinates".to_string(),
             Errcode::NotAPlanet => "The specified space coordinates doesn't point to a planet".to_string(),
+            Errcode::NotAnAdmin => "You are not an administrator".to_string(),
+            Errcode::InvalidAdminToken => "The administrator token you provided is wrong".to_string(),
+            Errcode::MissingQueryArgument(key) => format!("The query argument {key:?} is missing"),
+            Errcode::PlanetNotFound(pid) => format!("The planet of ID {pid} doesn't exist"),
         }
     }
 }

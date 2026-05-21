@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::str::FromStr;
 
 use ntex::router::IntoPattern;
 use ntex::web;
@@ -73,6 +72,7 @@ async fn shipyard_buy_ship(
             })
         })
         .await;
+    srv.update_ships_owners(&key).await.unwrap();
     build_response(data)
 }
 
@@ -113,13 +113,10 @@ async fn shipyard_list_upgrades(
 #[web::post("/upgrade/{ship_id}/{upgrade_type}")]
 async fn shipyard_buy_upgrade(
     srv: GameState,
-    args: Path<(StationId, ShipId, String)>,
+    args: Path<(StationId, ShipId, ShipUpgrade)>,
     req: HttpRequest,
 ) -> impl web::Responder {
-    let (station_id, ship_id, upgrade_type) = args.clone();
-    let Ok(upgrade_type) = ShipUpgrade::from_str(&upgrade_type) else {
-        return build_response(Err(Errcode::InvalidArgument("upgrade type")));
-    };
+    let (station_id, ship_id, upgrade_type) = *args;
     let pkey = get_player_key!(req);
     let data = srv
         .map_player_mut(&pkey, |player| {

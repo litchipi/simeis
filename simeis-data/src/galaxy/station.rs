@@ -89,8 +89,8 @@ impl Station {
     }
 
     // TODO (#8) Allow to build improvements for the scanner
-    pub async fn scan(&self, galaxy: &Galaxy) -> ScanResult {
-        galaxy.scan_sector(u8::MAX, &self.position).await
+    pub fn scan(&self, galaxy: &Galaxy) -> ScanResult {
+        galaxy.scan_sector(u8::MAX, &self.position)
     }
 
     pub async fn cargo_price(&self, player: &PlayerId) -> f64 {
@@ -430,12 +430,15 @@ impl Station {
     //    If len == 10, take one of the last 7 ships, and replace it with random
 
     pub async fn buy_ship(&self, index: usize) -> Ship {
+        let mut shipyard = self.shipyard.write().await;
+
         // Ship starters, always keep them
         let mut ship = if index < 3 {
-            let shipyard = self.shipyard.read().await;
-            shipyard.get(index).unwrap().clone()
+            let ship = shipyard.get_mut(index).unwrap();
+            let got = ship.clone();
+            ship.id = rand::rng().random();
+            got
         } else {
-            let mut shipyard = self.shipyard.write().await;
             let ship = shipyard.remove(index);
             shipyard.push(Ship::random(self.position));
             ship
@@ -597,5 +600,10 @@ impl Station {
         let inputs = industry.input(op.rank);
         let outputs = industry.output(op.rank);
         Ok((inputs, outputs))
+    }
+
+    pub async fn reset(&self) {
+        self.player_data.reset().await;
+        *self.shipyard.write().await = Ship::init_shipyard(self.position);
     }
 }

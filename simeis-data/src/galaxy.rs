@@ -11,6 +11,7 @@ pub mod station;
 use scan::ScanResult;
 use station::StationId;
 
+use crate::galaxy::planet::{Planet, PlanetId};
 use crate::galaxy::station::Station;
 
 pub type SpaceUnit = u32;
@@ -27,12 +28,21 @@ const STATION_FPLANET_DIST: f64 = 500.0;
 
 #[derive(Debug)]
 pub enum SpaceObject {
-    BaseStation(StationId, Arc<station::Station>),
-    Planet(Arc<planet::Planet>),
+    Nothing,
+    Station(StationId),
+    Planet(PlanetId),
+}
+
+impl SpaceObject {
+    pub fn is_nothing(&self) -> bool {
+        matches!(self, SpaceObject::Nothing)
+    }
 }
 
 // TODO (#31) Use a RwLock on each of the field, and remove the one from the Game struct
 pub struct Galaxy {
+    pub stations: BTreeMap<StationId, Arc<Station>>,
+    pub planets: BTreeMap<PlanetId, Arc<Planet>>,
     objects: BTreeMap<SpaceCoord, SpaceObject>,
     discovered: Vec<GalaxySector>, // TODO (#31) Index by sector ID in a BTreeMap
 }
@@ -40,8 +50,10 @@ pub struct Galaxy {
 impl Galaxy {
     pub fn init() -> Galaxy {
         Galaxy {
-            objects: BTreeMap::new(),
             discovered: vec![],
+            stations: BTreeMap::new(),
+            planets: BTreeMap::new(),
+            objects: BTreeMap::new(),
         }
     }
 
@@ -62,16 +74,18 @@ impl Galaxy {
         let ind = self.discovered.len();
         self.discovered.push((secx, secy, secz));
         let mut rng = rand::rng();
-        for _ in 0..PLANETS_PER_SECTOR {
+        let mut npla = 0;
+        while npla < PLANETS_PER_SECTOR {
             let x = rng.random_range(secx.0..secx.1);
             let y = rng.random_range(secy.0..secy.1);
             let z = rng.random_range(secz.0..secz.1);
-            let planet = planet::Planet::random((x, y, z), &mut rng);
-            if self
-                .insert(&(x, y, z), SpaceObject::Planet(Arc::new(planet)))
-                .is_none()
+            let planet = Planet::random((x, y, z), &mut rng);
+            if let std::collections::btree_map::Entry::Vacant(e) =
+                self.objects.entry(planet.position)
             {
-                continue;
+                e.insert(SpaceObject::Planet(planet.id));
+                self.planets.insert(planet.id, Arc::new(planet));
+                npla += 1;
             }
         }
         ind
@@ -88,49 +102,34 @@ impl Galaxy {
         false
     }
 
-    pub fn get<'a>(&'a self, coord: &SpaceCoord) -> Option<&'a SpaceObject> {
-        self.objects.get(coord)
-    }
-
-    pub fn insert(&mut self, coord: &SpaceCoord, obj: SpaceObject) -> Option<()> {
-        if self.objects.contains_key(coord) {
-            return None;
-        }
-        self.objects.insert(*coord, obj);
-        Some(())
-    }
-
-    fn list_objects_in_sector(&self, sector: &GalaxySector) -> Vec<&SpaceObject> {
+    fn list_planets_in_sector(&self, sector: &GalaxySector) -> Vec<&Arc<Planet>> {
         let mut objects = vec![];
-        for (coord, obj) in self.objects.iter() {
-            let (x, y, z) = coord;
-            if (x < &sector.0 .0) || (x > &sector.0 .1) {
+        for (_, planet) in self.planets.iter() {
+            let (x, y, z) = planet.position;
+            if (x < sector.0 .0) || (x > sector.0 .1) {
                 continue;
             }
-            if (y < &sector.1 .0) || (y > &sector.1 .1) {
+            if (y < sector.1 .0) || (y > sector.1 .1) {
                 continue;
             }
-            if (z < &sector.2 .0) || (z > &sector.2 .1) {
+            if (z < sector.2 .0) || (z > sector.2 .1) {
                 continue;
             }
-            objects.push(obj);
+            objects.push(planet);
         }
         objects
     }
 
-    pub async fn get_station(&self, coord: &SpaceCoord) -> Option<Arc<station::Station>> {
-        let obj = self.get(coord)?;
-        let SpaceObject::BaseStation(_, station) = obj else {
-            return None;
-        };
-        Some(station.clone())
+    pub fn get_object(&self, coord: &SpaceCoord) -> &SpaceObject {
+        self.objects.get(coord).unwrap_or(&SpaceObject::Nothing)
     }
 
-    pub async fn get_planet(&self, coord: &SpaceCoord) -> Option<Arc<planet::Planet>> {
-        let obj = self.get(coord)?;
-        let SpaceObject::Planet(planet) = obj else {
+    pub fn get_planet(&self, coord: &SpaceCoord) -> Option<Arc<Planet>> {
+        let obj = self.get_object(coord);
+        let SpaceObject::Planet(planet_id) = obj else {
             return None;
         };
+        let planet = self.planets.get(planet_id).unwrap();
         Some(planet.clone())
     }
 
@@ -146,35 +145,20 @@ impl Galaxy {
         let ind = self.generate_sector(&seccoord);
         let sector = self.discovered.get(ind).unwrap();
 
-        let Some(SpaceObject::Planet(pla)) = self
-            .list_objects_in_sector(sector)
-            .iter()
-            .filter(|obj| matches!(obj, SpaceObject::Planet(_)))
-            .nth(0)
-        else {
-            unreachable!("Planet inside generated sector");
-        };
+        let all_planets = self.list_planets_in_sector(sector);
+        assert!(!all_planets.is_empty());
 
         let mut coord;
         let mut retry_n = 0;
         loop {
+            let pla = all_planets[retry_n % all_planets.len()];
             coord = get_rand_coord_near(&pla.position, STATION_FPLANET_DIST, &mut rng);
-            while !is_in_sector(&coord, sector) || self.get(&coord).is_some() {
+            while !(is_in_sector(&coord, sector) && self.get_object(&coord).is_nothing()) {
                 coord = get_rand_coord_near(&pla.position, STATION_FPLANET_DIST, &mut rng);
             }
 
             let mut mindist = None;
-            for pla in self
-                .list_objects_in_sector(sector)
-                .iter()
-                .filter_map(|obj| {
-                    if let SpaceObject::Planet(p) = obj {
-                        Some(p)
-                    } else {
-                        None
-                    }
-                })
-            {
+            for pla in self.list_planets_in_sector(sector) {
                 let dist = get_distance(&pla.position, &coord);
                 if let Some(ref mut m) = mindist {
                     if dist < *m {
@@ -196,17 +180,29 @@ impl Galaxy {
             }
         }
         let station = Arc::new(station::Station::init(id, coord));
-        self.insert(&coord, SpaceObject::BaseStation(id, station.clone()))
-            .unwrap();
+        self.objects
+            .insert(station.position, SpaceObject::Station(station.id));
+        self.stations.insert(station.id, station.clone());
         (id, station)
     }
 
-    pub async fn scan_sector(&self, rank: u8, center: &SpaceCoord) -> ScanResult {
+    pub fn scan_sector(&self, rank: u8, center: &SpaceCoord) -> ScanResult {
         let sector = compute_sector(center.0, center.1, center.2);
         let mut results = ScanResult::empty();
-        for obj in self.list_objects_in_sector(&sector) {
-            results.add(rank, obj).await;
+        for (_, pla) in self.planets.iter() {
+            if !is_in_sector(&pla.position, &sector) {
+                continue;
+            }
+            results.add_planet(rank, pla);
         }
+
+        for (_, sta) in self.stations.iter() {
+            if !is_in_sector(&sta.position, &sector) {
+                continue;
+            }
+            results.add_station(rank, sta);
+        }
+
         debug_assert!(!results.planets.is_empty()); // We should always have some planets
         results
     }
