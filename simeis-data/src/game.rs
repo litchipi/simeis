@@ -361,6 +361,18 @@ impl Game {
         f(&player)
     }
 
+    pub async fn map_player_by_id<F, T>(&self, pid: &PlayerId, f: F) -> Result<T, Errcode>
+    where
+        F: for<'a> FnOnce(&'a Player) -> BoxFuture<'a, Result<T, Errcode>>,
+    {
+        let Some(player) = self.players.clone_val(pid).await else {
+            return Err(Errcode::PlayerNotFound(*pid));
+        };
+        let player = player.read().await;
+        let data = f(&player).await;
+        data
+    }
+
     pub async fn map_player<F, T>(&self, pkey: &PlayerKey, f: F) -> Result<T, Errcode>
     where
         F: for<'a> FnOnce(&'a Player) -> BoxFuture<'a, Result<T, Errcode>>,
