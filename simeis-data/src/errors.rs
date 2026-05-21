@@ -36,6 +36,7 @@ pub enum Errcode {
     NotAnAdmin,
     InvalidAdminToken,
     MissingQueryArgument(&'static str),
+    PlanetNotFound(u64),
 }
 
 impl Errcode {
@@ -85,6 +86,7 @@ impl Errcode {
             Errcode::NotAnAdmin => "You are not an administrator".to_string(),
             Errcode::InvalidAdminToken => "The administrator token you provided is wrong".to_string(),
             Errcode::MissingQueryArgument(key) => format!("The query argument {key:?} is missing"),
+            Errcode::PlanetNotFound(pid) => format!("No such planet with the ID {pid}"),
         }
     }
 }

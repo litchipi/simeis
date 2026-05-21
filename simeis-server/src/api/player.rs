@@ -39,9 +39,7 @@ async fn get_player(
     req: HttpRequest,
 ) -> impl web::Responder {
     if got_admin_token!(req, tok) {
-        let data = srv
-            .sync_map_player_by_id(&id, |p| Ok(p.export_json(true)))
-            .await;
+        let data = srv.export_player_data(&id, true).await;
         return build_response(data);
     }
 

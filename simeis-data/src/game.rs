@@ -25,13 +25,13 @@ use rand::{Rng, RngExt};
 use crate::errors::Errcode;
 use crate::galaxy::scan::ScanResult;
 use crate::galaxy::station::{Station, StationId};
-use crate::galaxy::{Galaxy, SpaceCoord, SpaceObject};
+use crate::galaxy::Galaxy;
 use crate::market::{Market, MarketTx, MARKET_CHANGE_SEC};
 use crate::player::{Player, PlayerId, PlayerKey};
 use crate::ship::resources::{ExtractionInfo, Resource};
-use crate::ship::{Ship, ShipId, ShipState};
+use crate::ship::{ShipId, ShipState};
 use crate::syslog::{SyslogEvent, SyslogFifo, SyslogRecv, SyslogSend};
-use crate::utils::{BoxFuture, ShardedLockedData, PLAYER_SHARDS};
+use crate::utils::{ShardedLockedData, PLAYER_SHARDS};
 
 #[cfg(not(feature = "extraspeed"))]
 const ITER_PERIOD: Duration = Duration::from_millis(20);
@@ -246,178 +246,6 @@ impl Game {
         };
         let mut fifo = fifo.write().await;
         Ok(fifo.remove_all())
-    }
-
-    pub async fn map_station<F, T>(
-        &self,
-        pkey: &PlayerKey,
-        id: &StationId,
-        f: F,
-    ) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(&'a PlayerId, &'a Station) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (pid, player) = self.get_player(pkey).await?;
-        let player = player.read().await;
-        let Some(station) = player.stations.get(id) else {
-            return Err(Errcode::NoSuchStation(*id));
-        };
-        let data = f(&pid, station).await;
-        data
-    }
-
-    pub async fn map_galaxy_coord<F, T>(&self, coord: &SpaceCoord, f: F) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(&'a SpaceObject, &'a Galaxy) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let galaxy = self.galaxy.read().await;
-        let obj = galaxy.get_object(coord);
-        if obj.is_nothing() {
-            return Err(Errcode::NothingAtThisCoord);
-        };
-        let data = f(obj, &galaxy).await;
-        data
-    }
-
-    pub async fn map_ship<F, T>(&self, pkey: &PlayerKey, id: &ShipId, f: F) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(PlayerId, &'a Ship) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (pid, player) = self.get_player(pkey).await?;
-        let player = player.read().await;
-        let ship = player.get_ship(id)?;
-        let data = f(pid, ship).await;
-        data
-    }
-
-    pub async fn map_ship_mut<F, T>(
-        &self,
-        pkey: &PlayerKey,
-        id: &ShipId,
-        f: F,
-    ) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(PlayerId, &'a mut Ship) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (pid, player) = self.get_player(pkey).await?;
-        let mut player = player.write().await;
-        let ship = player.get_ship_mut(id)?;
-        let data = f(pid, ship).await;
-        data
-    }
-
-    pub async fn map_ship_in_station<F, T>(
-        &self,
-        pkey: &PlayerKey,
-        station_id: &StationId,
-        ship_id: &ShipId,
-        f: F,
-    ) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(PlayerId, &'a Station, &'a Ship) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (pid, player) = self.get_player(pkey).await?;
-        let player = player.read().await;
-        if !player.ship_in_station(ship_id, station_id)? {
-            return Err(Errcode::ShipNotInStation);
-        }
-        // SAFETY Checked in function above
-        let ship = player.ships.get(ship_id).unwrap();
-        let station = player.stations.get(station_id).unwrap();
-        let data = f(pid, station, ship).await;
-        data
-    }
-
-    pub async fn map_ship_mut_in_station<F, T>(
-        &self,
-        pkey: &PlayerKey,
-        station_id: &StationId,
-        ship_id: &ShipId,
-        f: F,
-    ) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(PlayerId, &'a Station, &'a mut Ship) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (pid, player) = self.get_player(pkey).await?;
-        let mut player = player.write().await;
-        if !player.ship_in_station(ship_id, station_id)? {
-            return Err(Errcode::ShipNotInStation);
-        }
-        // SAFETY Checked in function above
-        let station = player.stations.get(station_id).unwrap().clone();
-        let ship = player.ships.get_mut(ship_id).unwrap();
-        let data = f(pid, &station, ship).await;
-        data
-    }
-
-    pub async fn sync_map_player_by_id<F, T>(&self, pid: &PlayerId, f: F) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(&'a Player) -> Result<T, Errcode>,
-    {
-        let Some(player) = self.players.clone_val(pid).await else {
-            return Err(Errcode::PlayerNotFound(*pid));
-        };
-        let player = player.read().await;
-
-        f(&player)
-    }
-
-    pub async fn map_player_by_id<F, T>(&self, pid: &PlayerId, f: F) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(&'a Player) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let Some(player) = self.players.clone_val(pid).await else {
-            return Err(Errcode::PlayerNotFound(*pid));
-        };
-        let player = player.read().await;
-        let data = f(&player).await;
-        data
-    }
-
-    pub async fn map_player<F, T>(&self, pkey: &PlayerKey, f: F) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(&'a Player) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (_, player) = self.get_player(pkey).await?;
-        let player = player.read().await;
-        let data = f(&player).await;
-        data
-    }
-
-    pub async fn map_player_mut<F, T>(&self, pkey: &PlayerKey, f: F) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(&'a mut Player) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (_, player) = self.get_player(pkey).await?;
-        let mut player = player.write().await;
-        let data = f(&mut player).await;
-        data
-    }
-
-    pub async fn player_to_json(
-        &self,
-        pkey: &PlayerKey,
-        id: &PlayerId,
-    ) -> Result<serde_json::Value, Errcode> {
-        let (pid, player) = self.get_player(pkey).await?;
-        let player = player.read().await;
-        if pid == *id {
-            Ok(player.export_json(true))
-        } else {
-            self.export_player_data(id, false).await
-        }
-    }
-
-    pub async fn export_player_data(
-        &self,
-        id: &PlayerId,
-        full: bool,
-    ) -> Result<serde_json::Value, Errcode> {
-        let Some(player) = self.players.clone_val(id).await else {
-            return Err(Errcode::PlayerNotFound(*id));
-        };
-        let player = player.read().await;
-        Ok(player.export_json(full))
     }
 
     pub async fn scan_galaxy(
