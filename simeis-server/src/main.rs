@@ -55,6 +55,7 @@ fn start_game_thread(
 // The key you get from this API must be passed to each request as a HTTP header of key "Simeis-Key"
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
+    // TODO (#55) Read server port from args (if config file: optional & will override)
     #[cfg(not(feature = "testing"))]
     let port = 8080;
 
