@@ -1313,7 +1313,7 @@ class Tester:
             None
         )
         for res, attr in init_pow_attr.items():
-            assert attr == 255
+            assert attr == 128
         testres = list(init_pow_attr.keys())[0]
         calcmr_body={
             "module_type": mod,
@@ -1323,9 +1323,9 @@ class Tester:
             "power_attribution": init_pow_attr,
         }
         init_mining_rate = self.post_ok("/calc/mining_rate", body=calcmr_body)
-        self.post_ok(f"/ship/{shipid}/extraction/power_attribution/{testres}/250")
+        self.post_ok(f"/ship/{shipid}/extraction/power_attribution/{testres}/120")
         after_pow_attr = self.get_ok(f"/ship/{shipid}/extraction/power_attribution")["power_attribution"]
-        self.assert_got(after_pow_attr, testres, 250)
+        self.assert_got(after_pow_attr, testres, 120)
         calcmr_body["power_attribution"] = after_pow_attr
         after_mining_rate = self.post_ok("/calc/mining_rate", body=calcmr_body)
         for res, after_rate in after_mining_rate.items():

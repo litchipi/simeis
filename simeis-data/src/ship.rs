@@ -28,6 +28,8 @@ const HULL_RESIS_PRICE: f64 = 9.0;
 const REACTOR_POWER_PRICE: f64 = 4000.0;
 const SHIELD_PRICE: f64 = 2500.0;
 
+pub const DEFAULT_POW_ATTR: u8 = 128;
+
 pub type ShipId = u64;
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]

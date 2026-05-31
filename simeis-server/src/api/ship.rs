@@ -14,7 +14,7 @@ use simeis_data::syslog::SyslogEvent;
 
 use simeis_data::errors::Errcode;
 use simeis_data::galaxy::station::StationId;
-use simeis_data::ship::ShipId;
+use simeis_data::ship::{ShipId, DEFAULT_POW_ATTR};
 use strum::IntoEnumIterator;
 
 use crate::api::build_response;
@@ -160,6 +160,9 @@ async fn stop_extraction(
 }
 
 // @summary Get the attribution of power for all the mineable resources by the ship
+// The default power value is 128
+// The maximum power value is 255
+// The minimum power value is 0
 // @returns The current power attribution set for all mineable resources by the ship
 #[web::get("/extraction/power_attribution")]
 async fn get_extraction_power_attribution(
@@ -181,7 +184,10 @@ async fn get_extraction_power_attribution(
                         };
                         let opcrew = ship.crew.0.get(&opid).unwrap();
                         if res.extractable(&smod.modtype, opcrew.rank) {
-                            let powattr = ship.power_attribution.get(&res).unwrap_or(&u8::MAX);
+                            let powattr = ship
+                                .power_attribution
+                                .get(&res)
+                                .unwrap_or(&DEFAULT_POW_ATTR);
                             result.insert(res, *powattr);
                         }
                     }
@@ -194,8 +200,11 @@ async fn get_extraction_power_attribution(
 }
 
 // @summary Set the attribution of power for a specific mineable resource
-// @returns Nothing
+// The default power value is 128
+// The maximum power value is 255
+// The minimum power value is 0
 // Setting the power attribution for a non-mineable resource will have no effect
+// @returns Nothing
 #[web::post("/extraction/power_attribution/{resource}/{pow}")]
 async fn set_extraction_power_attribution(
     srv: GameState,

@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use crate::define_type_enum;
 use crate::galaxy::planet::Planet;
 use crate::ship::module::ShipModuleType;
+use crate::ship::DEFAULT_POW_ATTR;
 use crate::ship::{cargo::ShipCargo, Ship};
 
 define_type_enum!(Resource {
@@ -170,10 +171,10 @@ impl ExtractionInfo {
 pub fn apply_power_attribution(attrs: &BTreeMap<Resource, u8>, r: &mut BTreeMap<Resource, f64>) {
     let powtot: u16 = r
         .keys()
-        .map(|r| *attrs.get(r).unwrap_or(&u8::MAX) as u16)
+        .map(|r| *attrs.get(r).unwrap_or(&DEFAULT_POW_ATTR) as u16)
         .sum();
     r.iter_mut().for_each(|(res, rate)| {
-        let power = attrs.get(res).unwrap_or(&u8::MAX);
+        let power = attrs.get(res).unwrap_or(&DEFAULT_POW_ATTR);
         let power_f = (*power as f64) / (powtot as f64);
         *rate *= power_f;
     });
