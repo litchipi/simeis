@@ -229,6 +229,8 @@ impl Game {
         };
         let player = self.players.clone_val(&id).await.unwrap();
         if player.read().await.lost {
+            self.taken_names.remove_value(&id).await;
+            self.player_index.remove_value(&id).await;
             return Err(Errcode::PlayerLost);
         }
         Ok((id, player.clone()))

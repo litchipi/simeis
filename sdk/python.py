@@ -380,3 +380,6 @@ class SimeisSDK:
 
     def set_extraction_power_attribution(self, ship_id, res, pow):
         return self.post(f"/ship/{ship_id}/extraction/power_attribution/{res}/{pow}")
+
+    def get_all_wages(self):
+        return self.get("/player/wages")

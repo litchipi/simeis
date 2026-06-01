@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use ntex::router::IntoPattern;
 use ntex::web;
 use ntex::web::scope;
@@ -49,6 +51,58 @@ async fn get_player(
     build_response(data)
 }
 
+// @summary Get the detailled wages for a player
+// @returns For each crew member, its  type, where it's assigned, and his wage
+#[web::get("/wages")]
+async fn get_all_wages(srv: GameState, req: HttpRequest) -> impl web::Responder {
+    let pkey = get_player_key!(req);
+    let data = srv
+        .map_player(&pkey, |player| {
+            Box::pin(async move {
+                let mut result = BTreeMap::new();
+                for (sid, station) in player.stations.iter() {
+                    let Some(pd) = station.player_data.clone_val(&player.id).await else {
+                        continue;
+                    };
+                    let pd = pd.read().await;
+                    for (id, cm) in pd.crew.0.iter() {
+                        result.insert(
+                            *id,
+                            json!({
+                                "crew_type": cm.member_type,
+                                "assigned_on": "station",
+                                "assigned_id": sid,
+                                "wage": cm.wage(),
+                            }),
+                        );
+                    }
+                }
+
+                for (sid, ship) in player.ships.iter() {
+                    for (id, cm) in ship.crew.0.iter() {
+                        result.insert(
+                            *id,
+                            json!({
+                                "crew_type": cm.member_type,
+                                "assigned_on": "ship",
+                                "assigned_id": sid,
+                                "wage": cm.wage(),
+                            }),
+                        );
+                    }
+                }
+                Ok(json!(result))
+            })
+        })
+        .await;
+    build_response(data)
+}
+
 pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
-    srv.service(scope(base).service(get_player).service(new_player));
+    srv.service(
+        scope(base)
+            .service(get_all_wages)
+            .service(new_player)
+            .service(get_player),
+    );
 }

@@ -788,4 +788,8 @@ impl SimeisSDK {
             "/ship/{ship_id}/extraction/power_attribution/{res}/{pow}"
         ))
     }
+
+    pub fn get_all_wages(&self) -> ApiResult {
+        self.get("/player/wages")
+    }
 }

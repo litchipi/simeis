@@ -3,6 +3,7 @@
   compile_and_run = {
     key,
     exec,
+    port,
     features ? [],
     release ? false,
     head ? "",
@@ -11,7 +12,7 @@
     rf = if release then "--release" else "";
     bcmd = "cargo build ${rf} --target-dir ./target/${key} ${fflags} --no-default-features";
     targetdir = "./target/${key}/${if release then "release" else "debug"}";
-    rcmd = "${targetdir}/simeis-server 1>/tmp/${key}_simeis_logs 2>&1 &";
+    rcmd = "${targetdir}/simeis-server ${toString port} 1>/tmp/${key}_simeis_logs 2>&1 &";
   in ''
     #!/bin/bash
     export SIMEIS_ADMIN_TOKEN="testingadmintoken${key}"
@@ -118,6 +119,7 @@ in {
       text = compile_and_run {
         key = "functests";
         features = ["testing"];
+        port = 9345;
         exec = "python3 .forgejo/functests.py 127.0.0.1 9345 \"$@\"";
       };
     };
@@ -223,7 +225,8 @@ in {
         text = compile_and_run {
           key = "apisanity";
           features = ["testing"];
-          exec = "python3 .forgejo/check_api_sanity.py 127.0.0.1 9345 \"$@\"";
+          port = 9346;
+          exec = "python3 .forgejo/check_api_sanity.py 127.0.0.1 9346 \"$@\"";
         };
       };
     in "${app}/bin/api_sanity";
@@ -237,10 +240,11 @@ in {
           features = ["extraspeed"];
           release=true;
           exec = "start_client_test";
+          port = 9347;
           head = ''
             #!/bin/bash
             function start_client_test() {
-              python3 example/python/client.py ci 127.0.0.1 8080 1>/tmp/client_runwell_py_clilogs 2>&1 &
+              python3 example/python/client.py ci 127.0.0.1 9347 1>/tmp/client_runwell_py_clilogs 2>&1 &
               ${ensure_runs_well "py"}
             }
           '';
@@ -257,6 +261,7 @@ in {
           features = ["extraspeed"];
           release=true;
           exec = "start_client_test";
+          port = 9348;
           head = ''
             #!/bin/bash
             function start_client_test() {
@@ -266,7 +271,7 @@ in {
               cd /tmp/client
               cargo check
               cargo build --release
-              ./target/release/simeis-rust-example ci 0.0.0.0 8080 1>/tmp/client_runwell_rs_clilogs 2>&1 &
+              ./target/release/simeis-rust-example ci 0.0.0.0 9348 1>/tmp/client_runwell_rs_clilogs 2>&1 &
               ${ensure_runs_well "rs"}
             }
           '';
