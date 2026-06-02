@@ -383,3 +383,6 @@ class SimeisSDK:
 
     def get_all_wages(self):
         return self.get("/player/wages")
+
+    def unassign_crew(self, sta, id):
+        return self.post(f"/station/{sta}/crew/unassign/{id}")

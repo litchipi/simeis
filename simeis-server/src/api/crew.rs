@@ -247,6 +247,33 @@ async fn assign_operator_to_ship(
     build_response(data)
 }
 
+// @summary Unassign the crew member of a given ID from its current task
+// Will become available for any future assignations. \n
+// If the crew member is currently assigned on a ship, the ship must be docked on
+// the station first
+// @returns Nothing
+#[web::post("/unassign/{crew_id}")]
+async fn unassign_crew(
+    args: Path<(StationId, CrewId)>,
+    srv: GameState,
+    req: HttpRequest,
+) -> impl web::Responder {
+    let (station_id, crew_id) = *args;
+    let pkey = get_player_key!(req);
+
+    let data = srv
+        .map_player_mut(&pkey, |player| {
+            Box::pin(async move {
+                player
+                    .unassign_crew(station_id, crew_id)
+                    .await
+                    .map(|_| json!({}))
+            })
+        })
+        .await;
+    build_response(data)
+}
+
 // @summary Assign a crew member as an operator on an industry unit of a sttion.
 // @returns Nothing
 // The level of the crew member will affect the production rate
@@ -280,6 +307,7 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
             .service(get_crew_upgrades)
             .service(upgrade_ship_crew)
             .service(upgrade_station_crew)
+            .service(unassign_crew)
             .service(assign_pilot)
             .service(assign_operator_to_industry)
             .service(assign_operator_to_ship)

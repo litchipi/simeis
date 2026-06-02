@@ -249,6 +249,37 @@ impl Station {
         Ok(())
     }
 
+    pub async fn unassign_crew(&self, pid: &PlayerId, crew_id: &CrewId) -> Result<bool, Errcode> {
+        let pd = self.player_data.clone_val(pid).await.unwrap();
+        let mut pd = pd.write().await;
+        if pd.idle_crew.0.contains_key(crew_id) {
+            return Err(Errcode::CrewMemberIdle(*crew_id));
+        }
+        if let Some(c) = pd.crew.0.remove(crew_id) {
+            match c.member_type {
+                CrewMemberType::Operator => {
+                    let mut found = false;
+                    for (_, unit) in pd.industry.iter_mut() {
+                        if let Some(ref id) = unit.operator {
+                            if id == crew_id {
+                                unit.operator = None;
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                    assert!(found);
+                }
+                CrewMemberType::Trader => pd.trader = None,
+                _ => unreachable!(),
+            }
+            pd.idle_crew.0.insert(*crew_id, c);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     pub async fn assign_crew_to_industry(
         &self,
         pid: &PlayerId,

@@ -289,6 +289,50 @@ impl Player {
         Ok(station.add_cargo_cap(&self.id, amnt).await)
     }
 
+    pub async fn unassign_crew(
+        &mut self,
+        station_id: StationId,
+        crew_id: CrewId,
+    ) -> Result<(), Errcode> {
+        let Some(station) = self.stations.get(&station_id) else {
+            return Err(Errcode::NoSuchStation(station_id));
+        };
+        if station.unassign_crew(&self.id, &crew_id).await? {
+            return Ok(());
+        }
+        let pd = station.player_data.clone_val(&self.id).await.unwrap();
+        let mut pd = pd.write().await;
+
+        for (_, ship) in self.ships.iter_mut() {
+            if ship.crew.0.contains_key(&crew_id) {
+                if ship.position != station.position {
+                    return Err(Errcode::ShipNotInStation);
+                }
+
+                let c = ship.crew.0.remove(&crew_id).unwrap();
+                match c.member_type {
+                    crate::crew::CrewMemberType::Pilot => ship.pilot = None,
+                    crate::crew::CrewMemberType::Operator => {
+                        let mut found = false;
+                        for (_, module) in ship.modules.iter_mut() {
+                            if let Some(id) = module.operator {
+                                if id == crew_id {
+                                    module.operator = None;
+                                    found = true;
+                                }
+                            }
+                        }
+                        assert!(found);
+                    }
+                    _ => unreachable!(),
+                }
+                pd.idle_crew.0.insert(crew_id, c);
+                return Ok(());
+            }
+        }
+        Err(Errcode::CrewMemberNotFound(crew_id))
+    }
+
     pub fn export_json(&self, full: bool) -> serde_json::Value {
         if !full {
             return serde_json::json!({
