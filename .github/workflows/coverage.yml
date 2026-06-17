@@ -1,0 +1,77 @@
+name: Code coverage
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  coverage:
+    name: Measure coverage with cargo-tarpaulin
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the PR code
+        uses: actions/checkout@v4
+
+      - name: Install the Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-tarpaulin-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-tarpaulin-
+
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
+
+      - name: Run tests with coverage
+        id: tarpaulin
+        run: |
+          set -o pipefail
+          cargo tarpaulin --workspace --timeout 120 --out Xml | tee coverage.txt
+
+          COVERAGE=$(grep -oE '[0-9]+\.[0-9]+% coverage' coverage.txt \
+            | grep -oE '[0-9]+\.[0-9]+' | tail -1)
+          echo "Total coverage: ${COVERAGE}%"
+          echo "coverage=${COVERAGE}" >> "$GITHUB_OUTPUT"
+
+          if awk "BEGIN { exit !(${COVERAGE} < 50) }"; then
+            echo "below_threshold=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "below_threshold=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Manage "not enough tests" label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const label = 'not enough tests';
+            const below = '${{ steps.tarpaulin.outputs.below_threshold }}' === 'true';
+            const coverage = '${{ steps.tarpaulin.outputs.coverage }}';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            if (below) {
+              core.warning(`Coverage ${coverage}% is below 50% - adding "${label}" label.`);
+              // addLabels creates the label automatically if it does not exist yet.
+              await github.rest.issues.addLabels({ owner, repo, issue_number, labels: [label] });
+            } else {
+              core.info(`Coverage ${coverage}% meets the 50% threshold.`);
+              try {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number, name: label });
+              } catch (e) {
+                if (e.status !== 404) throw e; // 404 = label was not set, nothing to remove
+              }
+            }
