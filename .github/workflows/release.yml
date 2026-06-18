@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - 'release/**'
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from branch name
+        id: version
+        run: |
+          VERSION="${{ github.base_ref }}"
+          VERSION="${VERSION#release/}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install typst
+        run: |
+          curl -fsSL https://github.com/typst/typst/releases/latest/download/typst-x86_64-unknown-linux-musl.tar.xz \
+            | tar -xJ --strip-components=1 -C /usr/local/bin typst-x86_64-unknown-linux-musl/typst
+
+      - name: Build binary
+        run: make -f MakeFile release
+
+      - name: Build documentation
+        run: make -f MakeFile doc
+
+      - name: Generate changelog
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BASE_BRANCH="${{ github.base_ref }}"
+          PRS=$(gh pr list --base "$BASE_BRANCH" --state merged --json title,url,headRefName)
+
+          FEATURES=$(echo "$PRS" | jq -r '.[] | select(.headRefName | startswith("feature/")) | "- [\(.title)](\(.url))"')
+          BUGFIXES=$(echo "$PRS" | jq -r '.[] | select(.headRefName | startswith("bug/")) | "- [\(.title)](\(.url))"')
+          OTHERS=$(echo "$PRS" | jq -r '.[] | select(.headRefName | (startswith("feature/") or startswith("bug/")) | not) | "- [\(.title)](\(.url))"')
+
+          {
+            echo "## Changelog"
+            echo ""
+            echo "### Features"
+            if [ -n "$FEATURES" ]; then echo "$FEATURES"; else echo "_Aucune_"; fi
+            echo ""
+            echo "### Bugfixes"
+            if [ -n "$BUGFIXES" ]; then echo "$BUGFIXES"; else echo "_Aucune_"; fi
+            echo ""
+            echo "### Autres"
+            if [ -n "$OTHERS" ]; then echo "$OTHERS"; else echo "_Aucune_"; fi
+          } > changelog.md
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          body_path: changelog.md
+          files: |
+            target/release/simeis-server
+            doc/manual.pdf

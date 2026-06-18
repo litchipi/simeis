@@ -1,0 +1,31 @@
+name: Propagate Bugfix
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  propagate:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'bug/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Create propagation PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          labels='${{ toJson(github.event.pull_request.labels) }}'
+
+          echo "$labels" | grep -o '"name":"[^"]*"' | sed 's/"name":"\([^\"]*\)"/\1/' | while read -r label; do
+            if [[ "$label" == propagate:release/* ]]; then
+              target="${label#propagate:}"
+              echo "Creating propagation PR for $target"
+              gh pr create \
+                --base "$target" \
+                --head "main" \
+                --title "Propagate bugfix to $target" \
+                --body "Automatic propagation of bugfix from ${GITHUB_HEAD_REF:-${{ github.event.pull_request.head.ref }}} to $target."
+            fi
+          done

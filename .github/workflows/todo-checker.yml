@@ -1,0 +1,102 @@
+name: TODO Checker
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  check-todos:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify TODO format and issue status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Vérifie que chaque TODO respecte le format strict : // TODO (#123)
+          # Si un TODO est sans numéro, ou si l'issue liée est fermée, le workflow échoue.
+          python - <<'PY'
+          import re
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          root = Path('.')
+          pattern = re.compile(r'(?P<comment>//\s*TODO(?:\s*\(#(?P<number>\d+)\))?)')
+          bad_lines = []
+          issue_numbers = []
+
+          for path in root.rglob('*'):
+              if not path.is_file():
+                  continue
+              if any(part in {'.git', 'target', 'node_modules'} for part in path.parts):
+                  continue
+              if path.suffix.lower() in {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.pdf'}:
+                  continue
+
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except UnicodeDecodeError:
+                  continue
+
+              for line_number, line in enumerate(text.splitlines(), start=1):
+                  if 'TODO' not in line:
+                      continue
+
+                  # Le format attendu est strictement : // TODO (#123)
+                  if re.search(r'//\s*TODO\s*\(#\d+\)', line):
+                      match = re.search(r'//\s*TODO\s*\(#(?P<number>\d+)\)', line)
+                      issue_numbers.append((path, line_number, int(match.group('number'))))
+                  elif re.search(r'//\s*TODO\b', line):
+                      bad_lines.append((path, line_number, line.strip()))
+
+          if bad_lines:
+              print('TODO(s) invalide(s) détecté(s) :')
+              for path, line_number, line in bad_lines:
+                  print(f'{path}:{line_number}: {line}')
+              sys.exit(1)
+
+          # Avant de vérifier les issues, on confirme si le dépôt autorise les issues.
+          repo_check = subprocess.run(
+              ['gh', 'repo', 'view', '--json', 'hasIssuesEnabled'],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          repo_info = __import__('json').loads(repo_check.stdout)
+          if repo_info.get('hasIssuesEnabled') is False:
+              print('Le dépôt n\'a pas les issues activées : validation des TODOs ignorée.')
+              sys.exit(0)
+
+          for path, line_number, issue_number in issue_numbers:
+              cmd = ['gh', 'issue', 'view', str(issue_number), '--json', 'state']
+              try:
+                  result = subprocess.run(
+                      cmd,
+                      check=True,
+                      capture_output=True,
+                      text=True,
+                  )
+                  data = __import__('json').loads(result.stdout)
+                  state = data.get('state')
+                  if state != 'OPEN':
+                      print(
+                          f'Issue #{issue_number} liée à {path}:{line_number} n\'est pas ouverte ({state}).'
+                      )
+                      sys.exit(1)
+                  print(f'Issue #{issue_number} est ouverte pour {path}:{line_number}.')
+              except subprocess.CalledProcessError as exc:
+                  print(
+                      f'Impossible de vérifier l\'issue #{issue_number} pour {path}:{line_number}: '
+                      f'{exc.stderr.strip()}'
+                  )
+                  sys.exit(1)
+
+          print('Tous les TODOs sont valides et les issues associées sont ouvertes.')
+          PY

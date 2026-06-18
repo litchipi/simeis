@@ -2,6 +2,7 @@
 resolver = "2"
 members = ["simeis-data", "simeis-server"]
 exclude = ["example/rust"]
+rust-version = "1.88"
 
 [workspace.dependencies]
 log = "0.4.29"
