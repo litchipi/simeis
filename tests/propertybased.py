@@ -31,6 +31,10 @@ def addition():
     z = random.randrange(0, 10000)
 
     # Exercice:    Tester les additions
+    assert x + y == y + x                      # commutativité
+    assert (x + y) + z == x + (y + z)           # associativité
+    assert x + 0 == x                           # élément neutre
+    assert x + y >= x and x + y >= y            # croissance (opérandes positifs)
 
 def distance():
     x1 = random.randrange(-100, 100)
@@ -44,6 +48,15 @@ def distance():
     b = (x2, y2, z2)
 
     # Exercice:     Tester la distance entre le point A et le point B
+    d_ab = get_dist(a, b)
+    d_ba = get_dist(b, a)
+    assert d_ab >= 0                            # une distance est toujours positive ou nulle
+    assert abs(d_ab - d_ba) < 1e-9               # symétrie: dist(a, b) == dist(b, a)
+    assert get_dist(a, a) == 0                   # distance d'un point à lui-même est nulle
+    if a == b:
+        assert d_ab == 0
+    else:
+        assert d_ab > 0
 
 create_property_based_test(addition, time_test=3)
 create_property_based_test(distance, regressions=[4480881574280375424], time_test=10)

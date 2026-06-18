@@ -1,0 +1,37 @@
+CARGO = cargo
+TYPST = typst
+BINARY = target/release/simeis-server
+
+RUSTFLAGS = -C code-model=kernel -C codegen-units=1
+
+.PHONY: all
+
+all: build
+
+.PHONY: release
+
+release:
+	RUSTFLAGS="$(RUSTFLAGS)" $(CARGO) build --release
+	strip $(BINARY)
+
+.PHONY: doc
+
+doc:
+	$(TYPST) compile doc/manual.typ doc/manual.pdf
+
+.PHONY: check
+
+check:
+	$(CARGO) clippy -- -D warnings
+
+.PHONY: test
+
+test:
+	$(CARGO) test
+
+.PHONY: clean
+
+clean:
+	$(CARGO) clean
+	rm -f doc/manual.pdf
+
