@@ -1,0 +1,43 @@
+name: Matrix Build Verification
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-matrix:
+    name: Build on ${{ matrix.os }} (Rust ${{ matrix.rust }})
+    if: startsWith(github.head_ref, 'feature/')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        # Tester sur macos, ubuntu et windows
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Tester sur les versions spécifiques de Rust
+        rust: [1.88.0]
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+      
+      # Système de cache manuel
+      - name: Cache Rust dependencies and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ matrix.os }}-rust-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ matrix.os }}-rust-${{ matrix.rust }}-
+
+      - name: Build release
+        # On utilise cargo directement au lieu de make pour garantir la compatibilité Windows/Mac
+        run: cargo build --release
