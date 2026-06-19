@@ -793,7 +793,7 @@ impl SimeisSDK {
         self.get("/player/wages")
     }
 
-    pub fn unassign_crew(self, sta: u64, cid: u64) -> ApiResult {
+    pub fn unassign_crew(&self, sta: u64, cid: u64) -> ApiResult {
         self.post(format!("/station/{sta}/crew/unassign/{cid}"))
     }
 }
