@@ -1,6 +1,11 @@
-PORT=8080
-# URL=f"http://212.147.229.70:{PORT}"
-URL=f"http://0.0.0.0:{PORT}"
+import sys
+if len(sys.argv) < 3:
+    print("Usage: watch_game.py <ip> <port>")
+    sys.exit(1)
+
+IP = sys.argv[1]
+PORT = sys.argv[2]
+URL=f"http://{IP}:{PORT}"
 
 import sys
 import os
