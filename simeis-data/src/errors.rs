@@ -11,6 +11,7 @@ pub enum Errcode {
     ShipNotExtracting,
     ShipNotIdle,
     CrewMemberNotIdle(crate::crew::CrewId),
+    CrewMemberIdle(crate::crew::CrewId),
     CrewNotNeeded,
     CannotPerformTravel,
     NullDistance,
@@ -87,6 +88,7 @@ impl Errcode {
             Errcode::InvalidAdminToken => "The administrator token you provided is wrong".to_string(),
             Errcode::MissingQueryArgument(key) => format!("The query argument {key:?} is missing"),
             Errcode::PlanetNotFound(pid) => format!("The planet of ID {pid} doesn't exist"),
+            Errcode::CrewMemberIdle(cid) => format!("Crew member {cid} is Idle"),
         }
     }
 }

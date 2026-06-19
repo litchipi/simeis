@@ -33,7 +33,7 @@ fn start_game_thread(
     log::debug!("Starting the game thread on compio runtime");
     std::thread::spawn(move || {
         let rt = compio::runtime::Runtime::new().unwrap();
-        rt.block_on(data.start(stop, sysrecv));
+        rt.block_on(data.start(stop, sysrecv, compio::runtime::time::sleep));
         rt.run();
     })
 }
@@ -47,7 +47,7 @@ fn start_game_thread(
     log::debug!("Starting the game thread on tokio runtime");
     let rt =
         tokio::runtime::Runtime::new().expect("Unable to create new tokio runtime for game thread");
-    std::thread::spawn(move || rt.block_on(data.start(stop, sysrecv)))
+    std::thread::spawn(move || rt.block_on(data.start(stop, sysrecv, tokio::time::sleep)))
 }
 
 // Simeis is a game player with an API

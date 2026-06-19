@@ -60,6 +60,7 @@ class Game:
         # On retourne à la station, on vide tout, avant de repartir
         else:
             ship = status["ships"][0]
+            ship = self.sdk.get_ship_status(ship)
             self.sdk.return_station_and_unload_all(sta, ship["id"])
 
         # Cycle infini

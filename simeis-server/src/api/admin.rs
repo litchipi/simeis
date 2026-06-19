@@ -80,12 +80,12 @@ async fn reset_game_cooldown(
             let mut n = *n;
             srv.notify_all_players(SyslogEvent::ResetIn(n)).await;
             while n > 10 {
-                simeis_data::utils::sleep(Duration::from_secs(10)).await;
+                crate::utils::sleep(Duration::from_secs(10)).await;
                 n -= 10;
                 srv.notify_all_players(SyslogEvent::ResetIn(n)).await;
             }
             if n > 0 {
-                simeis_data::utils::sleep(Duration::from_secs(n)).await;
+                crate::utils::sleep(Duration::from_secs(n)).await;
             }
             srv.reset().await;
         });
