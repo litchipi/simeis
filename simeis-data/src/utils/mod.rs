@@ -1,43 +1,9 @@
 mod access_api;
 mod macros;
 mod shardeddata;
-
-use std::{
-    future::Future,
-    pin::Pin,
-    task::{Context, Poll},
-    time::{Duration, Instant},
-};
-
+use std::future::Future;
 pub type BoxFuture<'a, T> = std::pin::Pin<Box<dyn Future<Output = T> + Send + 'a>>;
-
 pub use shardeddata::{ShardedLockedData, PLAYER_SHARDS};
-
-pub struct AsyncSleepFuture {
-    start: Instant,
-    dur: Duration,
-}
-
-impl std::future::Future for AsyncSleepFuture {
-    type Output = ();
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if self.start.elapsed() >= self.dur {
-            Poll::Ready(())
-        } else {
-            cx.waker().wake_by_ref();
-            Poll::Pending
-        }
-    }
-}
-
-pub fn sleep(dur: Duration) -> AsyncSleepFuture {
-    AsyncSleepFuture {
-        dur,
-        start: std::time::Instant::now(),
-    }
-}
-
 pub fn timestamp() -> f64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

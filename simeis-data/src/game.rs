@@ -11,6 +11,7 @@
 // - PlayerFifo
 
 use std::collections::BTreeMap;
+use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -67,34 +68,49 @@ pub struct Game {
 }
 
 impl Game {
-    pub async fn init<F>(handle_thread: F) -> (std::thread::JoinHandle<()>, Game)
-    where
-        F: FnOnce(BoundedReceiver<GameSignal>, SyslogRecv, Game) -> std::thread::JoinHandle<()>,
-    {
-        let (send_stop, recv_stop) = mea::mpsc::bounded(5);
-        let (syssend, sysrecv) = SyslogSend::channel();
+    pub async fn empty(
+        send_stop: BoundedSender<GameSignal>,
+        syslog: SyslogSend,
+        fifo_events: SyslogFifo,
+    ) -> Game {
         let mut galaxy = Galaxy::init();
         let init_station = Arc::new(RwLock::new(galaxy.init_new_station().await));
-        let data = Game {
+        Game {
             send_sig: send_stop,
             galaxy: Arc::new(RwLock::new(galaxy)),
             market: Arc::new(Market::init()),
             taken_names: Arc::new(ShardedLockedData::new(PLAYER_SHARDS)),
             players: Arc::new(ShardedLockedData::new(PLAYER_SHARDS)),
             player_index: Arc::new(ShardedLockedData::new(PLAYER_SHARDS)),
-            syslog: syssend.clone(),
-            fifo_events: sysrecv.fifo.clone(),
+            syslog,
+            fifo_events,
             init_station,
             ship_owners: Arc::new(RwLock::new(BTreeMap::new())),
-        };
+        }
+    }
 
+    pub async fn init<F>(handle_thread: F) -> (std::thread::JoinHandle<()>, Game)
+    where
+        F: FnOnce(BoundedReceiver<GameSignal>, SyslogRecv, Game) -> std::thread::JoinHandle<()>,
+    {
+        let (send_stop, recv_stop) = mea::mpsc::bounded(5);
+        let (syssend, sysrecv) = SyslogSend::channel();
+        let data = Game::empty(send_stop, syssend, sysrecv.fifo.clone()).await;
         let thread_data = data.clone();
         let thread = handle_thread(recv_stop, sysrecv, thread_data);
         (thread, data)
     }
 
     #[allow(unused_mut, unused_variables)]
-    pub async fn start(&self, mut stop: BoundedReceiver<GameSignal>, syslog: SyslogRecv) {
+    pub async fn start<F, Fut>(
+        &self,
+        mut stop: BoundedReceiver<GameSignal>,
+        syslog: SyslogRecv,
+        slp: F,
+    ) where
+        Fut: Future,
+        F: Fn(Duration) -> Fut,
+    {
         log::info!("Game thread started");
         let sleepmin_iter = ITER_PERIOD;
         let mut last_iter = Instant::now();
@@ -124,7 +140,7 @@ impl Game {
                     {
                         let took = Instant::now() - last_iter;
                         let t = sleepmin_iter.saturating_sub(took);
-                        crate::utils::sleep(t).await;
+                        slp(t).await;
                         last_iter = Instant::now();
                     }
                 }

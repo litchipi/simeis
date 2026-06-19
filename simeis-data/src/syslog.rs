@@ -91,7 +91,7 @@ pub type SyslogFifo =
 
 pub struct SyslogRecv {
     recv: Mutex<BoundedReceiver<SyslogData>>,
-    pub(crate) fifo: SyslogFifo,
+    pub fifo: SyslogFifo,
 }
 
 impl SyslogRecv {
