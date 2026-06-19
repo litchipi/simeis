@@ -1,5 +1,5 @@
-PORT=8080
-URL=f"http://212.147.229.70:{PORT}"
+PORT = 8080
+URL = f"http://212.147.229.70:{PORT}"
 
 import sys
 import os
@@ -15,17 +15,20 @@ else:
 INIT = False
 HIST = {}
 
+
 class SimeisError(Exception):
     pass
 
-NMAX=30
-WIDTH=100
-SCORE="█"
-POTENTIAL="▒"
-VOID=" "
+
+NMAX = 30
+WIDTH = 100
+SCORE = "█"
+POTENTIAL = "▒"
+VOID = " "
 
 MIN = {}
 MAX = {}
+
 
 def mkbar(score, pot, maxs):
     if maxs == 0.0:
@@ -39,6 +42,7 @@ def mkbar(score, pot, maxs):
     nvoid = WIDTH - nbs - nbp
     return (SCORE * nbs) + (POTENTIAL * nbp) + (VOID * nvoid)
 
+
 def get(path):
     qry = f"{URL}/{path}"
     while True:
@@ -48,7 +52,7 @@ def get(path):
         except Exception as err:
             os.system("clear")
             HIST = {}
-            INIT=False
+            INIT = False
             # breakpoint()
             print("DEAD SERVER")
             print(err)
@@ -62,32 +66,38 @@ def get(path):
 
     return data
 
+
 def get_info():
     return get("gamestats")
+
 
 def get_resources():
     return get("resources")
 
+
 def get_market():
     return get("market/prices")
+
 
 def disp_market(resources):
     market = get_market()
     max_res_len = max([len(k) for k in market.keys()])
     disp = {}
-    for (res, price) in market.items():
+    for res, price in market.items():
         if price is None or price < 0:
             price = 0
         MIN[res] = round(min(MIN[res], price), 2)
         MAX[res] = round(max(MAX[res], price), 2)
         relp = round((price / resources[res]["base-price"]) * 100, 2)
         price = round(price, 3)
-        space = " "*(1 + max_res_len - len(res))
+        space = " " * (1 + max_res_len - len(res))
 
         disp[res] = {
             "head": f"{price}",
             "mid": f"({relp} %)",
-            "tail": "({} < {} < {})".format(MIN[res], resources[res]["base-price"], MAX[res]),
+            "tail": "({} < {} < {})".format(
+                MIN[res], resources[res]["base-price"], MAX[res]
+            ),
         }
 
     max_res = max([len(r) for r in disp.keys()])
@@ -97,17 +107,25 @@ def disp_market(resources):
 
     buffer = ""
     for res, d in disp.items():
-        buffer += "{}{}{}{}{}{}{}".format(
-            res, " " * (max_res + 1 - len(res)),
-            d["head"], " " * (max_head + 1 - len(d["head"])),
-            d["mid"], " " * (max_mid + 1 - len(d["mid"])),
-            d["tail"], " " * (max_tail + 1 - len(d["tail"])),
-        ) + "\n"
+        buffer += (
+            "{}{}{}{}{}{}{}".format(
+                res,
+                " " * (max_res + 1 - len(res)),
+                d["head"],
+                " " * (max_head + 1 - len(d["head"])),
+                d["mid"],
+                " " * (max_mid + 1 - len(d["mid"])),
+                d["tail"],
+                " " * (max_tail + 1 - len(d["tail"])),
+            )
+            + "\n"
+        )
 
     return buffer
 
+
 resources = get_resources()
-for (res, data) in resources.items():
+for res, data in resources.items():
     MIN[res] = data["base-price"]
     MAX[res] = data["base-price"]
 
@@ -122,17 +140,23 @@ while True:
         print("No players on the server")
         continue
 
-    for (_, p) in info.items():
+    for _, p in info.items():
         if p["lost"]:
             p["score"] = -1.0
             p["potential"] = -1.0
 
-    buffer += "{} Players still in the game ".format(len([True for p in info.values() if not p["lost"]]))
-    buffer += "({} players lost)\n".format(len([True for p in info.values() if p["lost"]]))
-    players = sorted(info.items(), key=lambda p: p[1]["score"] + p[1]["potential"], reverse=True)[:NMAX]
+    buffer += "{} Players still in the game ".format(
+        len([True for p in info.values() if not p["lost"]])
+    )
+    buffer += "({} players lost)\n".format(
+        len([True for p in info.values() if p["lost"]])
+    )
+    players = sorted(
+        info.items(), key=lambda p: p[1]["score"] + p[1]["potential"], reverse=True
+    )[:NMAX]
     max_score = max([max(v["score"], 0) + v["potential"] for v in info.values()])
     maxn = max([len(data["name"]) for (_, data) in players])
-    for (player, data) in players:
+    for player, data in players:
         if PLAYERS is not None and data["name"] not in PLAYERS:
             continue
         if player not in HIST:
@@ -152,10 +176,15 @@ while True:
         avg_lasts = max([n[1] for n in HIST[player][-30:]])
 
         bar = mkbar(data["score"], data["potential"], max_score)
-        buffer += "Player {} {} {} (~{}/sec)\tpotential: {}".format(
-            data["name"] + " " * spaces, bar, round(data["score"], 2),
-            round(avg_lasts, 2),
-            round(data["potential"], 2)
-        ) + "\n"
+        buffer += (
+            "Player {} {} {} (~{}/sec)\tpotential: {}".format(
+                data["name"] + " " * spaces,
+                bar,
+                round(data["score"], 2),
+                round(avg_lasts, 2),
+                round(data["potential"], 2),
+            )
+            + "\n"
+        )
     os.system("clear")
     print(buffer)

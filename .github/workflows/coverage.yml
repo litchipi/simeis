@@ -1,0 +1,50 @@
+name: Code Coverage
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  coverage:
+    name: cargo-tarpaulin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
+
+      - name: Run cargo-tarpaulin
+        id: tarpaulin
+        run: |
+          cargo tarpaulin --workspace --engine llvm --out Stdout | tee tarpaulin.log
+          coverage=$(grep -oP '\d+\.\d+(?=% coverage)' tarpaulin.log | tail -1)
+          echo "Total coverage: ${coverage}%"
+          echo "coverage=${coverage}" >> "$GITHUB_OUTPUT"
+
+      - name: Update "not enough tests" label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COVERAGE: ${{ steps.tarpaulin.outputs.coverage }}
+        run: |
+          gh label create "not enough tests" --color B60205 \
+            --description "Code coverage below 50%" || true
+
+          if (( $(echo "$COVERAGE < 50" | bc -l) )); then
+            echo "Coverage ${COVERAGE}% is below 50%, adding label"
+            gh pr edit "$PR_NUMBER" --add-label "not enough tests"
+          else
+            echo "Coverage ${COVERAGE}% is at or above 50%, removing label if present"
+            gh pr edit "$PR_NUMBER" --remove-label "not enough tests" || true
+          fi

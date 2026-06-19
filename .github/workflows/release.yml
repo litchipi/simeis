@@ -1,0 +1,169 @@
+name: Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - 'release/**'
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from branch name
+        id: version
+        run: |
+          VERSION="${{ github.base_ref }}"
+          VERSION="${VERSION#release/}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install typst
+        run: |
+          curl -fsSL https://github.com/typst/typst/releases/latest/download/typst-x86_64-unknown-linux-musl.tar.xz \
+            | tar -xJ --strip-components=1 -C /usr/local/bin typst-x86_64-unknown-linux-musl/typst
+
+      - name: Install dpkg tools
+        run: apt-get install -y dpkg-dev
+
+      - name: Build binary
+        run: make release
+
+      - name: Build documentation
+        run: make doc
+
+      - name: Build Debian package
+        run: make -f MakeFile deb
+
+      - name: Find .deb path
+        id: deb
+        run: echo "path=$(find build -name '*.deb')" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BASE_BRANCH="${{ github.base_ref }}"
+          PRS=$(gh pr list --base "$BASE_BRANCH" --state merged --json title,url,headRefName)
+
+          FEATURES=$(echo "$PRS" | jq -r '.[] | select(.headRefName | startswith("feature/")) | "- [\(.title)](\(.url))"')
+          BUGFIXES=$(echo "$PRS" | jq -r '.[] | select(.headRefName | startswith("bug/")) | "- [\(.title)](\(.url))"')
+          OTHERS=$(echo "$PRS" | jq -r '.[] | select(.headRefName | (startswith("feature/") or startswith("bug/")) | not) | "- [\(.title)](\(.url))"')
+
+          {
+            echo "## Changelog"
+            echo ""
+            echo "### Features"
+            if [ -n "$FEATURES" ]; then echo "$FEATURES"; else echo "_Aucune_"; fi
+            echo ""
+            echo "### Bugfixes"
+            if [ -n "$BUGFIXES" ]; then echo "$BUGFIXES"; else echo "_Aucune_"; fi
+            echo ""
+            echo "### Autres"
+            if [ -n "$OTHERS" ]; then echo "$OTHERS"; else echo "_Aucune_"; fi
+          } > changelog.md
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          body_path: changelog.md
+          files: |
+            target/release/simeis-server
+            doc/manual.pdf
+            ${{ steps.deb.outputs.path }}
+
+  docker:
+    name: Build and push Docker image
+    needs: create-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build for testing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .github/Dockerfile
+          load: true
+          tags: simeis-server:test
+          cache-from: type=gha
+
+      - name: Test Docker image
+        run: |
+          docker run -d --name simeis-test -p 8080:8080 simeis-server:test
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:8080/ping; then
+              break
+            fi
+            sleep 2
+          done
+          curl -sf http://localhost:8080/ping
+          docker stop simeis-test
+          docker rm simeis-test
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .github/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ needs.create-release.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save Docker image as archive
+        run: |
+          docker pull ghcr.io/${{ github.repository }}:${{ needs.create-release.outputs.version }}
+          docker save ghcr.io/${{ github.repository }}:${{ needs.create-release.outputs.version }} \
+            | gzip > simeis-server-docker-${{ needs.create-release.outputs.version }}.tar.gz
+
+      - name: Upload Docker image to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.create-release.outputs.version }}
+          files: simeis-server-docker-${{ needs.create-release.outputs.version }}.tar.gz

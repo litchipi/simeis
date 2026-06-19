@@ -1,0 +1,13 @@
+[Unit]
+Description=Simeis Space Game Server
+After=network.target
+
+[Service]
+Type=simple
+User=simeis
+ExecStart=/usr/bin/simeis-server
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

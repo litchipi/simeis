@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+# Create system user if it doesn't exist
+if ! id -u simeis > /dev/null 2>&1; then
+    useradd --system --no-create-home --shell /usr/sbin/nologin simeis
+fi
+
+# Enable and start the service
+systemctl daemon-reload
+systemctl enable simeis
+systemctl start simeis

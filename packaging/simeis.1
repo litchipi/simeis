@@ -1,0 +1,46 @@
+.TH SIMEIS 1 "2025" "simeis 0.1.3" "User Commands"
+
+.SH NAME
+simeis \- multiplayer space exploration game server
+
+.SH SYNOPSIS
+.B simeis-server
+
+.SH DESCRIPTION
+.B simeis
+is a multiplayer space exploration game server exposing a REST API on port 8080.
+Players create an account, control a ship, explore the galaxy, trade resources
+on station markets, and upgrade their crew and modules.
+
+.SH USAGE
+Start the server with the system service:
+.PP
+.RS
+.B systemctl start simeis
+.RE
+.PP
+Or run the binary directly:
+.PP
+.RS
+.B simeis-server
+.RE
+
+.SH API
+The REST API is available at http://localhost:8080 once the server is running.
+Create a player with:
+.PP
+.RS
+POST /player/new/{name}
+.RE
+.PP
+The API key returned must be passed in the
+.B Simeis-Key
+HTTP header for all subsequent requests.
+
+.SH ENVIRONMENT
+.TP
+.B RUST_LOG
+Controls log verbosity. Example: RUST_LOG=debug simeis-server
+
+.SH AUTHOR
+Timothee Cercueil

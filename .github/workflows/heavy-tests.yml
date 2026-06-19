@@ -1,0 +1,64 @@
+name: Heavy Tests
+
+on:
+  pull_request:
+    branches: ["release/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: heavy-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  functional-tests:
+    name: Functional tests (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build server (testing mode)
+        run: cargo build --features testing -p simeis-server
+
+      - name: Start server
+        run: |
+          ./target/debug/simeis-server &
+          echo $! > server.pid
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:9345/ping > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not start in time"
+          exit 1
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Run functional test suite
+        run: python3 tests/functional.py
+
+      - name: Stop server
+        if: always()
+        run: kill "$(cat server.pid)" 2>/dev/null || true
+
+  heavy-property-tests:
+    name: Heavy property-based tests (Rust)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run heavy property-based tests
+        run: cargo test --workspace --features simeis-data/heavy_testing --verbose

@@ -6,16 +6,20 @@ import json
 import string
 import urllib.request
 
+
 class SimeisError(Exception):
     pass
 
+
 def get_dist(a, b):
-    return math.sqrt(((a[0]-b[0]) ** 2) + ((a[1]-b[1]) ** 2) + ((a[2]-b[2]) ** 2))
+    return math.sqrt(((a[0] - b[0]) ** 2) + ((a[1] - b[1]) ** 2) + ((a[2] - b[2]) ** 2))
+
 
 # Check if types are present in the list
 def check_has(alld, key, *req):
     alltypes = [c[key] for c in alld.values()]
     return all([k in alltypes for k in req])
+
 
 class SimeisSDK:
     def __init__(self, username, ip, port):
@@ -29,9 +33,9 @@ class SimeisSDK:
         tail = ""
         if len(qry) > 0:
             tail += "?"
-            tail += "&".join([
-                "{}={}".format(k, urllib.parse.quote(v)) for k, v in qry.items()
-            ])
+            tail += "&".join(
+                ["{}={}".format(k, urllib.parse.quote(v)) for k, v in qry.items()]
+            )
 
         qry = f"{self.url}{path}{tail}"
 
@@ -54,19 +58,21 @@ class SimeisSDK:
 
     def post(self, *args, **kwargs):
         return self.api(*args, method="POST", **kwargs)
-        
+
     # If we have a file containing the player ID and key, use it
     # If not, create a new player
     # If the player has lost, print an error message
     def setup_player(self, username, force_register=False):
         # Sanitize the username, remove any symbols
-        username = "".join([c for c in username if c in string.ascii_letters + string.digits]).lower()
+        username = "".join(
+            [c for c in username if c in string.ascii_letters + string.digits]
+        ).lower()
 
         # If we don't have any existing account
         if force_register or not os.path.isfile(f"./{username}.json"):
             player = self.post(f"/player/new/{username}")
             with open(f"./{username}.json", "w") as f:
-                json.dump(player, f, indent=2)       
+                json.dump(player, f, indent=2)
             self.player = player
 
         # If an account already exists
@@ -86,7 +92,9 @@ class SimeisSDK:
         # If the player already failed, we must reset the server
         # Or recreate an account with a new nickname
         if player["money"] <= 0.0:
-            print("!!! Player already lost, please restart the server to reset the game")
+            print(
+                "!!! Player already lost, please restart the server to reset the game"
+            )
             sys.exit(0)
 
     def get_player_status(self):
@@ -100,11 +108,11 @@ class SimeisSDK:
 
     def shop_list_modules(self, sta):
         all = self.get(f"/station/{sta}/shop/modules")
-        return sorted(all, key = lambda mod: mod["price"])
+        return sorted(all, key=lambda mod: mod["price"])
 
     def shop_list_ship(self, sta):
         all = self.get(f"/station/{sta}/shipyard/list")["ships"]
-        return sorted(all, key = lambda ship: ship["price"])
+        return sorted(all, key=lambda ship: ship["price"])
 
     def buy_ship(self, sta, shipid):
         return self.post(f"/station/{sta}/shipyard/buy/{shipid}")
@@ -116,7 +124,9 @@ class SimeisSDK:
         return self.post(f"/station/{sta}/crew/hire/{crewtype.lower()}")
 
     def assign_crew_to_ship(self, sta, shipid, operator_id, role):
-        return self.post(f"/station/{sta}/crew/assign/{operator_id}/ship/{shipid}/{role}")
+        return self.post(
+            f"/station/{sta}/crew/assign/{operator_id}/ship/{shipid}/{role}"
+        )
 
     def station_has_trader(self, sta):
         station = self.get(f"/station/{sta}")
@@ -202,7 +212,7 @@ class SimeisSDK:
 
         cargo = self.get(f"/station/{sta}")["cargo"]
         if "Fuel" not in cargo["resources"]:
-            cargo["resources"]["Fuel"] = 0        
+            cargo["resources"]["Fuel"] = 0
 
         if cargo["resources"]["Fuel"] > 0:
             return self.post(f"/station/{sta}/refuel/{ship_id}")
@@ -211,8 +221,8 @@ class SimeisSDK:
     def scan_planets(self, sta):
         station = self.get(f"/station/{sta}")
         planets = self.post(f"/station/{sta}/scan")["planets"]
-        return  sorted(planets,
-            key=lambda pla: get_dist(station["position"], pla["position"])
+        return sorted(
+            planets, key=lambda pla: get_dist(station["position"], pla["position"])
         )
 
     def start_extraction(self, ship_id):

@@ -327,9 +327,16 @@ impl Ship {
     }
 }
 
+// Iterations rapides sur chaque PR ; bien plus d'iterations quand la feature
+// heavy_testing est activee (workflow de tests lourds, avant release)
+#[cfg(feature = "heavy_testing")]
+const FLIGHT_TEST_ITERS: usize = 2_000_000;
+#[cfg(not(feature = "heavy_testing"))]
+const FLIGHT_TEST_ITERS: usize = 1_000;
+
 #[test]
 fn test_ship_flight() {
-    crate::tests::create_property_based_test(100000, &[], |rng| {
+    crate::tests::create_property_based_test(FLIGHT_TEST_ITERS, &[], |rng| {
         let (x, y, z) = (rng.random(), rng.random(), rng.random());
         let mut ship = Ship::random((x, y, z));
         ship.fuel_tank = ship.fuel_tank_capacity;

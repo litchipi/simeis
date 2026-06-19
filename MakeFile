@@ -1,0 +1,60 @@
+CARGO = cargo
+TYPST = typst
+BINARY = target/release/simeis-server
+
+RUSTFLAGS = -C code-model=kernel -C codegen-units=1
+
+VERSION = $(shell grep '^version' simeis-server/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+DEB_DIR = build/simeis_$(VERSION)_amd64
+
+.PHONY: all
+
+all: release
+
+.PHONY: release
+
+release:
+	RUSTFLAGS="$(RUSTFLAGS)" $(CARGO) build --release
+	strip $(BINARY)
+
+.PHONY: doc
+
+doc:
+	$(TYPST) compile doc/manual.typ doc/manual.pdf
+
+.PHONY: check
+
+check:
+	$(CARGO) clippy -- -D warnings
+
+.PHONY: test
+
+test:
+	$(CARGO) test
+
+.PHONY: deb
+
+deb: release
+	mkdir -p $(DEB_DIR)/DEBIAN
+	mkdir -p $(DEB_DIR)/usr/bin
+	mkdir -p $(DEB_DIR)/usr/share/man/man1
+	mkdir -p $(DEB_DIR)/etc/systemd/system
+	cp packaging/control $(DEB_DIR)/DEBIAN/control
+	sed -i "s/^Version:.*/Version: $(VERSION)/" $(DEB_DIR)/DEBIAN/control
+	cp packaging/postinst $(DEB_DIR)/DEBIAN/postinst
+	cp packaging/prerm $(DEB_DIR)/DEBIAN/prerm
+	chmod 755 $(DEB_DIR)/DEBIAN/postinst $(DEB_DIR)/DEBIAN/prerm
+	cp $(BINARY) $(DEB_DIR)/usr/bin/simeis-server
+	chmod 755 $(DEB_DIR)/usr/bin/simeis-server
+	cp packaging/simeis.1 $(DEB_DIR)/usr/share/man/man1/simeis.1
+	gzip -f $(DEB_DIR)/usr/share/man/man1/simeis.1
+	cp packaging/simeis.service $(DEB_DIR)/etc/systemd/system/simeis.service
+	dpkg-deb --build --root-owner-group $(DEB_DIR)
+
+.PHONY: clean
+
+clean:
+	$(CARGO) clean
+	rm -f doc/manual.pdf
+	rm -rf build/
+

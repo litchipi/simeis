@@ -1,0 +1,16 @@
+name: Exemple de Workflow
+
+on: [push] # Se déclenche à chaque push sur le dépôt
+
+jobs:
+  tache-simple:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier le code
+        run: echo "Vérification du code en cours..."
+      
+      - name: Exécuter les tests
+        run: echo "Exécution des tests..."
+      
+      - name: Déployer l'application
+        run: echo "Déploiement de l'application..."

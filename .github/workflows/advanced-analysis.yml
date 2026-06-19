@@ -1,0 +1,41 @@
+name: Advanced Analysis
+
+on:
+  pull_request:
+    types: [closed]
+  push:
+    branches:
+      - 'release/*'
+
+jobs:
+  analyze:
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable # Installe la toolchain stable de Rust
+
+      - name: Install nightly toolchain for udeps 
+        run: rustup toolchain install nightly
+
+      - name: Install audit and udeps tools
+        run: |
+          cargo install cargo-audit
+          cargo install cargo-udeps
+
+      - name: Run heavy tests and build
+        run: |
+          cargo test --manifest-path simeis-data/Cargo.toml --features heavy-testing
+          cargo test --manifest-path simeis-server/Cargo.toml --features heavy-testing
+          cargo build --manifest-path simeis-server/Cargo.toml --features heavy-testing
+
+      - name: Run functional test script
+        run: python test_fonctionnel.py
+
+      - name: Audit dependencies
+        run: cargo audit
+
+      - name: Check unused dependencies
+        run: cargo +nightly udeps

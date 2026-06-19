@@ -1,0 +1,18 @@
+# Propriétaires par défaut pour tout le repo
+* @Guykeny
+
+# Serveur (API, logique de jeu)
+/simeis-server/ @Guykeny
+
+# Données et modèles
+/simeis-data/ @Guykeny
+
+# SDK
+/sdk/ @Guykeny
+
+# Documentation
+/doc/ @Guykeny
+
+# CI/CD
+/.github/ @Guykeny
+/MakeFile @Guykeny
