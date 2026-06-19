@@ -38,7 +38,6 @@ const ITER_PERIOD: Duration = Duration::from_millis(20);
 #[cfg(feature = "extraspeed")]
 const ITER_PERIOD: Duration = Duration::from_micros(20);
 
-// TODO (#9) Have a global "inflation" rate for all users, that increases over time
 //     Equipment becomes more and more expansive
 
 pub enum GameSignal {
@@ -446,5 +445,373 @@ impl Game {
         player.money += tx.added_money.unwrap();
         player.score += tx.added_money.unwrap();
         Ok(tx)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::field_reassign_with_default)]
+    use super::*;
+    use crate::crew::CrewMemberType;
+    use crate::tests::block_on;
+
+    // Builds a game whose thread never drives the loop but keeps the syslog
+    // receiver alive, so that syslog sends (e.g. the GameStarted event) succeed.
+    async fn new_game() -> Game {
+        let (_thread, game) = Game::init(|recv, syslog, _game| {
+            std::thread::spawn(move || {
+                let _recv = recv;
+                let _syslog = syslog;
+                loop {
+                    std::thread::park();
+                }
+            })
+        })
+        .await;
+        game
+    }
+
+    fn decode_key(key: &str) -> PlayerKey {
+        let raw = BASE64_STANDARD.decode(key).unwrap();
+        raw.try_into().unwrap()
+    }
+
+    #[test]
+    fn test_new_player_and_duplicate_name() {
+        block_on(async {
+            let game = new_game().await;
+            let (pid, key) = game.new_player("alice".to_string()).await.unwrap();
+            assert!(!key.is_empty());
+            assert!(game.taken_names.contains_key(&"alice".to_string()).await);
+
+            // Re-using the same name is rejected
+            assert!(matches!(
+                game.new_player("alice".to_string()).await,
+                Err(Errcode::PlayerAlreadyExists(_))
+            ));
+
+            // The player can be retrieved with its key
+            let (got_id, _) = game.get_player(&decode_key(&key)).await.unwrap();
+            assert_eq!(got_id, pid);
+        });
+    }
+
+    #[test]
+    fn test_get_player_unknown_key() {
+        block_on(async {
+            let game = new_game().await;
+            let key: PlayerKey = [0u8; 128];
+            assert!(matches!(
+                game.get_player(&key).await,
+                Err(Errcode::NoPlayerWithKey)
+            ));
+        });
+    }
+
+    #[test]
+    fn test_get_player_lost() {
+        block_on(async {
+            let game = new_game().await;
+            let (pid, key) = game.new_player("bob".to_string()).await.unwrap();
+            // Mark the player as lost
+            let player = game.players.clone_val(&pid).await.unwrap();
+            player.write().await.lost = true;
+            assert!(matches!(
+                game.get_player(&decode_key(&key)).await,
+                Err(Errcode::PlayerLost)
+            ));
+        });
+    }
+
+    #[test]
+    fn test_player_to_json_self_vs_other() {
+        block_on(async {
+            let game = new_game().await;
+            let (pid, key) = game.new_player("carol".to_string()).await.unwrap();
+            let key = decode_key(&key);
+
+            // Viewing one's own data exposes money/costs/ships
+            let own = game.player_to_json(&key, &pid).await.unwrap();
+            assert_eq!(own["name"], "carol");
+            assert!(own.get("money").is_some());
+            assert!(own.get("ships").is_some());
+
+            // Viewing another player's data only exposes id/name
+            let other = game
+                .player_to_json(&key, &(pid.wrapping_add(1)))
+                .await
+                .unwrap();
+            assert!(other.get("money").is_none());
+        });
+    }
+
+    #[test]
+    fn test_scan_galaxy_returns_planets() {
+        block_on(async {
+            let game = new_game().await;
+            let (_pid, key) = game.new_player("dan".to_string()).await.unwrap();
+            let station_id = game.init_station.0;
+            let scan = game
+                .scan_galaxy(&decode_key(&key), &station_id)
+                .await
+                .unwrap();
+            assert!(!scan.planets.is_empty());
+
+            // Unknown station is rejected
+            assert!(matches!(
+                game.scan_galaxy(&decode_key(&key), &54321).await,
+                Err(Errcode::NoSuchStation(_))
+            ));
+        });
+    }
+
+    #[test]
+    fn test_get_syslogs_empty_without_loop() {
+        block_on(async {
+            let game = new_game().await;
+            let (_pid, key) = game.new_player("erin".to_string()).await.unwrap();
+            // The game loop never ran, so no events have been flushed to the fifo
+            let logs = game.get_syslogs(&decode_key(&key)).await.unwrap();
+            assert!(logs.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_market_buy_then_sell() {
+        block_on(async {
+            let game = new_game().await;
+            let (pid, key) = game.new_player("frank".to_string()).await.unwrap();
+            let key = decode_key(&key);
+            let station_id = game.init_station.0;
+            let station = game.init_station.1.clone();
+
+            // Assign a trader so the station can trade
+            let trader = station.hire_crew(&pid, CrewMemberType::Trader).await;
+            station.assign_trader(&pid, trader).await.unwrap();
+
+            let money_before = game
+                .players
+                .clone_val(&pid)
+                .await
+                .unwrap()
+                .read()
+                .await
+                .money;
+            let tx = game
+                .player_market_buy(&key, &station_id, &Resource::Iron, 5.0)
+                .await
+                .unwrap();
+            assert_eq!(tx.added_cargo.unwrap().0, Resource::Iron);
+            let money_after = game
+                .players
+                .clone_val(&pid)
+                .await
+                .unwrap()
+                .read()
+                .await
+                .money;
+            assert!(money_after < money_before);
+
+            // Selling part of it back returns money
+            let tx = game
+                .player_market_sell(&key, &station_id, &Resource::Iron, 2.0)
+                .await
+                .unwrap();
+            assert_eq!(tx.removed_cargo.unwrap().0, Resource::Iron);
+        });
+    }
+
+    #[test]
+    fn test_market_buy_unknown_station() {
+        block_on(async {
+            let game = new_game().await;
+            let (_pid, key) = game.new_player("grace".to_string()).await.unwrap();
+            assert!(matches!(
+                game.player_market_buy(&decode_key(&key), &11111, &Resource::Gold, 1.0)
+                    .await,
+                Err(Errcode::NoSuchStation(_))
+            ));
+        });
+    }
+
+    #[test]
+    fn test_start_extraction_without_planet() {
+        block_on(async {
+            let game = new_game().await;
+            let (pid, key) = game.new_player("heidi".to_string()).await.unwrap();
+
+            // Give the player a ship parked far from any planet
+            let mut ship = Ship::default();
+            ship.owner = pid;
+            ship.position = (1, 1, 1);
+            let ship_id = ship.id;
+            game.players
+                .clone_val(&pid)
+                .await
+                .unwrap()
+                .write()
+                .await
+                .ships
+                .insert(ship_id, ship);
+
+            assert!(matches!(
+                game.start_player_extraction(&decode_key(&key), &ship_id)
+                    .await,
+                Err(Errcode::CannotExtractWithoutPlanet)
+            ));
+        });
+    }
+
+    // Inserts a ship at the player's init station and returns its id.
+    async fn add_ship_at_station(game: &Game, pid: &PlayerId) -> ShipId {
+        let mut ship = Ship::default();
+        ship.owner = *pid;
+        ship.position = game.init_station.1.position;
+        let ship_id = ship.id;
+        game.players
+            .clone_val(pid)
+            .await
+            .unwrap()
+            .write()
+            .await
+            .ships
+            .insert(ship_id, ship);
+        ship_id
+    }
+
+    #[test]
+    fn test_map_player_read_and_mut() {
+        block_on(async {
+            let game = new_game().await;
+            let (_pid, key) = game.new_player("ivan".to_string()).await.unwrap();
+            let key = decode_key(&key);
+
+            let name = game
+                .map_player(&key, |p| {
+                    Box::pin(async move { Ok::<_, Errcode>(p.name.clone()) })
+                })
+                .await
+                .unwrap();
+            assert_eq!(name, "ivan");
+
+            game.map_player_mut(&key, |p| {
+                Box::pin(async move {
+                    p.money = 999.0;
+                    Ok::<_, Errcode>(())
+                })
+            })
+            .await
+            .unwrap();
+
+            let money = game
+                .map_player(&key, |p| Box::pin(async move { Ok::<_, Errcode>(p.money) }))
+                .await
+                .unwrap();
+            assert_eq!(money, 999.0);
+        });
+    }
+
+    #[test]
+    fn test_map_station_and_ship() {
+        block_on(async {
+            let game = new_game().await;
+            let (pid, key) = game.new_player("judy".to_string()).await.unwrap();
+            let key = decode_key(&key);
+            let station_id = game.init_station.0;
+            let ship_id = add_ship_at_station(&game, &pid).await;
+
+            let sid = game
+                .map_station(&key, &station_id, |_pid, st| {
+                    Box::pin(async move { Ok::<_, Errcode>(st.id) })
+                })
+                .await
+                .unwrap();
+            assert_eq!(sid, station_id);
+
+            let got = game
+                .map_ship(&key, &ship_id, |_pid, ship| {
+                    Box::pin(async move { Ok::<_, Errcode>(ship.id) })
+                })
+                .await
+                .unwrap();
+            assert_eq!(got, ship_id);
+
+            game.map_ship_mut(&key, &ship_id, |_pid, ship| {
+                Box::pin(async move {
+                    ship.hull_decay = 5.0;
+                    Ok::<_, Errcode>(())
+                })
+            })
+            .await
+            .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_map_ship_in_station_variants() {
+        block_on(async {
+            let game = new_game().await;
+            let (pid, key) = game.new_player("ken".to_string()).await.unwrap();
+            let key = decode_key(&key);
+            let station_id = game.init_station.0;
+            let ship_id = add_ship_at_station(&game, &pid).await;
+
+            let ok = game
+                .map_ship_in_station(&key, &station_id, &ship_id, |_pid, _st, ship| {
+                    Box::pin(async move { Ok::<_, Errcode>(ship.id) })
+                })
+                .await
+                .unwrap();
+            assert_eq!(ok, ship_id);
+
+            game.map_ship_mut_in_station(&key, &station_id, &ship_id, |_pid, _st, ship| {
+                Box::pin(async move {
+                    ship.fuel_tank = 1.0;
+                    Ok::<_, Errcode>(())
+                })
+            })
+            .await
+            .unwrap();
+        });
+    }
+
+    #[test]
+    fn test_threadloop_processes_flight_and_extraction() {
+        block_on(async {
+            let game = new_game().await;
+            let (pid, _key) = game.new_player("laura".to_string()).await.unwrap();
+            let player_arc = game.players.clone_val(&pid).await.unwrap();
+
+            // A fast ship on a very short axis-aligned trip: finishes in one tick
+            let mut flying = Ship::default();
+            flying.owner = pid;
+            flying.reactor_power = 10;
+            flying.fuel_tank_capacity = 1e9;
+            flying.fuel_tank = 1e9;
+            flying.hull_resistance = 1e9;
+            flying
+                .crew
+                .0
+                .insert(1, crate::crew::CrewMember::from(CrewMemberType::Pilot));
+            flying.pilot = Some(1);
+            flying.update_perf_stats();
+            flying.set_travel((1, 0, 0)).unwrap();
+            let flying_id = flying.id;
+
+            player_arc.write().await.ships.insert(flying_id, flying);
+
+            // Drive one game iteration with a private syslog receiver
+            let (_send, recv) = SyslogSend::channel();
+            let mut rng: rand::rngs::SmallRng = rand::SeedableRng::seed_from_u64(7);
+            let mut mlt = Instant::now();
+            game.threadloop(&mut rng, &mut mlt, &recv).await;
+
+            // The flight finished and the ship is now idle
+            let player = player_arc.read().await;
+            assert!(matches!(
+                player.ships.get(&flying_id).unwrap().state,
+                ShipState::Idle
+            ));
+        });
     }
 }

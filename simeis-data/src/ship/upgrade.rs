@@ -66,3 +66,49 @@ impl ShipUpgrade {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use strum::IntoEnumIterator;
+
+    #[test]
+    fn test_all_upgrades_have_positive_price_and_description() {
+        for u in ShipUpgrade::iter() {
+            assert!(u.get_price() > 0.0, "price <= 0 for {u:?}");
+            assert!(!u.description().is_empty(), "empty description for {u:?}");
+        }
+    }
+
+    #[test]
+    fn test_cargo_expansion_increases_capacity() {
+        let mut ship = Ship::default();
+        let before = ship.cargo.capacity;
+        ShipUpgrade::CargoExpansion.install(&mut ship);
+        assert!(ship.cargo.capacity > before);
+    }
+
+    #[test]
+    fn test_reactor_upgrade_increases_reactor_power() {
+        let mut ship = Ship::default();
+        let before = ship.reactor_power;
+        ShipUpgrade::ReactorUpgrade.install(&mut ship);
+        assert_eq!(ship.reactor_power, before + REACTOR_UPG_ADD);
+    }
+
+    #[test]
+    fn test_hull_upgrade_increases_resistance() {
+        let mut ship = Ship::default();
+        let before = ship.hull_resistance;
+        ShipUpgrade::HullUpgrade.install(&mut ship);
+        assert!((ship.hull_resistance - (before + HULL_UPG_ADD)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_shield_upgrade_increases_shield_power() {
+        let mut ship = Ship::default();
+        let before = ship.shield_power;
+        ShipUpgrade::Shield.install(&mut ship);
+        assert_eq!(ship.shield_power, before + SHIELD_UPG_ADD);
+    }
+}

@@ -33,10 +33,9 @@ pub enum SpaceObject {
     Planet(Arc<planet::Planet>),
 }
 
-// TODO (#31) Use a RwLock on each of the field, and remove the one from the Game struct
 pub struct Galaxy {
     objects: BTreeMap<SpaceCoord, SpaceObject>,
-    discovered: Vec<GalaxySector>, // TODO (#31) Index by sector ID in a BTreeMap
+    discovered: Vec<GalaxySector>,
 }
 
 impl Galaxy {
@@ -136,7 +135,6 @@ impl Galaxy {
         Some(planet.clone())
     }
 
-    // TODO (#31) Generate based on the galaxy
     pub async fn init_new_station(&mut self) -> (StationId, Arc<Station>) {
         let mut rng = rand::rng();
 
@@ -239,7 +237,6 @@ pub fn get_direction(a: &SpaceCoord, b: &SpaceCoord) -> (f64, f64, f64) {
     (delta.0 / distance, delta.1 / distance, delta.2 / distance)
 }
 
-// TODO (#13)   Unit tests on this one
 fn compute_sector(x: SpaceUnit, y: SpaceUnit, z: SpaceUnit) -> GalaxySector {
     let start_x = x - (x % SECTOR_SIZE.0);
     let end_x = start_x.saturating_add(SECTOR_SIZE.0);
@@ -366,4 +363,135 @@ fn test_compute_sector() {
             (SECTOR_SIZE.2, 2 * SECTOR_SIZE.2)
         )
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_delta() {
+        assert_eq!(get_delta(&(0, 0, 0), &(3, 4, 5)), (3.0, 4.0, 5.0));
+        assert_eq!(get_delta(&(10, 10, 10), &(5, 7, 10)), (-5.0, -3.0, 0.0));
+    }
+
+    #[test]
+    fn test_get_distance_pythagorean() {
+        // 3-4-5 in 2D plane (z = 0)
+        assert_eq!(get_distance(&(0, 0, 0), &(3, 4, 0)), 5.0);
+        assert_eq!(get_distance(&(0, 0, 0), &(0, 0, 0)), 0.0);
+    }
+
+    #[test]
+    fn test_get_distance_is_symmetric() {
+        let a = (12, 5, 9);
+        let b = (3, 20, 1);
+        assert!((get_distance(&a, &b) - get_distance(&b, &a)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_get_direction_is_unit_vector() {
+        let dir = get_direction(&(0, 0, 0), &(3, 4, 0));
+        let norm = (dir.0.powi(2) + dir.1.powi(2) + dir.2.powi(2)).sqrt();
+        assert!((norm - 1.0).abs() < 1e-9);
+        assert!((dir.0 - 0.6).abs() < 1e-9);
+        assert!((dir.1 - 0.8).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_translation_along_axis() {
+        let dir = get_direction(&(0, 0, 0), &(1, 0, 0));
+        let pos = translation((0, 0, 0), dir, 100.0);
+        assert_eq!(pos, (100, 0, 0));
+    }
+
+    #[test]
+    fn test_translation_full_distance_reaches_destination() {
+        let start = (0, 0, 0);
+        let dest = (300, 400, 0);
+        let dir = get_direction(&start, &dest);
+        let dist = get_distance(&start, &dest);
+        let pos = translation(start, dir, dist);
+        // Rounding to integer space units may differ by 1
+        assert!((pos.0 as i64 - dest.0 as i64).abs() <= 1);
+        assert!((pos.1 as i64 - dest.1 as i64).abs() <= 1);
+    }
+
+    #[test]
+    fn test_galaxy_insert_and_get() {
+        let mut galaxy = Galaxy::init();
+        let coord = (1, 2, 3);
+        let planet = planet::Planet::random(coord, &mut rand::rng());
+        assert!(galaxy.get(&coord).is_none());
+        assert_eq!(
+            galaxy.insert(&coord, SpaceObject::Planet(Arc::new(planet))),
+            Some(())
+        );
+        assert!(galaxy.get(&coord).is_some());
+    }
+
+    #[test]
+    fn test_galaxy_insert_duplicate_rejected() {
+        let mut galaxy = Galaxy::init();
+        let coord = (4, 5, 6);
+        let p1 = planet::Planet::random(coord, &mut rand::rng());
+        let p2 = planet::Planet::random(coord, &mut rand::rng());
+        assert_eq!(
+            galaxy.insert(&coord, SpaceObject::Planet(Arc::new(p1))),
+            Some(())
+        );
+        assert!(galaxy
+            .insert(&coord, SpaceObject::Planet(Arc::new(p2)))
+            .is_none());
+    }
+
+    #[test]
+    fn test_is_discovered_after_generate_sector() {
+        let mut galaxy = Galaxy::init();
+        let coord = (12345, 6789, 4242);
+        assert!(!galaxy.is_discovered(&coord));
+        galaxy.generate_sector(&coord);
+        assert!(galaxy.is_discovered(&coord));
+    }
+
+    #[test]
+    fn test_is_in_sector() {
+        let sector = ((0, 5000), (0, 5000), (0, 5000));
+        assert!(is_in_sector(&(0, 0, 0), &sector));
+        assert!(is_in_sector(&(4999, 4999, 4999), &sector));
+        assert!(!is_in_sector(&(5000, 0, 0), &sector));
+    }
+
+    #[test]
+    fn test_init_new_station_and_lookups() {
+        crate::tests::block_on(async {
+            let mut galaxy = Galaxy::init();
+            let (id, station) = galaxy.init_new_station().await;
+            assert_eq!(station.id, id);
+
+            // The station is retrievable at its coordinate
+            let scoord = station.position;
+            assert!(galaxy.get_station(&scoord).await.is_some());
+            // No planet sits on the station coordinate
+            assert!(galaxy.get_planet(&scoord).await.is_none());
+
+            // The sector around the station contains planets
+            let scan = galaxy.scan_sector(1, &scoord).await;
+            assert!(!scan.planets.is_empty());
+
+            // Each scanned planet is retrievable, and isn't a station
+            let pcoord = scan.planets[0].position;
+            assert!(galaxy.get_planet(&pcoord).await.is_some());
+            assert!(galaxy.get_station(&pcoord).await.is_none());
+        });
+    }
+
+    #[test]
+    fn test_get_returns_none_for_empty_coord() {
+        crate::tests::block_on(async {
+            let galaxy = Galaxy::init();
+            assert!(galaxy.get_station(&(1, 2, 3)).await.is_none());
+            assert!(galaxy.get_planet(&(1, 2, 3)).await.is_none());
+        });
+    }
 }

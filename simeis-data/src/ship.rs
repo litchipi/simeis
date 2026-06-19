@@ -135,7 +135,6 @@ impl Ship {
         }
     }
 
-    // TODO (#9) Create a new ship with random specs, with specs between +/- 20% base price
     //     Change it every X minutes
     //     Used by traders to seek nice ships to buy
 
@@ -373,9 +372,276 @@ fn test_ship_flight() {
                     || (costs.hull_usage > ship.hull_resistance)
             );
         }
-        // TODO (#13) Check hull
-        // TODO (#13) Check fuel
-        // TODO (#13) Check arrived
-        // TODO (#13) Check distance
     });
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::field_reassign_with_default)]
+    use super::*;
+    use crate::crew::CrewMember;
+    use crate::galaxy::planet::Planet;
+    use crate::galaxy::station::Station;
+    use crate::ship::module::ShipModuleType;
+    use crate::tests::block_on;
+
+    fn solid_planet() -> Planet {
+        let mut r = rand::rng();
+        loop {
+            let p = Planet::random((0, 0, 0), &mut r);
+            if p.resource_density(&Resource::Iron) > 0.0 {
+                return p;
+            }
+        }
+    }
+
+    fn mining_ship() -> Ship {
+        let mut ship = Ship::default();
+        ship.cargo = ShipCargo::with_capacity(1000.0);
+        let mut module = ShipModuleType::Miner.new_module();
+        module.operator = Some(1);
+        ship.modules.insert(1, module);
+        ship.crew.0.insert(
+            1,
+            CrewMember {
+                member_type: CrewMemberType::Operator,
+                rank: 8,
+            },
+        );
+        ship
+    }
+
+    #[test]
+    fn test_init_shipyard_has_three_tiers() {
+        let yard = Ship::init_shipyard((0, 0, 0));
+        assert_eq!(yard.len(), 3);
+        // Tiers are ordered light < medium < heavy in capability
+        assert!(yard[0].cargo.capacity < yard[1].cargo.capacity);
+        assert!(yard[1].cargo.capacity < yard[2].cargo.capacity);
+        assert!(yard[0].reactor_power < yard[2].reactor_power);
+    }
+
+    #[test]
+    fn test_compute_price_positive_and_monotonic() {
+        let yard = Ship::init_shipyard((0, 0, 0));
+        for ship in &yard {
+            assert!(ship.compute_price() > 0.0);
+        }
+        // A heavier ship is worth more
+        assert!(yard[2].compute_price() > yard[0].compute_price());
+    }
+
+    #[test]
+    fn test_compute_price_increases_with_modules() {
+        let mut ship = Ship::default();
+        ship.reactor_power = 1;
+        let base = ship.compute_price();
+        let mut module = ShipModuleType::Miner.new_module();
+        module.totalcost = 1234.0;
+        ship.modules.insert(1, module);
+        assert!((ship.compute_price() - (base + 1234.0)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_update_perf_stats_without_pilot_zero_speed() {
+        let mut ship = Ship::default();
+        ship.reactor_power = 5;
+        ship.update_perf_stats();
+        assert_eq!(ship.stats.speed, 0.0);
+        assert_eq!(ship.stats.fuel_consumption, 5.0);
+        assert!(ship.stats.hull_usage_rate > 0.0);
+    }
+
+    #[test]
+    fn test_update_perf_stats_with_pilot_has_speed() {
+        let mut ship = Ship::default();
+        ship.reactor_power = 5;
+        ship.crew
+            .0
+            .insert(1, CrewMember::from(CrewMemberType::Pilot));
+        ship.pilot = Some(1);
+        ship.update_perf_stats();
+        assert!(ship.stats.speed > 0.0);
+    }
+
+    #[test]
+    fn test_higher_pilot_rank_gives_more_speed() {
+        let make = |rank: u8| {
+            let mut ship = Ship::default();
+            ship.reactor_power = 5;
+            ship.crew.0.insert(
+                1,
+                CrewMember {
+                    member_type: CrewMemberType::Pilot,
+                    rank,
+                },
+            );
+            ship.pilot = Some(1);
+            ship.update_perf_stats();
+            ship.stats.speed
+        };
+        assert!(make(3) > make(1));
+    }
+
+    #[test]
+    fn test_shield_reduces_hull_usage_rate() {
+        let mut no_shield = Ship::default();
+        no_shield.shield_power = 0;
+        no_shield.update_perf_stats();
+
+        let mut shielded = Ship::default();
+        shielded.shield_power = 3;
+        shielded.update_perf_stats();
+
+        assert!(shielded.stats.hull_usage_rate < no_shield.stats.hull_usage_rate);
+    }
+
+    #[test]
+    fn test_stop_navigation_sets_idle() {
+        let mut ship = Ship::default();
+        ship.position = (7, 8, 9);
+        ship.state = ShipState::Extracting(ExtractionInfo {
+            mining_rate: BTreeMap::new(),
+            time_fill_cargo: 0.0,
+        });
+        let pos = ship.stop_navigation().unwrap();
+        assert_eq!(pos, (7, 8, 9));
+        assert!(matches!(ship.state, ShipState::Idle));
+    }
+
+    #[test]
+    fn test_stop_extraction_requires_extracting_state() {
+        let mut ship = Ship::default();
+        // Idle ship cannot stop an extraction
+        assert!(matches!(
+            ship.stop_extraction(),
+            Err(Errcode::ShipNotExtracting)
+        ));
+        ship.state = ShipState::Extracting(ExtractionInfo {
+            mining_rate: BTreeMap::new(),
+            time_fill_cargo: 0.0,
+        });
+        assert!(ship.stop_extraction().is_ok());
+        assert!(matches!(ship.state, ShipState::Idle));
+    }
+
+    #[test]
+    fn test_set_travel_rejected_when_not_idle() {
+        let mut ship = Ship::default();
+        ship.state = ShipState::Extracting(ExtractionInfo {
+            mining_rate: BTreeMap::new(),
+            time_fill_cargo: 0.0,
+        });
+        assert!(matches!(
+            ship.set_travel((10, 10, 10)),
+            Err(Errcode::ShipNotIdle)
+        ));
+    }
+
+    #[test]
+    fn test_market_data_contains_id_and_price() {
+        let ship = Ship::init_shipyard((0, 0, 0)).remove(0);
+        let data = ship.market_data();
+        assert_eq!(data["id"], serde_json::json!(ship.id));
+        assert_eq!(data["price"], serde_json::json!(ship.compute_price()));
+    }
+
+    #[test]
+    fn test_update_flight_reaches_destination() {
+        let mut ship = Ship::default();
+        ship.reactor_power = 1;
+        ship.fuel_tank_capacity = 1e9;
+        ship.fuel_tank = 1e9;
+        ship.hull_resistance = 1e9;
+        ship.crew
+            .0
+            .insert(1, CrewMember::from(CrewMemberType::Pilot));
+        ship.pilot = Some(1);
+        ship.update_perf_stats();
+
+        // Axis-aligned travel so integer rounding lands exactly on target
+        let cost = ship.set_travel((100, 0, 0)).unwrap();
+        assert!(matches!(ship.state, ShipState::InFlight(_)));
+        let finished = ship.update_flight(cost.duration);
+        assert!(finished);
+        assert_eq!(ship.position, (100, 0, 0));
+        assert!(ship.fuel_tank < ship.fuel_tank_capacity);
+    }
+
+    #[test]
+    fn test_update_flight_empty_tank_aborts() {
+        let mut ship = Ship::default();
+        ship.reactor_power = 1;
+        ship.fuel_tank_capacity = 1e9;
+        ship.fuel_tank = 1e9;
+        ship.hull_resistance = 1e9;
+        ship.crew
+            .0
+            .insert(1, CrewMember::from(CrewMemberType::Pilot));
+        ship.pilot = Some(1);
+        ship.update_perf_stats();
+        ship.set_travel((100000, 0, 0)).unwrap();
+
+        // Drain the tank then step: the flight aborts with an empty tank
+        ship.fuel_tank = 0.0;
+        assert!(ship.update_flight(0.001));
+        assert_eq!(ship.fuel_tank, 0.0);
+    }
+
+    #[test]
+    fn test_start_extraction_without_module_fails() {
+        block_on(async {
+            let mut ship = Ship::default();
+            let planet = solid_planet();
+            assert!(matches!(
+                ship.start_extraction(&planet).await,
+                Err(Errcode::CannotExtractWithoutModule)
+            ));
+        });
+    }
+
+    #[test]
+    fn test_extraction_lifecycle() {
+        block_on(async {
+            let mut ship = mining_ship();
+            let planet = solid_planet();
+            let info = ship.start_extraction(&planet).await.unwrap();
+            assert!(!info.mining_rate.is_empty());
+            assert!(matches!(ship.state, ShipState::Extracting(_)));
+
+            // Extracting twice is rejected (not idle)
+            assert!(matches!(
+                ship.start_extraction(&planet).await,
+                Err(Errcode::ShipNotIdle)
+            ));
+
+            ship.update_extract(0.01);
+            assert!(ship.cargo.usage > 0.0);
+
+            assert!(ship.stop_extraction().is_ok());
+            assert!(matches!(ship.state, ShipState::Idle));
+        });
+    }
+
+    #[test]
+    fn test_unload_cargo_to_station() {
+        block_on(async {
+            let station = Station::init(1, (0, 0, 0));
+            let mut ship = Ship::default();
+            ship.owner = 42;
+            ship.cargo = ShipCargo::with_capacity(1000.0);
+            ship.cargo.add_resource(&Resource::Iron, 10.0);
+
+            let unloaded = ship
+                .unload_cargo(&Resource::Iron, 4.0, &station)
+                .await
+                .unwrap();
+            assert_eq!(unloaded, 4.0);
+            assert_eq!(ship.cargo.resources[&Resource::Iron], 6.0);
+
+            // unload_all empties the rest
+            let all = ship.unload_all(&station).await.unwrap();
+            assert_eq!(all[&Resource::Iron], 6.0);
+        });
+    }
 }

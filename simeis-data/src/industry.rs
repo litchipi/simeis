@@ -13,7 +13,6 @@ pub type IndustryUnitId = u32;
 
 const UNIT_UPG_POWF_DIV: f64 = 75.0;
 
-// TODO (#12) Get from configuration file
 const SBASE_REQ: f64 = 1.5;
 const ABASE_REQ: f64 = 7.5;
 
@@ -80,7 +79,6 @@ impl IndustryUnitType {
     }
 
     #[inline]
-    // TODO (#9) Move price based on inflation rate of the station
     pub fn get_price_buy(&self) -> f64 {
         match self {
             IndustryUnitType::SimpleHullFoundry | IndustryUnitType::SimpleFuelRefinery => 8000.0,
@@ -247,5 +245,148 @@ impl IndustryUnit {
             *n += amnt * tdelta;
             log::warn!("Created {} of {res:?}, got {n} now", amnt * tdelta);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use strum::IntoEnumIterator;
+
+    #[test]
+    fn test_resource_cost_constants_positive() {
+        assert!(get_simple_industry_resources_cost() > 0.0);
+        assert!(get_advanced_industry_resources_cost() > 0.0);
+        assert!(get_sbase_produce_base() > 0.0);
+        assert!(get_abase_produce_base() > 0.0);
+        // Advanced units consume more expensive resources than simple ones
+        assert!(get_advanced_industry_resources_cost() > get_simple_industry_resources_cost());
+    }
+
+    #[test]
+    fn test_get_price_buy_tiers() {
+        assert_eq!(IndustryUnitType::SimpleFuelRefinery.get_price_buy(), 8000.0);
+        assert_eq!(IndustryUnitType::SimpleHullFoundry.get_price_buy(), 8000.0);
+        assert_eq!(
+            IndustryUnitType::AdvancedFuelRefinery.get_price_buy(),
+            18000.0
+        );
+        assert_eq!(
+            IndustryUnitType::AdvancedHullFoundry.get_price_buy(),
+            18000.0
+        );
+    }
+
+    #[test]
+    fn test_new_unit_defaults() {
+        for t in IndustryUnitType::iter() {
+            let u = t.clone().new_unit();
+            assert_eq!(u.unittype, t);
+            assert_eq!(u.rank, 1);
+            assert!(!u.started);
+            assert!(u.operator.is_none());
+        }
+    }
+
+    #[test]
+    fn test_price_next_rank_increases() {
+        let mut u = IndustryUnitType::SimpleFuelRefinery.new_unit();
+        let p1 = u.price_next_rank();
+        u.rank = 6;
+        let p6 = u.price_next_rank();
+        assert!(p1 > 0.0);
+        assert!(p6 > p1);
+    }
+
+    #[test]
+    fn test_need_crew_member_only_idle_operator() {
+        let mut u = IndustryUnitType::SimpleHullFoundry.new_unit();
+        assert!(u.need_crew_member(&CrewMemberType::Operator));
+        assert!(!u.need_crew_member(&CrewMemberType::Pilot));
+        u.operator = Some(1);
+        assert!(!u.need_crew_member(&CrewMemberType::Operator));
+    }
+
+    #[test]
+    fn test_input_output_non_empty_and_positive() {
+        for t in IndustryUnitType::iter() {
+            let u = t.new_unit();
+            let inputs = u.input(3);
+            let outputs = u.output(3);
+            assert!(!inputs.is_empty());
+            assert!(!outputs.is_empty());
+            for (_, amnt) in inputs.iter().chain(outputs.iter()) {
+                assert!(*amnt > 0.0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_refineries_produce_fuel_foundries_produce_hull() {
+        let fuel = IndustryUnitType::SimpleFuelRefinery.new_unit().output(2);
+        assert!(fuel.iter().all(|(r, _)| *r == Resource::Fuel));
+        let hull = IndustryUnitType::SimpleHullFoundry.new_unit().output(2);
+        assert!(hull.iter().all(|(r, _)| *r == Resource::Hull));
+    }
+
+    #[test]
+    fn test_assign_operator_sets_recipes() {
+        let mut u = IndustryUnitType::SimpleFuelRefinery.new_unit();
+        let op = CrewMember {
+            member_type: CrewMemberType::Operator,
+            rank: 2,
+        };
+        u.assign_operator(7, &op);
+        assert_eq!(u.operator, Some(7));
+        assert!(!u.resources_required.is_empty());
+        assert!(!u.resources_created.is_empty());
+    }
+
+    #[test]
+    fn test_can_work_requires_started_and_operator() {
+        let mut u = IndustryUnitType::SimpleFuelRefinery.new_unit();
+        let resources = BTreeMap::new();
+        // Not started yet
+        assert!(u.can_work(&1.0, &resources).is_none());
+        u.started = true;
+        // Started but no operator
+        assert!(u.can_work(&1.0, &resources).is_none());
+    }
+
+    #[test]
+    fn test_can_work_returns_none_when_missing_resource() {
+        let mut u = IndustryUnitType::SimpleFuelRefinery.new_unit();
+        let op = CrewMember {
+            member_type: CrewMemberType::Operator,
+            rank: 1,
+        };
+        u.assign_operator(1, &op);
+        u.started = true;
+        // Empty cargo: required resources missing -> None
+        let resources = BTreeMap::new();
+        assert!(u.can_work(&1.0, &resources).is_none());
+    }
+
+    #[test]
+    fn test_work_consumes_inputs_and_creates_outputs() {
+        let mut u = IndustryUnitType::SimpleFuelRefinery.new_unit();
+        let op = CrewMember {
+            member_type: CrewMemberType::Operator,
+            rank: 1,
+        };
+        u.assign_operator(1, &op);
+        u.started = true;
+
+        let mut resources = BTreeMap::new();
+        for (res, _) in u.input(1) {
+            resources.insert(res, 1_000.0);
+        }
+        let ratio = u.can_work(&1.0, &resources).unwrap();
+        assert_eq!(ratio, 1.0);
+
+        let hydrogen_before = resources[&Resource::Hydrogen];
+        u.work(1.0, &mut resources);
+        assert!(resources[&Resource::Hydrogen] < hydrogen_before);
+        assert!(resources.get(&Resource::Fuel).copied().unwrap_or(0.0) > 0.0);
     }
 }

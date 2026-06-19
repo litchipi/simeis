@@ -41,3 +41,39 @@ impl ScanResult {
         planets.into_iter().next()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn planet_at(position: SpaceCoord) -> PlanetInfo {
+        PlanetInfo {
+            position,
+            temperature: 100,
+            solid: true,
+        }
+    }
+
+    #[test]
+    fn test_empty_scan_result() {
+        let res = ScanResult::empty();
+        assert!(res.planets.is_empty());
+        assert!(res.stations.is_empty());
+    }
+
+    #[test]
+    fn test_get_closest_planet_none_when_empty() {
+        let res = ScanResult::empty();
+        assert!(res.get_closest_planet(&(0, 0, 0)).is_none());
+    }
+
+    #[test]
+    fn test_get_closest_planet_returns_nearest() {
+        let mut res = ScanResult::empty();
+        res.planets.push(planet_at((100, 0, 0)));
+        res.planets.push(planet_at((10, 0, 0)));
+        res.planets.push(planet_at((50, 0, 0)));
+        let closest = res.get_closest_planet(&(0, 0, 0)).unwrap();
+        assert_eq!(closest.position, (10, 0, 0));
+    }
+}

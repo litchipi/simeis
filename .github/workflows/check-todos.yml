@@ -1,0 +1,101 @@
+name: CI-Check-TODOs
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  check-todos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan TODOs and validate linked issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          mapfile -t HITS < <(grep -rEn \
+            --binary-files=without-match \
+            --exclude-dir=target \
+            --exclude-dir=.git \
+            --exclude-dir=node_modules \
+            --exclude=Cargo.lock \
+            --exclude=*.pdf \
+            --exclude=check-todos.yml \
+            -e '(//|#)[[:space:]]*TODO([^[:alnum:]_]|$)' \
+            . || true)
+
+          if [ ${#HITS[@]} -eq 0 ]; then
+            echo "No TODO found."
+            exit 0
+          fi
+
+          declare -A ISSUE_STATE   # cache: issue number -> "open"|"closed"|"missing"
+          ERRORS=()
+
+          for line in "${HITS[@]}"; do
+            file=$(echo "$line" | cut -d: -f1)
+            lineno=$(echo "$line" | cut -d: -f2)
+            content=$(echo "$line" | cut -d: -f3-)
+            file_clean=${file#./}
+
+            issue=$(echo "$content" | grep -oE 'TODO[[:space:]]*\(#[0-9]+\)' | grep -oE '[0-9]+' | head -n1 || true)
+
+            if [ -z "${issue}" ]; then
+              msg="TODO is not linked to any issue (expected format: TODO (#N))"
+              echo "::error file=${file_clean},line=${lineno}::${msg}"
+              ERRORS+=("${file_clean}:${lineno} — ${msg} | ${content}")
+              continue
+            fi
+
+            if [ -z "${ISSUE_STATE[$issue]+x}" ]; then
+              state=$(gh api "repos/${REPO}/issues/${issue}" --jq '.state' 2>/dev/null || echo "missing")
+              ISSUE_STATE[$issue]="${state}"
+            fi
+
+            case "${ISSUE_STATE[$issue]}" in
+              open)
+                : # OK
+                ;;
+              closed)
+                msg="TODO references issue #${issue}, which is closed"
+                echo "::error file=${file_clean},line=${lineno}::${msg}"
+                ERRORS+=("${file_clean}:${lineno} — ${msg}")
+                ;;
+              missing|"")
+                msg="TODO references issue #${issue}, which does not exist"
+                echo "::error file=${file_clean},line=${lineno}::${msg}"
+                ERRORS+=("${file_clean}:${lineno} — ${msg}")
+                ;;
+              *)
+                msg="TODO references issue #${issue}, unexpected state: ${ISSUE_STATE[$issue]}"
+                echo "::error file=${file_clean},line=${lineno}::${msg}"
+                ERRORS+=("${file_clean}:${lineno} — ${msg}")
+                ;;
+            esac
+          done
+
+          echo ""
+          echo "Scanned ${#HITS[@]} TODO occurrence(s)."
+
+          if [ ${#ERRORS[@]} -gt 0 ]; then
+            echo ""
+            echo "TODO check failed with ${#ERRORS[@]} problem(s):"
+            for e in "${ERRORS[@]}"; do
+              echo "  - $e"
+            done
+            exit 1
+          fi
+
+          echo "All TODOs are linked to existing open issues."

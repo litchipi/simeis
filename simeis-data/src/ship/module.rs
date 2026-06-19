@@ -107,3 +107,125 @@ impl ShipModule {
         density * (rank / difficulty).powf(EXRATE_FACT)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::crew::CrewMember;
+    use crate::galaxy::planet::Planet;
+    use strum::IntoEnumIterator;
+
+    fn rng() -> rand::rngs::ThreadRng {
+        rand::rng()
+    }
+
+    fn solid_planet() -> Planet {
+        let mut r = rng();
+        loop {
+            let p = Planet::random((0, 0, 0), &mut r);
+            if p.resource_density(&Resource::Iron) > 0.0 {
+                return p;
+            }
+        }
+    }
+
+    #[test]
+    fn test_new_module_defaults() {
+        let m = ShipModuleType::Miner.new_module();
+        assert_eq!(m.modtype, ShipModuleType::Miner);
+        assert_eq!(m.rank, 1);
+        assert_eq!(m.totalcost, 0.0);
+        assert!(m.operator.is_none());
+    }
+
+    #[test]
+    fn test_get_price_buy_all_types() {
+        for t in ShipModuleType::iter() {
+            assert!(t.get_price_buy() > 0.0, "price <= 0 for {t:?}");
+        }
+    }
+
+    #[test]
+    fn test_price_next_rank_increases() {
+        let mut m = ShipModuleType::Pump.new_module();
+        let p1 = m.price_next_rank();
+        m.rank = 5;
+        let p5 = m.price_next_rank();
+        assert!(p1 > 0.0);
+        assert!(p5 > p1);
+    }
+
+    #[test]
+    fn test_need_operator_only_when_unassigned() {
+        let mut m = ShipModuleType::Miner.new_module();
+        assert!(m.need(&CrewMemberType::Operator));
+        assert!(!m.need(&CrewMemberType::Pilot));
+        m.operator = Some(1);
+        assert!(!m.need(&CrewMemberType::Operator));
+    }
+
+    #[test]
+    fn test_can_extract_without_operator_is_empty() {
+        let m = ShipModuleType::Miner.new_module();
+        let crew = Crew::default();
+        let planet = Planet::random((0, 0, 0), &mut rng());
+        assert!(m.can_extract(&crew, &planet).is_empty());
+    }
+
+    #[test]
+    fn test_extraction_rate_increases_with_module_rank() {
+        let mut m = ShipModuleType::Miner.new_module();
+        let r1 = m.extraction_rate(&Resource::Carbon, 8, 6.25);
+        m.rank = 4;
+        let r4 = m.extraction_rate(&Resource::Carbon, 8, 6.25);
+        assert!(r1 > 0.0);
+        assert!(r4 > r1);
+    }
+
+    #[test]
+    fn test_extraction_rate_scales_with_density() {
+        let m = ShipModuleType::Miner.new_module();
+        let low = m.extraction_rate(&Resource::Iron, 8, 1.0);
+        let high = m.extraction_rate(&Resource::Iron, 8, 6.25);
+        assert!(high > low);
+    }
+
+    #[test]
+    fn test_can_extract_miner_returns_mineable_resources() {
+        let mut m = ShipModuleType::Miner.new_module();
+        m.operator = Some(1);
+        let mut crew = Crew::default();
+        crew.0.insert(
+            1,
+            CrewMember {
+                member_type: CrewMemberType::Operator,
+                rank: 8,
+            },
+        );
+        let planet = solid_planet();
+        let extracted = m.can_extract(&crew, &planet);
+        assert!(!extracted.is_empty());
+        // A miner only yields mineable resources, each at a positive rate
+        assert!(extracted
+            .iter()
+            .all(|(r, rate)| r.mineable(8) && *rate > 0.0));
+    }
+
+    #[test]
+    fn test_can_extract_gas_sucker_on_solid_planet() {
+        let mut m = ShipModuleType::GasSucker.new_module();
+        m.operator = Some(1);
+        let mut crew = Crew::default();
+        crew.0.insert(
+            1,
+            CrewMember {
+                member_type: CrewMemberType::Operator,
+                rank: 8,
+            },
+        );
+        let planet = solid_planet();
+        // Solid planets also expose suckable gases (density rules)
+        let extracted = m.can_extract(&crew, &planet);
+        assert!(extracted.iter().all(|(r, _)| r.suckable(8)));
+    }
+}

@@ -1,0 +1,50 @@
+name: CI-Code-Coverage
+
+on:
+  pull_request:
+
+jobs:
+  code-coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Installer cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Mesurer la couverture de code
+        id: coverage
+        run: |
+          OUTPUT=$(cargo tarpaulin 2>&1)
+          echo "$OUTPUT"
+
+          COVERAGE=$(echo "$OUTPUT" | grep -oP '[0-9]+\.[0-9]+(?=% coverage)' | tail -1)
+
+          if [ -z "$COVERAGE" ]; then
+            echo "Impossible d'extraire le pourcentage de couverture"
+            exit 1
+          fi
+
+          echo "Couverture obtenue : ${COVERAGE}%"
+          echo "percentage=$COVERAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Gérer le label de couverture insuffisante
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COVERAGE: ${{ steps.coverage.outputs.percentage }}
+        run: |
+          IS_BELOW=$(echo "$COVERAGE < 50" | bc -l)
+
+          if [ "$IS_BELOW" -eq 1 ]; then
+            echo "Couverture insuffisante (${COVERAGE}% < 50%)"
+            gh pr edit "$PR_NUMBER" --add-label "not enough tests"
+          else
+            echo "Couverture suffisante (${COVERAGE}% >= 50%)"
+            gh pr edit "$PR_NUMBER" --remove-label "not enough tests" || true
+          fi

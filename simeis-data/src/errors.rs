@@ -78,3 +78,61 @@ impl Errcode {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_all_error_messages_non_empty() {
+        let all = [
+            Errcode::NoPlayerKey,
+            Errcode::InvalidPlayerKey,
+            Errcode::PlayerNotFound(1),
+            Errcode::PlayerAlreadyExists("bob".to_string()),
+            Errcode::NoPlayerWithKey,
+            Errcode::ShipNotFound(2),
+            Errcode::NotEnoughMoney(10.0, 20.0),
+            Errcode::InvalidArgument("arg"),
+            Errcode::ShipNotExtracting,
+            Errcode::ShipNotIdle,
+            Errcode::CrewMemberNotIdle(3),
+            Errcode::CrewNotNeeded,
+            Errcode::CannotPerformTravel,
+            Errcode::NullDistance,
+            Errcode::NoSuchStation(4),
+            Errcode::NoSuchModule(5),
+            Errcode::CannotExtractWithoutPlanet,
+            Errcode::CannotExtractWithoutModule,
+            Errcode::ShipNotInStation,
+            Errcode::WrongCrewType(crate::crew::CrewMemberType::Pilot),
+            Errcode::CargoFull,
+            Errcode::NoTraderAssigned,
+            Errcode::NoPilotAssigned,
+            Errcode::BuyNothing,
+            Errcode::SellNothing,
+            Errcode::NoFuelInCargo,
+            Errcode::NoHullInCargo,
+            Errcode::CrewMemberNotFound(6),
+            Errcode::PlayerLost,
+            Errcode::GameSignalSend,
+            Errcode::NoSuchIndustryUnit,
+        ];
+        for err in all {
+            assert!(!err.errmsg().is_empty(), "empty message for {err:?}");
+        }
+    }
+
+    #[test]
+    fn test_error_messages_interpolate_data() {
+        assert!(Errcode::PlayerNotFound(42).errmsg().contains("42"));
+        assert!(Errcode::ShipNotFound(7).errmsg().contains('7'));
+        assert!(Errcode::PlayerAlreadyExists("alice".to_string())
+            .errmsg()
+            .contains("alice"));
+        let msg = Errcode::NotEnoughMoney(10.0, 20.0).errmsg();
+        assert!(msg.contains("10") && msg.contains("20"));
+        assert!(Errcode::InvalidArgument("speed").errmsg().contains("speed"));
+        assert!(Errcode::NoSuchStation(99).errmsg().contains("99"));
+    }
+}
