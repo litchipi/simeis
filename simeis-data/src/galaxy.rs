@@ -16,6 +16,7 @@ use crate::galaxy::station::Station;
 
 pub type SpaceUnit = u32;
 pub type SpaceCoord = (SpaceUnit, SpaceUnit, SpaceUnit);
+pub type SectorId = u32;
 type GalaxySector = (
     (SpaceUnit, SpaceUnit),
     (SpaceUnit, SpaceUnit),
@@ -44,13 +45,13 @@ pub struct Galaxy {
     pub stations: BTreeMap<StationId, Arc<Station>>,
     pub planets: BTreeMap<PlanetId, Arc<Planet>>,
     objects: BTreeMap<SpaceCoord, SpaceObject>,
-    discovered: Vec<GalaxySector>, // TODO (#31) Index by sector ID in a BTreeMap
+    discovered: BTreeMap<SectorId, GalaxySector>,
 }
 
 impl Galaxy {
     pub fn init() -> Galaxy {
         Galaxy {
-            discovered: vec![],
+            discovered: BTreeMap::new(),
             stations: BTreeMap::new(),
             planets: BTreeMap::new(),
             objects: BTreeMap::new(),
@@ -59,7 +60,7 @@ impl Galaxy {
 
     // X, Y and Z can be any point from the given sector
     // Returns the index in the "discovered" vector
-    pub fn generate_sector(&mut self, coord: &SpaceCoord) -> usize {
+    pub fn generate_sector(&mut self, coord: &SpaceCoord) -> SectorId {
         let (x, y, z) = coord;
         let (secx, secy, secz) = compute_sector(*x, *y, *z);
         log::debug!(
@@ -71,8 +72,8 @@ impl Galaxy {
             secz.0,
             secz.1,
         );
-        let ind = self.discovered.len();
-        self.discovered.push((secx, secy, secz));
+        let id = self.discovered.len() as u32;
+        self.discovered.insert(id, (secx, secy, secz));
         let mut rng = rand::rng();
         let mut npla = 0;
         while npla < PLANETS_PER_SECTOR {
@@ -88,12 +89,12 @@ impl Galaxy {
                 npla += 1;
             }
         }
-        ind
+        id
     }
 
     pub fn is_discovered(&self, coord: &SpaceCoord) -> bool {
         let (x, y, z) = coord;
-        for ((sx, ex), (sy, ey), (sz, ez)) in self.discovered.iter() {
+        for (_, ((sx, ex), (sy, ey), (sz, ez))) in self.discovered.iter() {
             if (x < sx) || (x > ex) || (y < sy) || (y > ey) || (z < sz) || (z > ez) {
                 continue;
             }
@@ -142,8 +143,8 @@ impl Galaxy {
             seccoord = (rng.random(), rng.random(), rng.random());
         }
         let id = rng.random();
-        let ind = self.generate_sector(&seccoord);
-        let sector = self.discovered.get(ind).unwrap();
+        let secid = self.generate_sector(&seccoord);
+        let sector = self.discovered.get(&secid).unwrap();
 
         let all_planets = self.list_planets_in_sector(sector);
         assert!(!all_planets.is_empty());
