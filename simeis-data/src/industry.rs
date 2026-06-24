@@ -3,44 +3,43 @@ use std::collections::BTreeMap;
 use rand::RngExt;
 use serde::Serialize;
 
-use crate::{
-    crew::{CrewId, CrewMember, CrewMemberType},
-    define_type_enum,
-    ship::resources::Resource,
-};
+use crate::config::{get_config, SimeisIndustryConfig};
+use crate::crew::{CrewId, CrewMember, CrewMemberType};
+use crate::define_type_enum;
+use crate::ship::resources::Resource;
 
 pub type IndustryUnitId = u32;
-
-const UNIT_UPG_POWF_DIV: f64 = 75.0;
-
-// TODO (#12) Get from configuration file
-const SBASE_REQ: f64 = 1.5;
-const ABASE_REQ: f64 = 7.5;
 
 // Because all resources of the same level have the same base price
 // The resource cost (in credits) should be the same whatever the unit is
 // As long as it's the same class (simple / advanced)
-pub const fn get_simple_industry_resources_cost() -> f64 {
-    (SBASE_REQ * Resource::Hydrogen.base_price())             // Gas 1
-        + (SBASE_REQ * 0.2 * Resource::Oxygen.base_price())   // Gas 2
-        + (SBASE_REQ * 1.25 * Resource::Iron.base_price())    // Solid 1
-        + (SBASE_REQ * 0.4 * Resource::Water.base_price()) // Liquid 1
+#[inline]
+pub fn get_simple_industry_resources_cost(cfg: &SimeisIndustryConfig) -> f64 {
+    let sbase_req = cfg.simple_industry_tier1_resources_req;
+    (sbase_req * Resource::Hydrogen.base_price())             // Gas 1
+        + (sbase_req * cfg.simple_res2rq * Resource::Oxygen.base_price())   // Gas 2
+        + (sbase_req * cfg.simple_res3rq * Resource::Iron.base_price())    // Solid 1
+        + (sbase_req * cfg.simple_res4rq * Resource::Water.base_price()) // Liquid 1
 }
 
-pub const fn get_advanced_industry_resources_cost() -> f64 {
-    (ABASE_REQ * Resource::Iron.base_price())                     // Solid 1
-        + (ABASE_REQ * 0.4 * Resource::SulfuricAcid.base_price()) // Liquid 4
-        + (ABASE_REQ * 0.2 * Resource::Helium.base_price()) // Gas 3
+#[inline]
+pub fn get_advanced_industry_resources_cost(cfg: &SimeisIndustryConfig) -> f64 {
+    let abase_req = cfg.advanced_industry_tier1_resources_req;
+    (abase_req * Resource::Iron.base_price())                     // Solid 1
+        + (abase_req * cfg.advanced_res2rq * Resource::SulfuricAcid.base_price()) // Liquid 4
+        + (abase_req * cfg.advanced_res3rq * Resource::Helium.base_price()) // Gas 3
 }
 
-pub const fn get_sbase_produce_base() -> f64 {
-    let scost = get_simple_industry_resources_cost();
-    scost / (1.05 * Resource::Fuel.base_price())
+#[inline]
+pub fn get_sbase_produce_base(cfg: &SimeisIndustryConfig) -> f64 {
+    let scost = get_simple_industry_resources_cost(cfg);
+    scost / (cfg.simple_bprice_mult * Resource::Fuel.base_price())
 }
 
-pub const fn get_abase_produce_base() -> f64 {
-    let acost = get_advanced_industry_resources_cost();
-    acost / (1.75 * Resource::Fuel.base_price())
+#[inline]
+pub fn get_abase_produce_base(cfg: &SimeisIndustryConfig) -> f64 {
+    let acost = get_advanced_industry_resources_cost(cfg);
+    acost / (cfg.advanced_bprice_mult * Resource::Fuel.base_price())
 }
 
 define_type_enum!(IndustryUnitType {
@@ -68,10 +67,13 @@ impl IndustryUnitType {
     #[inline]
     // TODO (#9) Move price based on inflation rate of the station
     pub fn get_price_buy(&self) -> f64 {
+        let cfg = get_config();
         match self {
-            IndustryUnitType::SimpleHullFoundry | IndustryUnitType::SimpleFuelRefinery => 8000.0,
+            IndustryUnitType::SimpleHullFoundry | IndustryUnitType::SimpleFuelRefinery => {
+                cfg.industry.simple_unit_price
+            }
             IndustryUnitType::AdvancedHullFoundry | IndustryUnitType::AdvancedFuelRefinery => {
-                18000.0
+                cfg.industry.advanced_unit_price
             }
         }
     }
@@ -92,8 +94,11 @@ pub struct IndustryUnit {
 impl IndustryUnit {
     #[inline]
     pub fn price_next_rank(&self) -> f64 {
-        let num = UNIT_UPG_POWF_DIV - 1.0 + (self.rank as f64);
-        self.unittype.get_price_buy().powf(num / UNIT_UPG_POWF_DIV)
+        let cfg = get_config();
+        let num = cfg.upgrade.industry_unitupg_powf_div - 1.0 + (self.rank as f64);
+        self.unittype
+            .get_price_buy()
+            .powf(num / cfg.upgrade.industry_unitupg_powf_div)
     }
 
     #[inline]
@@ -117,39 +122,38 @@ impl IndustryUnit {
     pub fn input(&self, oprank: u8) -> Vec<(Resource, f64)> {
         debug_assert_ne!(oprank, 0);
         let div = 1.0 / (std::f64::consts::E + (oprank as f64) - 1.0).ln();
+        let cfg = get_config();
+        let sbase = cfg.industry.simple_industry_tier1_resources_req * (self.rank as f64);
+        let abase = cfg.industry.advanced_industry_tier1_resources_req * (self.rank as f64);
         match self.unittype {
             IndustryUnitType::SimpleFuelRefinery => {
-                let sbase = SBASE_REQ * (self.rank as f64);
                 vec![
-                    (Resource::Hydrogen, sbase),     // Gas 1
-                    (Resource::Oxygen, sbase * 0.2), // Gas 2
-                    (Resource::Iron, sbase * 1.25),  // Solid 1
-                    (Resource::Water, sbase * 0.4),  // Liquid 1
+                    (Resource::Hydrogen, sbase),                            // Gas 1
+                    (Resource::Oxygen, sbase * cfg.industry.simple_res2rq), // Gas 2
+                    (Resource::Iron, sbase * cfg.industry.simple_res3rq),   // Solid 1
+                    (Resource::Water, sbase * cfg.industry.simple_res4rq),  // Liquid 1
                 ]
             }
             IndustryUnitType::SimpleHullFoundry => {
-                let sbase = SBASE_REQ * (self.rank as f64);
                 vec![
-                    (Resource::Iron, sbase),            // Solid 1
-                    (Resource::Copper, sbase * 0.2),    // Solid 2
-                    (Resource::Hydrogen, sbase * 1.25), // Gas 1
-                    (Resource::Water, 0.5 * 0.4),       // Liquid 1
+                    (Resource::Iron, sbase),                                  // Solid 1
+                    (Resource::Copper, sbase * cfg.industry.simple_res2rq),   // Solid 2
+                    (Resource::Hydrogen, sbase * cfg.industry.simple_res3rq), // Gas 1
+                    (Resource::Water, sbase * cfg.industry.simple_res4rq),    // Liquid 1
                 ]
             }
             IndustryUnitType::AdvancedFuelRefinery => {
-                let abase = ABASE_REQ * (self.rank as f64);
                 vec![
-                    (Resource::Iron, abase),               // Solid 1
-                    (Resource::SulfuricAcid, abase * 0.4), // Liquid 3
-                    (Resource::Helium, abase * 0.2),       // Gas 3
+                    (Resource::Iron, abase),                                        // Solid 1
+                    (Resource::SulfuricAcid, abase * cfg.industry.advanced_res2rq), // Liquid 3
+                    (Resource::Helium, abase * cfg.industry.advanced_res3rq),       // Gas 3
                 ]
             }
             IndustryUnitType::AdvancedHullFoundry => {
-                let abase = ABASE_REQ * (self.rank as f64);
                 vec![
-                    (Resource::Hydrogen, abase),       // Gas 1
-                    (Resource::Titanium, abase * 0.4), // Solid 3
-                    (Resource::Brine, abase * 0.2),    // Liquid 3
+                    (Resource::Hydrogen, abase),                                // Gas 1
+                    (Resource::Titanium, abase * cfg.industry.advanced_res2rq), // Solid 3
+                    (Resource::Brine, abase * cfg.industry.advanced_res3rq),    // Liquid 3
                 ]
             }
         }
@@ -166,23 +170,24 @@ impl IndustryUnit {
     pub fn output(&self, oprank: u8) -> Vec<(Resource, f64)> {
         debug_assert_ne!(oprank, 0);
         let pown = (oprank as f64).ln();
+        let cfg = &get_config().industry;
 
         match self.unittype {
             IndustryUnitType::SimpleFuelRefinery => vec![(
                 Resource::Fuel,
-                get_sbase_produce_base() * (self.rank as f64),
+                get_sbase_produce_base(cfg) * (self.rank as f64),
             )],
             IndustryUnitType::SimpleHullFoundry => vec![(
                 Resource::Hull,
-                get_sbase_produce_base() * (self.rank as f64),
+                get_sbase_produce_base(cfg) * (self.rank as f64),
             )],
             IndustryUnitType::AdvancedFuelRefinery => vec![(
                 Resource::Fuel,
-                get_abase_produce_base() * (self.rank as f64),
+                get_abase_produce_base(cfg) * (self.rank as f64),
             )],
             IndustryUnitType::AdvancedHullFoundry => vec![(
                 Resource::Hull,
-                get_abase_produce_base() * (self.rank as f64),
+                get_abase_produce_base(cfg) * (self.rank as f64),
             )],
         }
         .into_iter()

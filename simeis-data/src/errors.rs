@@ -38,6 +38,10 @@ pub enum Errcode {
     NotAnAdmin,
     InvalidAdminToken,
     MissingQueryArgument(&'static str),
+    ReadConfigFile(std::io::Error),
+    LoadConfigJson(serde_json::Error),
+    DefaultConfigToJson(serde_json::Error),
+    WriteDefaultConfig(std::io::Error),
 }
 
 impl Errcode {
@@ -89,6 +93,10 @@ impl Errcode {
             Errcode::MissingQueryArgument(key) => format!("The query argument {key:?} is missing"),
             Errcode::PlanetNotFound(pid) => format!("The planet of ID {pid} doesn't exist"),
             Errcode::CrewMemberIdle(cid) => format!("Crew member {cid} is Idle"),
+            Errcode::ReadConfigFile(error) => format!("Error while reading config file: {error:?}"),
+            Errcode::LoadConfigJson(error) => format!("Error while loading config from JSON format: {error:?}"),
+            Errcode::DefaultConfigToJson(error) => format!("Error while serializing default configuration to JSON: {error:?}"),
+            Errcode::WriteDefaultConfig(error) => format!("Error while saving default config to file: {error:?}"),
         }
     }
 }

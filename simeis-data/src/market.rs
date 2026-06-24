@@ -5,24 +5,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use strum::IntoEnumIterator;
 
-use crate::{crew::CrewMember, ship::resources::Resource};
-
-const MAX_AVG_AMPL: f64 = 5.5 / 100.0;
-const STD_DIV: f64 = 1.15;
-pub const MARKET_CHANGE_SEC: f64 = 20.0;
-pub const BASE_FEE_RATE: f64 = 25.0 / 100.0;
-const FEE_RATE_DEC_POWF: f64 = 1.15;
-const UPD_PRICE_PROBA: f64 = 0.80;
-
-// Buying 500000 worth of a resource will increase the price between 10% and 30%
-// After  500000 credits, will be capped at btwn 10 and 30%
-// const PRICE_INC_CAP: f64 = 500_000.0;
-// const PRICE_INC_RANGE_MAX: f64 = 70.0 / 100.0;
-// const PRICE_INC_RANGE_MIN: f64 = 30.0 / 100.0;
+use crate::config::get_config;
+use crate::crew::CrewMember;
+use crate::ship::resources::Resource;
 
 #[inline]
 pub fn fee_rate(rank: u8) -> f64 {
-    BASE_FEE_RATE / (rank as f64).powf(FEE_RATE_DEC_POWF)
+    let cfg = get_config();
+    cfg.market.base_fee_rate / (rank as f64).powf(cfg.market.fee_rate_dev_powf)
 }
 
 pub struct Market {
@@ -53,14 +43,15 @@ impl Market {
         serde_json::to_value(resources).unwrap()
     }
 
+    #[inline]
     fn rand_distrib(&self, r: &Resource, now_price: f64) -> Normal<f64> {
         let base_price = r.base_price();
         let pratio = now_price / base_price;
         // 0.3    AVG = 1 - 0.3 = 0.7  * MAX AMPL = 3.5 * 0.7  =  2.45
         // 1.3    AVG = 1 - 1.3 = -0.3 * MAX AMPL = 3.5 * -0.3 = -1.05
-        let avg = (1.0 - pratio) * MAX_AVG_AMPL;
-        let std = avg.abs() + (MAX_AVG_AMPL / STD_DIV);
-
+        let cfg = get_config();
+        let avg = (1.0 - pratio) * cfg.market.max_avg_ampl;
+        let std = avg.abs() + (cfg.market.max_avg_ampl / cfg.market.std_div);
         rand_distr::Normal::new(avg, std).unwrap()
     }
 
@@ -71,8 +62,9 @@ impl Market {
     }
 
     pub async fn update_prices<R: Rng>(&self, rng: &mut R) {
+        let cfg = get_config();
         for (res, price) in self.prices.iter() {
-            if !rng.random_bool(UPD_PRICE_PROBA) {
+            if !rng.random_bool(cfg.market.upd_price_proba) {
                 continue;
             }
             let mut price = price.write().await;

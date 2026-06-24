@@ -89,6 +89,7 @@ impl FlightData {
 
 #[test]
 fn test_compute_cost_addition() {
+    crate::config::init_default_config();
     const EPS: f64 = 1e-7;
     for n in 1..=1000 {
         let mut ship = Ship::random((0, 0, 0));

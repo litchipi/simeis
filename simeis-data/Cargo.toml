@@ -1,6 +1,6 @@
 [package]
 name = "simeis-data"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 
 [dependencies]
@@ -15,6 +15,7 @@ serde_json = { workspace = true }
 strum = { workspace = true }
 mea = { workspace = true }
 heck = "*"
+paste = "*"
 
 [features]
 default = []

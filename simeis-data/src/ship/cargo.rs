@@ -71,6 +71,7 @@ impl ShipCargo {
 
 #[test]
 fn test_cargo_overflow() {
+    crate::config::init_default_config();
     let mut cargo = ShipCargo::with_capacity(100.0 * Resource::Iron.volume());
     let added = cargo.add_resource(&Resource::Iron, 95.0);
     assert_eq!(added, 95.0);

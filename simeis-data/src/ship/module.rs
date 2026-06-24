@@ -1,14 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use super::resources::Resource;
+use crate::config::get_config;
 use crate::crew::{Crew, CrewId, CrewMemberType};
 use crate::define_type_enum;
 use crate::galaxy::planet::Planet;
-
-const MOD_UPG_POWF_DIV: f64 = 75.0;
-const EXRATE_DIFF_FACT: f64 = 1.5;
-const EXRATE_FACT: f64 = 0.6;
-const BASE_EXTRACTION_MULT: f64 = 30.0;
 
 pub type ShipModuleId = u16;
 
@@ -29,8 +25,11 @@ impl ShipModuleType {
 
     #[inline]
     pub fn get_price_buy(&self) -> f64 {
+        let cfg = get_config();
         match self {
-            ShipModuleType::Miner | ShipModuleType::Pump | ShipModuleType::GasSucker => 4500.0,
+            ShipModuleType::Miner | ShipModuleType::Pump | ShipModuleType::GasSucker => {
+                cfg.ship.module_base_price
+            }
         }
     }
 }
@@ -53,8 +52,11 @@ impl ShipModule {
 
     #[inline]
     pub fn price_next_rank(&self) -> f64 {
-        let num = MOD_UPG_POWF_DIV - 1.0 + (self.rank as f64);
-        self.modtype.get_price_buy().powf(num / MOD_UPG_POWF_DIV)
+        let cfg = get_config();
+        let num = cfg.upgrade.module_upg_powf_div - 1.0 + (self.rank as f64);
+        self.modtype
+            .get_price_buy()
+            .powf(num / cfg.upgrade.module_upg_powf_div)
     }
 
     // Returns
@@ -81,8 +83,14 @@ impl ShipModule {
     }
 }
 
+#[inline]
 pub fn calc_extraction_rate(resource: &Resource, modrank: u8, oprank: u8, density: f64) -> f64 {
+    let cfg = get_config();
     let rank = ((oprank - resource.min_rank()) as f64) * (modrank as f64);
-    let difficulty = resource.extraction_difficulty().powf(EXRATE_DIFF_FACT);
-    BASE_EXTRACTION_MULT * density * (rank / difficulty).powf(EXRATE_FACT)
+    let difficulty = resource
+        .extraction_difficulty()
+        .powf(cfg.ship.module_exrate_diff_fact);
+    cfg.ship.module_base_extraction_mult
+        * density
+        * (rank / difficulty).powf(cfg.ship.module_exrate_fact)
 }

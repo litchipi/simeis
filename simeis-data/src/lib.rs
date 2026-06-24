@@ -1,3 +1,4 @@
+pub mod config;
 pub mod crew;
 pub mod errors;
 pub mod galaxy;

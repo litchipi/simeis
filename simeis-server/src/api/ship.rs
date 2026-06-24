@@ -8,13 +8,14 @@ use ntex::web::{scope, HttpRequest, ServiceConfig};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::to_value;
+use simeis_data::config::get_config;
 use simeis_data::galaxy::SpaceUnit;
 use simeis_data::ship::resources::Resource;
 use simeis_data::syslog::SyslogEvent;
 
 use simeis_data::errors::Errcode;
 use simeis_data::galaxy::station::StationId;
-use simeis_data::ship::{ShipId, DEFAULT_POW_ATTR};
+use simeis_data::ship::ShipId;
 use strum::IntoEnumIterator;
 
 use crate::api::build_response;
@@ -184,10 +185,11 @@ async fn get_extraction_power_attribution(
                         };
                         let opcrew = ship.crew.0.get(&opid).unwrap();
                         if res.extractable(&smod.modtype, opcrew.rank) {
+                            let cfg = get_config();
                             let powattr = ship
                                 .power_attribution
                                 .get(&res)
-                                .unwrap_or(&DEFAULT_POW_ATTR);
+                                .unwrap_or(&cfg.ship.default_pow_attr);
                             result.insert(res, *powattr);
                         }
                     }

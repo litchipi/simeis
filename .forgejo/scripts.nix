@@ -3,16 +3,17 @@
   compile_and_run = {
     key,
     exec,
-    port,
     features ? [],
     release ? false,
     head ? "",
+    config ? {},
   }: let
+    config_file = pkgs.writeText "config.json" (builtins.toJSON config);
     fflags = "--features ${builtins.concatStringsSep "," (features ++ ["tokio"])}";
     rf = if release then "--release" else "";
     bcmd = "cargo build ${rf} --target-dir ./target/${key} ${fflags} --no-default-features";
     targetdir = "./target/${key}/${if release then "release" else "debug"}";
-    rcmd = "${targetdir}/simeis-server ${toString port} 1>/tmp/${key}_simeis_logs 2>&1 &";
+    rcmd = "${targetdir}/simeis-server ${config_file} 1>/tmp/${key}_simeis_logs 2>&1 &";
   in ''
     #!/bin/bash
     export SIMEIS_ADMIN_TOKEN="testingadmintoken${key}"
@@ -24,6 +25,7 @@
     echo "[*] Building server"
     ${bcmd}
     echo "[*] Starting the server"
+    echo "Config file: ${config_file}"
     ${rcmd}
     sleep 2
     if [ -z "$(jobs -r)" ]; then
@@ -119,7 +121,7 @@ in {
       text = compile_and_run {
         key = "functests";
         features = ["testing"];
-        port = 9345;
+        config.server.port = 9345;
         exec = "python3 .forgejo/functests.py 127.0.0.1 9345 \"$@\"";
       };
     };
@@ -225,7 +227,7 @@ in {
         text = compile_and_run {
           key = "apisanity";
           features = ["testing"];
-          port = 9346;
+          config.server.port = 9346;
           exec = "python3 .forgejo/check_api_sanity.py 127.0.0.1 9346 \"$@\"";
         };
       };
@@ -240,7 +242,7 @@ in {
           features = ["extraspeed"];
           release=true;
           exec = "start_client_test";
-          port = 9347;
+          config.server.port = 9347;
           head = ''
             #!/bin/bash
             function start_client_test() {
@@ -261,7 +263,7 @@ in {
           features = ["extraspeed"];
           release=true;
           exec = "start_client_test";
-          port = 9348;
+          config.server.port = 9348;
           head = ''
             #!/bin/bash
             function start_client_test() {
