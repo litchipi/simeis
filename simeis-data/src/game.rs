@@ -24,16 +24,17 @@ use mea::mpsc::TryRecvError;
 use base64::{prelude::BASE64_STANDARD, Engine};
 use rand::{Rng, RngExt};
 
+use crate::config::get_config;
 use crate::errors::Errcode;
 use crate::galaxy::scan::ScanResult;
 use crate::galaxy::station::{Station, StationId};
 use crate::galaxy::Galaxy;
-use crate::market::{Market, MarketTx, MARKET_CHANGE_SEC};
+use crate::market::{Market, MarketTx};
 use crate::player::{Player, PlayerId, PlayerKey};
 use crate::ship::resources::{ExtractionInfo, Resource};
 use crate::ship::{ShipId, ShipState};
 use crate::syslog::{SyslogEvent, SyslogFifo, SyslogRecv, SyslogSend};
-use crate::utils::{ShardedLockedData, PLAYER_SHARDS};
+use crate::utils::ShardedLockedData;
 
 #[cfg(not(feature = "extraspeed"))]
 const ITER_PERIOD: Duration = Duration::from_millis(20);
@@ -75,13 +76,14 @@ impl Game {
     ) -> Game {
         let mut galaxy = Galaxy::init();
         let init_station = Arc::new(RwLock::new(galaxy.init_new_station().await));
+        let cfg = get_config();
         Game {
             send_sig: send_stop,
             galaxy: Arc::new(RwLock::new(galaxy)),
             market: Arc::new(Market::init()),
-            taken_names: Arc::new(ShardedLockedData::new(PLAYER_SHARDS)),
-            players: Arc::new(ShardedLockedData::new(PLAYER_SHARDS)),
-            player_index: Arc::new(ShardedLockedData::new(PLAYER_SHARDS)),
+            taken_names: Arc::new(ShardedLockedData::new(cfg.game.shards)),
+            players: Arc::new(ShardedLockedData::new(cfg.game.shards)),
+            player_index: Arc::new(ShardedLockedData::new(cfg.game.shards)),
             syslog,
             fifo_events,
             init_station,
@@ -156,7 +158,8 @@ impl Game {
     }
 
     async fn threadloop<R: Rng>(&self, rng: &mut R, mlt: &mut Instant, syslog: &SyslogRecv) {
-        let market_change_proba = (mlt.elapsed().as_secs_f64() / MARKET_CHANGE_SEC).min(1.0);
+        let cfg = get_config();
+        let market_change_proba = (mlt.elapsed().as_secs_f64() / cfg.market.change_sec).min(1.0);
 
         let all_players: Vec<PlayerId> = self.players.get_all_keys().await;
         for player_id in all_players {

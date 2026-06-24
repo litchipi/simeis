@@ -15,6 +15,7 @@ serde_json = { workspace = true }
 strum = { workspace = true }
 mea = { workspace = true }
 heck = "*"
+paste = "*"
 
 [features]
 default = []

@@ -1,0 +1,95 @@
+{
+  "server": {
+    "port": 8080,
+    "workers": 64,
+    "bind_ip": "0.0.0.0",
+    "logger_env_name": "SIMEIS_LOG"
+  },
+  "game": {
+    "shards": 5,
+    "player_init_money": 72000.0,
+    "sector_size": 5000,
+    "planets_per_sector": 8,
+    "station_fplanet_dist": 500.0
+  },
+  "resources": {
+    "tier1_price": 4.0,
+    "tier2_price_mult": 4.0,
+    "tier3_price_mult": 12.0,
+    "tier4_price_mult": 16.0,
+    "tier1_volume": 0.75,
+    "tier2_volume": 2.5,
+    "tier3_volume": 3.0,
+    "tier4_volume": 0.25,
+    "fuel_price": 2.0,
+    "hull_price": 2.0,
+    "fuel_volume": 2.0,
+    "hull_volume": 0.75,
+    "tier1_difficulty": 1.0,
+    "tier2_difficulty_mult": 3.75,
+    "tier3_difficulty_mult": 11.0,
+    "tier4_difficulty_mult": 14.0,
+    "tier1_min_rank": 0,
+    "tier2_min_rank": 2,
+    "tier3_min_rank": 4,
+    "tier4_min_rank": 6
+  },
+  "industry": {
+    "simple_bprice_mult": 1.08,
+    "simple_unit_price": 8000.0,
+    "advanced_bprice_mult": 1.75,
+    "advanced_unit_price": 18000.0,
+    "simple_industry_tier1_resources_req": 1.5,
+    "simple_res2rq": 0.2,
+    "simple_res3rq": 1.25,
+    "simple_res4rq": 0.4,
+    "advanced_industry_tier1_resources_req": 7.5,
+    "advanced_res2rq": 0.4,
+    "advanced_res3rq": 0.2
+  },
+  "upgrade": {
+    "industry_unitupg_powf_div": 75.0,
+    "ship_cargo_exp_add_cap": 120.0,
+    "ship_hull_upg_add": 100.0,
+    "module_upg_powf_div": 75.0
+  },
+  "station": {
+    "cargo_base_price": 2.0,
+    "cargo_price_incdiv": 100.0,
+    "init_cargo": 1000.0
+  },
+  "ship": {
+    "fuel_tank_cap_price": 30.0,
+    "cargo_cap_price": 20.0,
+    "hull_resis_price": 9.0,
+    "reactor_power_price": 4000.0,
+    "shield_price": 2500.0,
+    "default_pow_attr": 128,
+    "module_base_price": 4500.0,
+    "module_base_extraction_mult": 30.0,
+    "module_exrate_diff_fact": 1.5,
+    "module_exrate_fact": 0.6,
+    "hull_usage_rate": 0.15,
+    "reactor_speed_rate": 50.0,
+    "shield_power_log": 3.5,
+    "pilot_fuel_share": 5,
+    "pilot_rank_speed_powf": 0.6
+  },
+  "crew": {
+    "wage_rank_powf": 0.85,
+    "wage_next_rank_powf": 1.5,
+    "wage_next_rank_mult": 1900.0,
+    "base_op_wage": 0.75,
+    "pilot_wage_mult": 8.0,
+    "trader_wage_mult": 5.0,
+    "solider_wage_mult": 2.5
+  },
+  "market": {
+    "max_avg_ampl": 0.055,
+    "std_div": 1.15,
+    "change_sec": 20.0,
+    "base_fee_rate": 0.25,
+    "fee_rate_dev_powf": 1.15,
+    "upd_price_proba": 0.8
+  }
+}

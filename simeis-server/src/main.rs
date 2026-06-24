@@ -1,14 +1,14 @@
-use rand::distr::Alphanumeric;
-use rand::RngExt;
+use std::path::PathBuf;
 use std::thread::JoinHandle;
 
 use mea::mpsc::BoundedReceiver;
 use ntex::web;
+use rand::distr::Alphanumeric;
+use rand::RngExt;
 
-use simeis_data::{
-    game::{Game, GameSignal},
-    syslog::SyslogRecv,
-};
+use simeis_data::config::init_config;
+use simeis_data::game::{Game, GameSignal};
+use simeis_data::syslog::SyslogRecv;
 
 mod api;
 mod utils;
@@ -57,17 +57,18 @@ fn start_game_thread(
 async fn main() -> std::io::Result<()> {
     let mut args = std::env::args();
     args.next();
-    let Some(port) = args.next() else {
-        println!("Requires port number");
+
+    let Some(cfg_file) = args.next() else {
+        println!("Missing argument: configuration file");
         return Err(std::io::ErrorKind::InvalidData.into());
     };
-    let port: u16 = port.parse().expect("Invalid port");
-
-    // TODO (#55) Allow to override server port from config file
+    let cfg_file = PathBuf::from(cfg_file);
+    let config = init_config(&cfg_file).expect("Unable to initialize configuration");
+    let port = config.server.port;
 
     env_logger::builder()
         .filter_level(log::LevelFilter::Info)
-        .parse_default_env()
+        .parse_env(&config.server.logger_env_name)
         .filter_module("ntex_server", log::LevelFilter::Warn)
         .filter_module("ntex_io", log::LevelFilter::Warn)
         .filter_module("ntex_rt", log::LevelFilter::Warn)
@@ -77,7 +78,11 @@ async fn main() -> std::io::Result<()> {
         .filter_module("ntex_net::tokio", log::LevelFilter::Warn)
         .init();
 
-    log::info!("Running on http://0.0.0.0:{port}");
+    log::info!(
+        "Running {} workers on http://{}:{port}",
+        config.server.workers,
+        config.server.bind_ip,
+    );
     // TODO (#34) Reduce stack size from this task, > 1024
     let (gamethread, state) = Game::init(start_game_thread).await;
     let stop_chan = state.send_sig.clone();
@@ -94,8 +99,8 @@ async fn main() -> std::io::Result<()> {
             .state(admin_token.clone())
             .configure(api::configure)
     })
-    .workers(64)
-    .bind(("0.0.0.0", port))?
+    .workers(config.server.workers)
+    .bind((config.server.bind_ip.as_str(), port))?
     .run()
     .await;
 

@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+use crate::config::get_config;
 use crate::define_type_enum;
 use crate::galaxy::planet::Planet;
 use crate::ship::module::ShipModuleType;
-use crate::ship::DEFAULT_POW_ATTR;
 use crate::ship::{cargo::ShipCargo, Ship};
 
 define_type_enum!(Resource {
@@ -37,35 +37,46 @@ impl Resource {
         matches!(self, Resource::Fuel | Resource::Hull)
     }
 
-    // TODO (#12) Get from configuration file
     #[inline]
-    pub const fn base_price(&self) -> f64 {
-        let base = 4.0;
+    pub fn base_price(&self) -> f64 {
+        let cfg = get_config();
+        let base = cfg.resources.tier1_price;
         match self {
             Resource::Iron | Resource::Hydrogen | Resource::Water => base,
-            Resource::Copper | Resource::Oxygen | Resource::Ammonia => 4.0 * base,
-            Resource::Titanium | Resource::Helium | Resource::SulfuricAcid => 12.0 * base,
-            Resource::Uranium | Resource::Ozone | Resource::Brine => 16.0 * base,
-            Resource::Fuel | Resource::Hull => base / 2.0,
+            Resource::Copper | Resource::Oxygen | Resource::Ammonia => {
+                cfg.resources.tier2_price_mult * base
+            }
+            Resource::Titanium | Resource::Helium | Resource::SulfuricAcid => {
+                cfg.resources.tier3_price_mult * base
+            }
+            Resource::Uranium | Resource::Ozone | Resource::Brine => {
+                cfg.resources.tier4_price_mult * base
+            }
+            Resource::Fuel => cfg.resources.fuel_price,
+            Resource::Hull => cfg.resources.hull_price,
         }
     }
 
     #[inline]
     pub fn volume(&self) -> f64 {
+        let cfg = get_config();
         match self {
-            Resource::Iron | Resource::Hydrogen | Resource::Water => 0.75,
-            Resource::Copper | Resource::Oxygen | Resource::Ammonia => 2.5,
-            Resource::Titanium | Resource::Helium | Resource::SulfuricAcid => 3.0,
-            Resource::Uranium | Resource::Ozone | Resource::Brine => 0.25,
-            Resource::Fuel => 2.0,
-            Resource::Hull => 0.05,
+            Resource::Iron | Resource::Hydrogen | Resource::Water => cfg.resources.tier1_volume,
+            Resource::Copper | Resource::Oxygen | Resource::Ammonia => cfg.resources.tier2_volume,
+            Resource::Titanium | Resource::Helium | Resource::SulfuricAcid => {
+                cfg.resources.tier3_volume
+            }
+            Resource::Uranium | Resource::Ozone | Resource::Brine => cfg.resources.tier4_volume,
+            Resource::Fuel => cfg.resources.fuel_volume,
+            Resource::Hull => cfg.resources.hull_volume,
         }
     }
 
     #[allow(unused_mut)]
     #[inline]
     pub fn extraction_difficulty(&self) -> f64 {
-        let mut base = 1.0;
+        let cfg = get_config();
+        let mut base = cfg.resources.tier1_difficulty;
 
         #[cfg(feature = "extraspeed")]
         {
@@ -73,9 +84,15 @@ impl Resource {
         }
         match self {
             Resource::Iron | Resource::Hydrogen | Resource::Water => base,
-            Resource::Copper | Resource::Oxygen | Resource::Ammonia => 3.75 * base,
-            Resource::Titanium | Resource::Helium | Resource::SulfuricAcid => 11.0 * base,
-            Resource::Uranium | Resource::Ozone | Resource::Brine => 14.0 * base,
+            Resource::Copper | Resource::Oxygen | Resource::Ammonia => {
+                cfg.resources.tier2_difficulty_mult * base
+            }
+            Resource::Titanium | Resource::Helium | Resource::SulfuricAcid => {
+                cfg.resources.tier3_difficulty_mult * base
+            }
+            Resource::Uranium | Resource::Ozone | Resource::Brine => {
+                cfg.resources.tier4_difficulty_mult * base
+            }
 
             // All the things that are only crafted
             _ => unreachable!("Extraction difficulty on crafted resources"),
@@ -84,11 +101,14 @@ impl Resource {
 
     #[inline]
     pub fn min_rank(&self) -> u8 {
+        let cfg = get_config();
         match self {
-            Resource::Iron | Resource::Hydrogen | Resource::Water => 0,
-            Resource::Copper | Resource::Oxygen | Resource::Ammonia => 2,
-            Resource::Titanium | Resource::Helium | Resource::SulfuricAcid => 4,
-            Resource::Uranium | Resource::Ozone | Resource::Brine => 6,
+            Resource::Iron | Resource::Hydrogen | Resource::Water => cfg.resources.tier1_min_rank,
+            Resource::Copper | Resource::Oxygen | Resource::Ammonia => cfg.resources.tier2_min_rank,
+            Resource::Titanium | Resource::Helium | Resource::SulfuricAcid => {
+                cfg.resources.tier3_min_rank
+            }
+            Resource::Uranium | Resource::Ozone | Resource::Brine => cfg.resources.tier4_min_rank,
             Resource::Fuel | Resource::Hull => 0,
         }
     }
@@ -169,12 +189,13 @@ impl ExtractionInfo {
 }
 
 pub fn apply_power_attribution(attrs: &BTreeMap<Resource, u8>, r: &mut BTreeMap<Resource, f64>) {
+    let cfg = get_config();
     let powtot: u16 = r
         .keys()
-        .map(|r| *attrs.get(r).unwrap_or(&DEFAULT_POW_ATTR) as u16)
+        .map(|r| *attrs.get(r).unwrap_or(&cfg.ship.default_pow_attr) as u16)
         .sum();
     r.iter_mut().for_each(|(res, rate)| {
-        let power = attrs.get(res).unwrap_or(&DEFAULT_POW_ATTR);
+        let power = attrs.get(res).unwrap_or(&cfg.ship.default_pow_attr);
         let power_f = (*power as f64) / (powtot as f64);
         *rate *= power_f;
     });

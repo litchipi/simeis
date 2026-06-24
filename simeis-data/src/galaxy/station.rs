@@ -5,6 +5,7 @@ use mea::rwlock::RwLock;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
+use crate::config::get_config;
 use crate::crew::{Crew, CrewId, CrewMember, CrewMemberType};
 use crate::errors::Errcode;
 use crate::industry::{IndustryUnit, IndustryUnitId, IndustryUnitType};
@@ -16,14 +17,10 @@ use crate::ship::resources::Resource;
 use crate::ship::upgrade::ShipUpgrade;
 use crate::ship::Ship;
 use crate::syslog::{SyslogEvent, SyslogRecv};
-use crate::utils::{ShardedLockedData, PLAYER_SHARDS};
+use crate::utils::ShardedLockedData;
 
 use super::scan::ScanResult;
 use super::{Galaxy, SpaceCoord};
-
-const CARGO_BASE_PRICE: f64 = 2.0;
-const CARGO_PRICE_INCDIV: f64 = 100.0;
-pub const STATION_INIT_CARGO: f64 = 1000.0;
 
 pub type StationId = u16;
 
@@ -54,8 +51,9 @@ pub struct StationPlayerData {
 
 impl StationPlayerData {
     pub fn new() -> StationPlayerData {
+        let cfg = get_config();
         StationPlayerData {
-            cargo: ShipCargo::with_capacity(STATION_INIT_CARGO),
+            cargo: ShipCargo::with_capacity(cfg.station.init_cargo),
             ..Default::default()
         }
     }
@@ -80,11 +78,12 @@ impl std::fmt::Debug for Station {
 
 impl Station {
     pub fn init(id: u16, position: super::SpaceCoord) -> Station {
+        let cfg = get_config();
         Station {
             id,
             position,
             shipyard: RwLock::new(Ship::init_shipyard(position)),
-            player_data: ShardedLockedData::new(PLAYER_SHARDS),
+            player_data: ShardedLockedData::new(cfg.game.shards),
         }
     }
 
@@ -94,12 +93,15 @@ impl Station {
     }
 
     pub async fn cargo_price(&self, player: &PlayerId) -> f64 {
+        let cfg = get_config();
         let cap = if let Some(data) = self.player_data.clone_val(player).await {
             data.read().await.cargo.capacity
         } else {
-            STATION_INIT_CARGO
+            cfg.station.init_cargo
         };
-        CARGO_BASE_PRICE.powf((cap - STATION_INIT_CARGO) / CARGO_PRICE_INCDIV)
+        cfg.station
+            .cargo_base_price
+            .powf((cap - cfg.station.init_cargo) / cfg.station.cargo_price_incdiv)
     }
 
     pub async fn buy_industry(
@@ -549,7 +551,8 @@ impl Station {
 
     pub async fn clone_cargo(&self, id: &PlayerId) -> ShipCargo {
         let Some(pd) = self.player_data.clone_val(id).await else {
-            return ShipCargo::with_capacity(STATION_INIT_CARGO);
+            let cfg = get_config();
+            return ShipCargo::with_capacity(cfg.station.init_cargo);
         };
         let pd = pd.read().await;
         pd.cargo.clone()

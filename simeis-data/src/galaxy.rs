@@ -11,6 +11,7 @@ pub mod station;
 use scan::ScanResult;
 use station::StationId;
 
+use crate::config::get_config;
 use crate::galaxy::planet::{Planet, PlanetId};
 use crate::galaxy::station::Station;
 
@@ -22,10 +23,6 @@ type GalaxySector = (
     (SpaceUnit, SpaceUnit),
     (SpaceUnit, SpaceUnit),
 );
-
-const SECTOR_SIZE: (SpaceUnit, SpaceUnit, SpaceUnit) = (5000, 5000, 5000);
-const PLANETS_PER_SECTOR: usize = 8;
-const STATION_FPLANET_DIST: f64 = 500.0;
 
 #[derive(Debug)]
 pub enum SpaceObject {
@@ -76,7 +73,8 @@ impl Galaxy {
         self.discovered.insert(id, (secx, secy, secz));
         let mut rng = rand::rng();
         let mut npla = 0;
-        while npla < PLANETS_PER_SECTOR {
+        let cfg = get_config();
+        while npla < cfg.game.planets_per_sector {
             let x = rng.random_range(secx.0..secx.1);
             let y = rng.random_range(secy.0..secy.1);
             let z = rng.random_range(secz.0..secz.1);
@@ -151,11 +149,12 @@ impl Galaxy {
 
         let mut coord;
         let mut retry_n = 0;
+        let cfg = get_config();
         loop {
             let pla = all_planets[retry_n % all_planets.len()];
-            coord = get_rand_coord_near(&pla.position, STATION_FPLANET_DIST, &mut rng);
+            coord = get_rand_coord_near(&pla.position, cfg.game.station_fplanet_dist, &mut rng);
             while !(is_in_sector(&coord, sector) && self.get_object(&coord).is_nothing()) {
-                coord = get_rand_coord_near(&pla.position, STATION_FPLANET_DIST, &mut rng);
+                coord = get_rand_coord_near(&pla.position, cfg.game.station_fplanet_dist, &mut rng);
             }
 
             let mut mindist = None;
@@ -171,11 +170,11 @@ impl Galaxy {
             }
 
             let mindist = mindist.unwrap();
-            if (mindist - STATION_FPLANET_DIST).abs() < 1.0 {
+            if (mindist - cfg.game.station_fplanet_dist).abs() < 1.0 {
                 break;
             }
             retry_n += 1;
-            log::warn!("{retry_n} {mindist} {STATION_FPLANET_DIST}");
+            log::warn!("{retry_n} {mindist} {}", cfg.game.station_fplanet_dist);
             if retry_n > 10000 {
                 panic!("Too many retries");
             }
@@ -233,12 +232,13 @@ pub fn get_direction(a: &SpaceCoord, b: &SpaceCoord) -> (f64, f64, f64) {
 
 // TODO (#13)   Unit tests on this one
 fn compute_sector(x: SpaceUnit, y: SpaceUnit, z: SpaceUnit) -> GalaxySector {
-    let start_x = x - (x % SECTOR_SIZE.0);
-    let end_x = start_x.saturating_add(SECTOR_SIZE.0);
-    let start_y = y - (y % SECTOR_SIZE.1);
-    let end_y = start_y.saturating_add(SECTOR_SIZE.1);
-    let start_z = z - (z % SECTOR_SIZE.2);
-    let end_z = start_z.saturating_add(SECTOR_SIZE.2);
+    let cfg = get_config();
+    let start_x = x - (x % cfg.game.sector_size);
+    let end_x = start_x.saturating_add(cfg.game.sector_size);
+    let start_y = y - (y % cfg.game.sector_size);
+    let end_y = start_y.saturating_add(cfg.game.sector_size);
+    let start_z = z - (z % cfg.game.sector_size);
+    let end_z = start_z.saturating_add(cfg.game.sector_size);
     ((start_x, end_x), (start_y, end_y), (start_z, end_z))
 }
 
@@ -270,6 +270,7 @@ fn get_rand_coord_near(obj: &SpaceCoord, dist: f64, rng: &mut ThreadRng) -> Spac
 
 #[test]
 fn test_compute_sector() {
+    crate::config::init_default_config();
     let mut rng: rand::rngs::SmallRng = rand::make_rng();
     for _ in 0..10000000 {
         let x = rng.random();
@@ -278,41 +279,42 @@ fn test_compute_sector() {
         let sec = compute_sector(x, y, z);
         assert!(is_in_sector(&(x, y, z), &sec));
     }
+    const SECTOR_SIZE: u32 = 5000;
     assert_eq!(
-        compute_sector(SECTOR_SIZE.0 - 1, 0, 0),
-        ((0, SECTOR_SIZE.0), (0, SECTOR_SIZE.1), (0, SECTOR_SIZE.2))
+        compute_sector(SECTOR_SIZE - 1, 0, 0),
+        ((0, SECTOR_SIZE), (0, SECTOR_SIZE), (0, SECTOR_SIZE))
     );
     assert_eq!(
-        compute_sector(0, SECTOR_SIZE.1 - 1, 0),
-        ((0, SECTOR_SIZE.0), (0, SECTOR_SIZE.1), (0, SECTOR_SIZE.2))
+        compute_sector(0, SECTOR_SIZE - 1, 0),
+        ((0, SECTOR_SIZE), (0, SECTOR_SIZE), (0, SECTOR_SIZE))
     );
     assert_eq!(
-        compute_sector(0, 0, SECTOR_SIZE.2 - 1),
-        ((0, SECTOR_SIZE.0), (0, SECTOR_SIZE.1), (0, SECTOR_SIZE.2))
+        compute_sector(0, 0, SECTOR_SIZE - 1),
+        ((0, SECTOR_SIZE), (0, SECTOR_SIZE), (0, SECTOR_SIZE))
     );
 
     assert_eq!(
-        compute_sector(SECTOR_SIZE.0, 0, 0),
+        compute_sector(SECTOR_SIZE, 0, 0),
         (
-            (SECTOR_SIZE.0, 2 * SECTOR_SIZE.0),
-            (0, SECTOR_SIZE.1),
-            (0, SECTOR_SIZE.2)
+            (SECTOR_SIZE, 2 * SECTOR_SIZE),
+            (0, SECTOR_SIZE),
+            (0, SECTOR_SIZE)
         )
     );
     assert_eq!(
-        compute_sector(0, SECTOR_SIZE.1, 0),
+        compute_sector(0, SECTOR_SIZE, 0),
         (
-            (0, SECTOR_SIZE.0),
-            (SECTOR_SIZE.1, 2 * SECTOR_SIZE.1),
-            (0, SECTOR_SIZE.2)
+            (0, SECTOR_SIZE),
+            (SECTOR_SIZE, 2 * SECTOR_SIZE),
+            (0, SECTOR_SIZE)
         )
     );
     assert_eq!(
-        compute_sector(0, 0, SECTOR_SIZE.2),
+        compute_sector(0, 0, SECTOR_SIZE),
         (
-            (0, SECTOR_SIZE.0),
-            (0, SECTOR_SIZE.1),
-            (SECTOR_SIZE.2, 2 * SECTOR_SIZE.2)
+            (0, SECTOR_SIZE),
+            (0, SECTOR_SIZE),
+            (SECTOR_SIZE, 2 * SECTOR_SIZE)
         )
     );
 }

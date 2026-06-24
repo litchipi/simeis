@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use crate::define_type_enum;
-
-const WAGE_INC_RANK_POWF: f64 = 0.85;
-const RANK_PRICE_WAGE_MULT: f64 = 1900.0;
+use crate::{config::get_config, define_type_enum};
 
 pub type CrewId = u32;
 
@@ -40,18 +37,20 @@ impl From<CrewMemberType> for CrewMember {
 
 impl CrewMember {
     pub fn wage(&self) -> f64 {
-        let op = 0.75;
+        let cfg = get_config();
+        let op = cfg.crew.base_op_wage;
         let base = match self.member_type {
             CrewMemberType::Operator => op,
-            CrewMemberType::Pilot => op * 8.0,
-            CrewMemberType::Trader => op * 5.0,
-            CrewMemberType::Soldier => op * 2.5,
+            CrewMemberType::Pilot => op * cfg.crew.pilot_wage_mult,
+            CrewMemberType::Trader => op * cfg.crew.trader_wage_mult,
+            CrewMemberType::Soldier => op * cfg.crew.solider_wage_mult,
         };
-        base * (self.rank as f64).powf(WAGE_INC_RANK_POWF)
+        base * (self.rank as f64).powf(cfg.crew.wage_rank_powf)
     }
 
     #[inline]
     pub fn price_next_rank(&self) -> f64 {
-        self.wage().powf(1.75) * RANK_PRICE_WAGE_MULT
+        let cfg = get_config();
+        self.wage().powf(cfg.crew.wage_next_rank_powf) * cfg.crew.wage_next_rank_mult
     }
 }

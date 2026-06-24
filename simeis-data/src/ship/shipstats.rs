@@ -1,11 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::crew::{CrewMember, CrewMemberType};
-
-const HULL_USAGE_BASE: f64 = 5.0 / 100.0;
-const REACTOR_SPEED_PER_POWER: f64 = 50.0;
-const PILOT_FUEL_SHARE: u8 = 5; // Rank 10 = 4/5 fuel consumption
-const PILOT_RANK_SPEED_POWF: f64 = 0.6;
+use crate::{
+    config::get_config,
+    crew::{CrewMember, CrewMemberType},
+};
 
 #[derive(Debug, Deserialize, Clone, Serialize, Default)]
 pub struct ShipStats {
@@ -16,17 +14,19 @@ pub struct ShipStats {
 
 impl ShipStats {
     pub fn new(rpow: u16, spow: u16, pilot: Option<&CrewMember>) -> ShipStats {
-        let hull_usage_rate = HULL_USAGE_BASE / (1.0 + (1.0 + spow as f64).log(3.5));
+        let cfg = get_config();
+        let hull_usage_rate =
+            cfg.ship.hull_usage_rate / (1.0 + (1.0 + spow as f64).log(cfg.ship.shield_power_log));
         let mut fuel_consumption = rpow as f64;
         let mut speed = 0.0;
         if let Some(pilot) = pilot {
             debug_assert!(matches!(pilot.member_type, CrewMemberType::Pilot));
-            let totshare = (PILOT_FUEL_SHARE * 10) as f64;
+            let totshare = (cfg.ship.pilot_fuel_share * 10) as f64;
             let num = (totshare - (pilot.rank as f64).min(totshare)).sqrt();
             fuel_consumption *= num / totshare;
             speed = (rpow as f64)
-                * REACTOR_SPEED_PER_POWER
-                * (pilot.rank as f64).powf(PILOT_RANK_SPEED_POWF);
+                * cfg.ship.reactor_speed_rate
+                * (pilot.rank as f64).powf(cfg.ship.pilot_rank_speed_powf);
         }
         #[cfg(feature = "extraspeed")]
         {

@@ -7,8 +7,9 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use strum::IntoStaticStr;
 
+use crate::config::get_config;
 use crate::player::PlayerId;
-use crate::utils::{timestamp, ShardedLockedData, PLAYER_SHARDS};
+use crate::utils::{timestamp, ShardedLockedData};
 
 const SYSLOG_FIFO_MAX_SIZE: usize = 10;
 
@@ -96,9 +97,10 @@ pub struct SyslogRecv {
 
 impl SyslogRecv {
     pub fn init(recv: BoundedReceiver<SyslogData>) -> SyslogRecv {
+        let cfg = get_config();
         SyslogRecv {
             recv: Mutex::new(recv),
-            fifo: Arc::new(RwLock::new(ShardedLockedData::new(PLAYER_SHARDS))),
+            fifo: Arc::new(RwLock::new(ShardedLockedData::new(cfg.game.shards))),
         }
     }
 

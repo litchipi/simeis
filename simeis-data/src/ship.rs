@@ -2,6 +2,7 @@ use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+use crate::config::get_config;
 use crate::crew::{Crew, CrewId};
 use crate::errors::Errcode;
 use crate::galaxy::planet::Planet;
@@ -21,14 +22,6 @@ use module::{ShipModule, ShipModuleId};
 use navigation::{FlightData, Travel, TravelCost};
 use resources::{ExtractionInfo, Resource};
 use shipstats::ShipStats;
-
-const FUEL_TANK_CAP_PRICE: f64 = 30.0;
-const CARGO_CAP_PRICE: f64 = 20.0;
-const HULL_RESIS_PRICE: f64 = 9.0;
-const REACTOR_POWER_PRICE: f64 = 4000.0;
-const SHIELD_PRICE: f64 = 2500.0;
-
-pub const DEFAULT_POW_ATTR: u8 = 128;
 
 pub type ShipId = u64;
 
@@ -152,11 +145,12 @@ impl Ship {
     }
 
     pub fn compute_price(&self) -> f64 {
+        let cfg = get_config();
         let mut price = 0.0;
-        price += (self.reactor_power as f64) * REACTOR_POWER_PRICE;
-        price += self.fuel_tank_capacity * FUEL_TANK_CAP_PRICE;
-        price += self.cargo.capacity * CARGO_CAP_PRICE;
-        price += self.hull_resistance * HULL_RESIS_PRICE;
+        price += (self.reactor_power as f64) * cfg.ship.reactor_power_price;
+        price += self.fuel_tank_capacity * cfg.ship.fuel_tank_cap_price;
+        price += self.cargo.capacity * cfg.ship.cargo_cap_price;
+        price += self.hull_resistance * cfg.ship.hull_resis_price;
         // TODO (#45) Add modules total value to ship price
         // price += self.modules.values().map(|m| m.totalcost).sum::<f64>();
         price
@@ -326,6 +320,7 @@ impl Ship {
 
 #[test]
 fn test_ship_flight() {
+    crate::config::init_default_config();
     crate::tests::create_property_based_test(100000, &[], |rng| {
         let (x, y, z) = (rng.random(), rng.random(), rng.random());
         let mut ship = Ship::random((x, y, z));

@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use rand::Rng;
 
+use crate::config::get_config;
 use crate::crew::CrewId;
 use crate::errors::Errcode;
 use crate::galaxy::station::{Station, StationId};
@@ -14,8 +15,6 @@ use crate::ship::module::{ShipModuleId, ShipModuleType};
 use crate::ship::upgrade::ShipUpgrade;
 use crate::ship::{Ship, ShipId};
 use crate::syslog::{SyslogEvent, SyslogRecv};
-
-const INIT_MONEY: f64 = 72000.0;
 
 pub type PlayerId = u64;
 pub type PlayerKey = [u8; 128];
@@ -44,8 +43,9 @@ impl Player {
         let mut randbytes = [0; 128];
         rng.fill_bytes(&mut randbytes);
 
+        let cfg = get_config();
         #[allow(unused_mut)]
-        let mut money = INIT_MONEY;
+        let mut money = cfg.game.player_init_money;
 
         #[cfg(feature = "testing")]
         if name.starts_with("test-rich") {
