@@ -109,8 +109,7 @@ class SimeisSDK:
         return self.get(f"/station/{sta}")
 
     def shop_list_modules(self, sta):
-        all = self.get(f"/station/{sta}/shop/modules")
-        return sorted(all, key = lambda mod: mod["price"])
+        return self.get(f"/station/{sta}/shop/modules")
 
     def shop_list_ship(self, sta):
         all = self.get(f"/station/{sta}/shipyard/list")["ships"]

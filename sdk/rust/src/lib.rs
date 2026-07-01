@@ -240,18 +240,16 @@ impl SimeisSDK {
         self.get(format!("/station/{station_id}"))
     }
 
-    pub fn shop_list_modules(&self, station_id: u64) -> Result<Vec<Value>, Value> {
-        let mut all = self.get(format!("/station/{station_id}/shop/modules"))?;
-        let allvec = all.as_array_mut().unwrap();
-        allvec.sort_by(|a, b| {
-            let pa = json_get_float("price", a).unwrap();
-            let pb = json_get_float("price", b).unwrap();
-            pa.partial_cmp(&pb).unwrap()
-        });
-        let Value::Array(data) = all else {
+    pub fn shop_list_modules(&self, station_id: u64) -> Result<HashMap<String, Value>, Value> {
+        let all = self.get(format!("/station/{station_id}/shop/modules"))?;
+        let mut result = HashMap::new();
+        let Value::Object(data) = all else {
             unreachable!();
         };
-        Ok(data)
+        for (key, val) in data.into_iter() {
+            result.insert(key, val);
+        }
+        Ok(result)
     }
 
     pub fn shop_list_ship(&self, station_id: u64) -> Result<Vec<Value>, Value> {
