@@ -45,7 +45,7 @@ async fn ping() -> impl web::Responder {
 #[web::get("/configuration")]
 async fn get_game_config() -> impl web::Responder {
     let config = get_config();
-    let json_config = serde_json::to_value(&config).map_err(Errcode::SerializeConfig);
+    let json_config = serde_json::to_value(config).map_err(Errcode::SerializeConfig);
     build_response(json_config)
 }
 
