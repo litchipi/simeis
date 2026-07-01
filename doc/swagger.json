@@ -3,7 +3,7 @@
   "info": {
     "title": "Simeis",
     "description": "Simeis is a game player with an API\nTo play, you must start by creating a player with `/player/new/{name}`\nThe key you get from this API must be passed to each request as a HTTP header of key \"Simeis-Key\"",
-    "version": "0.3.0"
+    "version": "0.3.1"
   },
   "servers": {},
   "paths": {
