@@ -388,3 +388,12 @@ class SimeisSDK:
 
     def get_game_config(self):
         return self.get("/configuration")
+
+    def compute_ship_wages(self, opranks, pilot_rank=None):
+        if pilot_rank is None:
+            return self.post("/calc/wages/ship", body={"operator_ranks": opranks})
+        else:
+            return self.post("/calc/wages/ship", body={
+                "operator_ranks": opranks,
+                "pilot_rank": pilot_rank,
+            })

@@ -798,4 +798,28 @@ impl SimeisSDK {
     pub fn get_game_config(&self) -> ApiResult {
         self.get("/configuration")
     }
+
+    pub fn compute_ship_wages(
+        &self,
+        pilot_rank: Option<u8>,
+        opranks: Vec<u8>,
+    ) -> Result<f64, Value> {
+        let got = if let Some(pilotrank) = pilot_rank {
+            self.post_with_body(
+                "/calc/wages/ship",
+                json!({
+                    "pilot_rank": pilotrank,
+                    "operator_ranks": opranks,
+                }),
+            )
+        } else {
+            self.post_with_body(
+                "/calc/wages/ship",
+                json!({
+                    "operator_ranks": opranks,
+                }),
+            )
+        };
+        got.map(|v| json_get_float("total_wages", &v).unwrap())
+    }
 }

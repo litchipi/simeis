@@ -531,6 +531,10 @@ class ApiChecker:
             "trader_start_rank": 1,
             "trader_end_rank": 3,
         })
+        self.prepare_post("/calc/wages/ship", body={
+            "pilot_rank": 3,
+            "operator_ranks": [1, 2, 3],
+        })
         self.prepare_post("/ship/{ship_id}/extraction/power_attribution/{resource}/{pow}", pow=50)
 
 if __name__ == "__main__":

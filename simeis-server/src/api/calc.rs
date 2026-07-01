@@ -240,6 +240,32 @@ async fn compute_upgrade_trader(body: Json<UpgradeTrader>) -> impl web::Responde
     })))
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ComputeShipWages {
+    pilot_rank: Option<u8>,
+    operator_ranks: Vec<u8>,
+}
+
+// @summary Compute the total wages for a ship with the given crew onboard
+// @returns The total wage for the given crew on a ship
+#[web::post("/wages/ship")]
+async fn compute_ship_wages(body: Json<ComputeShipWages>) -> impl web::Responder {
+    let mut total_wages = 0.0;
+    if let Some(pilotrank) = body.pilot_rank {
+        let mut cm = CrewMember::from(CrewMemberType::Pilot);
+        cm.rank = pilotrank;
+        total_wages += cm.wage();
+    }
+    for oprank in body.operator_ranks.iter() {
+        let mut cm = CrewMember::from(CrewMemberType::Operator);
+        cm.rank = *oprank;
+        total_wages += cm.wage();
+    }
+    build_response(Ok(json!({
+        "total_wages": total_wages,
+    })))
+}
+
 // TODO (#44) Endpoints for all kinds of computations
 // - Prices of the upgrade of an industry + its operator (from source lvl to dst lvl), returns benefits, price, wages, etc...
 // - Resource requirements / production of an industry at a certain level
@@ -248,6 +274,7 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
     srv.service(
         scope(base)
             .service(compute_travel_costs)
+            .service(compute_ship_wages)
             .service(compute_mining_rate)
             .service(compute_upgrade_ship)
             .service(compute_upgrade_trader)
