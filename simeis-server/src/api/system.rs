@@ -8,6 +8,7 @@ use ntex::web::{HttpRequest, HttpResponse};
 use serde_json::json;
 use serde_json::to_value;
 use serde_json::Value;
+use simeis_data::config::get_config;
 use strum::IntoEnumIterator;
 
 use simeis_data::errors::Errcode;
@@ -37,6 +38,15 @@ async fn swagger_json() -> HttpResponse {
 #[web::get("/ping")]
 async fn ping() -> impl web::Responder {
     build_response(Ok(json!({"ping": "pong"})))
+}
+
+// @summary Get the game configuration & constants in used throughout the game
+// @returns All the configuration
+#[web::get("/configuration")]
+async fn get_game_config() -> impl web::Responder {
+    let config = get_config();
+    let json_config = serde_json::to_value(&config).map_err(Errcode::SerializeConfig);
+    build_response(json_config)
 }
 
 // @summary Get the logs from the server
@@ -175,6 +185,7 @@ pub fn configure(srv: &mut ServiceConfig) {
     srv.service(ping)
         .service(swagger_json)
         .service(swagger_ui)
+        .service(get_game_config)
         .service(get_syslogs)
         .service(get_version)
         .service(gamestats)
