@@ -38,7 +38,7 @@ async fn list_shipyard_ships(
                     ships.push(json!({
                         "id": ship.id,
                         "modules": ship.modules,
-                        "reactor_power": ship.reactor_power,
+                        "reactor_rank": ship.reactor_rank,
                         "cargo_capacity": ship.cargo.capacity,
                         "fuel_tank_capacity": ship.fuel_tank_capacity,
                         "hull_resistance": ship.hull_resistance,

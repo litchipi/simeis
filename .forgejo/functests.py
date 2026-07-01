@@ -333,7 +333,7 @@ class Tester:
         for ship in shiplist:
             self.assert_got(ship, "id", None)
             self.assert_got(ship, "modules", {})
-            self.assert_got(ship, "reactor_power", None)
+            self.assert_got(ship, "reactor_rank", None)
             self.assert_got(ship, "cargo_capacity", None)
             self.assert_got(ship, "fuel_tank_capacity", None)
             self.assert_got(ship, "hull_resistance", None)
@@ -830,7 +830,7 @@ class Tester:
 
         after = self.get_ok(f"/ship/{shipid}")
         assert after["cargo"]["capacity"] > before["cargo"]["capacity"]
-        assert after["reactor_power"] > before["reactor_power"]
+        assert after["reactor_rank"] > before["reactor_rank"]
         assert after["hull_resistance"] > before["hull_resistance"]
 
     @functest
@@ -1224,10 +1224,10 @@ class Tester:
         data = {
             "pilot_start_rank": 3,
             "pilot_end_rank": 3,
-            "start_reactor_power": 3,
-            "end_reactor_power": 3,
-            "start_shield_power": 3,
-            "end_shield_power": 3,
+            "start_reactor_rank": 3,
+            "end_reactor_rank": 3,
+            "start_shield_rank": 3,
+            "end_shield_rank": 3,
         }
         got = self.post_ok("/calc/upgrade/ship", body=data)
         self.assert_got(got, "wage_increase", 0)
@@ -1251,7 +1251,7 @@ class Tester:
         assert pilot_stats["hull_usage_rate"] == base_stats["hull_usage_rate"]
 
         data["pilot_end_rank"] = data["pilot_start_rank"]
-        data['end_reactor_power'] += 1
+        data['end_reactor_rank'] += 1
         rpow = self.post_ok("/calc/upgrade/ship", body=data)
         assert rpow["wage_increase"] == 0.0
         assert rpow["pilot_upgrade_price"] == 0.0
@@ -1263,8 +1263,8 @@ class Tester:
         assert rpow_stats["speed"] > base_stats["speed"]
         assert rpow_stats["hull_usage_rate"] == base_stats["hull_usage_rate"]
 
-        data["end_reactor_power"] = data['start_reactor_power']
-        data['end_shield_power'] += 1
+        data["end_reactor_rank"] = data['start_reactor_rank']
+        data['end_shield_rank'] += 1
         spow = self.post_ok("/calc/upgrade/ship", body=data)
         assert spow["wage_increase"] == 0.0
         assert spow["pilot_upgrade_price"] == 0.0

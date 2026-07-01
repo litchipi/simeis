@@ -141,7 +141,7 @@ config_fields!(SimeisShipConfig;
     fuel_tank_cap_price: f64 => "" => 30.0,
     cargo_cap_price: f64 => "" => 20.0,
     hull_resis_price: f64 => "" => 9.0,
-    reactor_power_price: f64 => "" => 4000.0,
+    reactor_rank_price: f64 => "" => 4000.0,
     shield_price: f64 => "" => 2500.0,
     default_pow_attr: u8 => "" => 128,
 
@@ -152,7 +152,7 @@ config_fields!(SimeisShipConfig;
 
     hull_usage_rate: f64 => "" => 15.0 / 100.0,
     reactor_speed_rate: f64 => "" => 50.0,
-    shield_power_log: f64 => "" => 3.5,
+    shield_rank_log: f64 => "" => 3.5,
     pilot_fuel_share: u8 => "" => 5,
     pilot_rank_speed_powf: f64 => "" => 0.6,
 );

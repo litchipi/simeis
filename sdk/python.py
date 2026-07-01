@@ -318,10 +318,10 @@ class SimeisSDK:
         if end_pilot is None:
             end_pilot = start_pilot
         return self.post("/calc/upgrade/ship", body={
-            "start_reactor_power": start_reactor,
-            "end_reactor_power": end_reactor,
-            "start_shield_power": start_shield,
-            "end_shield_power": end_shield,
+            "start_reactor_rank": start_reactor,
+            "end_reactor_rank": end_reactor,
+            "start_shield_rank": start_shield,
+            "end_shield_rank": end_shield,
             "pilot_start_rank": start_pilot,
             "pilot_end_rank": end_pilot,
         })
@@ -386,3 +386,6 @@ class SimeisSDK:
 
     def unassign_crew(self, sta, id):
         return self.post(f"/station/{sta}/crew/unassign/{id}")
+
+    def get_game_config(self):
+        return self.get("/configuration")

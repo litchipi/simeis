@@ -16,7 +16,7 @@ impl ShipStats {
     pub fn new(rpow: u16, spow: u16, pilot: Option<&CrewMember>) -> ShipStats {
         let cfg = get_config();
         let hull_usage_rate =
-            cfg.ship.hull_usage_rate / (1.0 + (1.0 + spow as f64).log(cfg.ship.shield_power_log));
+            cfg.ship.hull_usage_rate / (1.0 + (1.0 + spow as f64).log(cfg.ship.shield_rank_log));
         let mut fuel_consumption = rpow as f64;
         let mut speed = 0.0;
         if let Some(pilot) = pilot {

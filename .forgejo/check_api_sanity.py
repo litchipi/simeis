@@ -519,10 +519,10 @@ class ApiChecker:
         })
 
         self.prepare_post("/calc/upgrade/ship", body={
-            "start_reactor_power": 5,
-            "end_reactor_power": 6,
-            "start_shield_power": 5,
-            "end_shield_power": 6,
+            "start_reactor_rank": 5,
+            "end_reactor_rank": 6,
+            "start_shield_rank": 5,
+            "end_shield_rank": 6,
             "pilot_start_rank": 4,
             "pilot_end_rank": 5,
         })

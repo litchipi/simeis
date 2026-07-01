@@ -36,11 +36,11 @@ pub enum ShipState {
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct Ship {
     pub id: ShipId,
-    pub reactor_power: u16,
+    pub reactor_rank: u16,
     pub fuel_tank_capacity: f64,
     pub hull_resistance: f64,
     pub modules: BTreeMap<ShipModuleId, ShipModule>,
-    pub shield_power: u16,
+    pub shield_rank: u16,
 
     #[serde(default)]
     pub owner: PlayerId,
@@ -80,10 +80,11 @@ impl Ship {
         Ship {
             id: rng.random(),
             position,
-            reactor_power: rng.random_range(1..10),
+            reactor_rank: rng.random_range(1..10),
             fuel_tank_capacity: rng.random_range(1..10000) as f64,
             cargo: ShipCargo::with_capacity(cargo_cap),
             hull_resistance: rng.random_range(1000..50000) as f64,
+            shield_rank: rng.random_range(1..20),
             ..Default::default()
         }
     }
@@ -92,11 +93,11 @@ impl Ship {
         Ship {
             id,
             position,
-            reactor_power: 1,
+            reactor_rank: 1,
             fuel_tank_capacity: 1000.0,
             cargo: ShipCargo::with_capacity(200.0),
             hull_resistance: 3000.0,
-            shield_power: 0,
+            shield_rank: 0,
             ..Default::default()
         }
     }
@@ -105,11 +106,11 @@ impl Ship {
         Ship {
             id,
             position,
-            reactor_power: 3,
+            reactor_rank: 3,
             fuel_tank_capacity: 2000.0,
             cargo: ShipCargo::with_capacity(400.0),
             hull_resistance: 6000.0,
-            shield_power: 1,
+            shield_rank: 1,
             ..Default::default()
         }
     }
@@ -118,11 +119,11 @@ impl Ship {
         Ship {
             id,
             position,
-            reactor_power: 10,
+            reactor_rank: 10,
             fuel_tank_capacity: 4000.0,
             cargo: ShipCargo::with_capacity(1200.0),
             hull_resistance: 20000.0,
-            shield_power: 3,
+            shield_rank: 3,
             ..Default::default()
         }
     }
@@ -137,7 +138,7 @@ impl Ship {
             "id": self.id,
             "price": self.compute_price(),
             "modules": self.modules,
-            "reactor_power": self.reactor_power,
+            "reactor_rank": self.reactor_rank,
             "cargo_capacity": self.cargo.capacity,
             "fuel_tank_capacity": self.fuel_tank_capacity,
             "hull_resistance": self.hull_resistance,
@@ -147,7 +148,7 @@ impl Ship {
     pub fn compute_price(&self) -> f64 {
         let cfg = get_config();
         let mut price = 0.0;
-        price += (self.reactor_power as f64) * cfg.ship.reactor_power_price;
+        price += (self.reactor_rank as f64) * cfg.ship.reactor_rank_price;
         price += self.fuel_tank_capacity * cfg.ship.fuel_tank_cap_price;
         price += self.cargo.capacity * cfg.ship.cargo_cap_price;
         price += self.hull_resistance * cfg.ship.hull_resis_price;
@@ -159,8 +160,8 @@ impl Ship {
     // Updates the performances of the ship based on the crew onboard
     pub fn update_perf_stats(&mut self) {
         self.stats = ShipStats::new(
-            self.reactor_power,
-            self.shield_power,
+            self.reactor_rank,
+            self.shield_rank,
             self.pilot.map(|id| self.crew.0.get(&id).unwrap()),
         );
         self.stats.speed *= 1.0 - self.cargo.slowing_ratio();

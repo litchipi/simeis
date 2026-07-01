@@ -671,10 +671,10 @@ impl SimeisSDK {
             json!({
                 "pilot_start_rank": start_pilot,
                 "pilot_end_rank": end_pilot,
-                "start_reactor_power": start_reactor,
-                "end_reactor_power": end_reactor,
-                "start_shield_power": start_shield,
-                "end_shield_power": end_shield,
+                "start_reactor_rank": start_reactor,
+                "end_reactor_rank": end_reactor,
+                "start_shield_rank": start_shield,
+                "end_shield_rank": end_shield,
             }),
         )
     }
@@ -795,5 +795,9 @@ impl SimeisSDK {
 
     pub fn unassign_crew(&self, sta: u64, cid: u64) -> ApiResult {
         self.post(format!("/station/{sta}/crew/unassign/{cid}"))
+    }
+
+    pub fn get_game_config(&self) -> ApiResult {
+        self.get("/configuration")
     }
 }

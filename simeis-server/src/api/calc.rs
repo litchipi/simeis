@@ -151,11 +151,11 @@ async fn compute_upgrade_module(body: Json<UpgradeModule>) -> impl web::Responde
 
 #[derive(Serialize, Deserialize)]
 pub struct UpgradeShip {
-    start_reactor_power: u16,
-    end_reactor_power: u16,
+    start_reactor_rank: u16,
+    end_reactor_rank: u16,
 
-    start_shield_power: u16,
-    end_shield_power: u16,
+    start_shield_rank: u16,
+    end_shield_rank: u16,
 
     pilot_start_rank: u8,
     pilot_end_rank: u8,
@@ -168,22 +168,22 @@ async fn compute_upgrade_ship(body: Json<UpgradeShip>) -> impl web::Responder {
     let UpgradeShip {
         pilot_start_rank,
         pilot_end_rank,
-        start_reactor_power,
-        end_reactor_power,
-        start_shield_power,
-        end_shield_power,
+        start_reactor_rank,
+        end_reactor_rank,
+        start_shield_rank,
+        end_shield_rank,
     } = body.0;
     let mut pilot = CrewMember::from(CrewMemberType::Pilot);
     pilot.rank = pilot_start_rank;
     let start_wage = pilot.wage();
-    let start_stats = ShipStats::new(start_reactor_power, start_shield_power, Some(&pilot));
+    let start_stats = ShipStats::new(start_reactor_rank, start_shield_rank, Some(&pilot));
 
     let mut rpow_upgrade_price = 0.0;
-    for _ in start_reactor_power..end_reactor_power {
+    for _ in start_reactor_rank..end_reactor_rank {
         rpow_upgrade_price += ShipUpgrade::Reactor.get_price();
     }
     let mut spow_upgrade_price = 0.0;
-    for _ in start_shield_power..end_shield_power {
+    for _ in start_shield_rank..end_shield_rank {
         spow_upgrade_price += ShipUpgrade::Shield.get_price();
     }
 
@@ -194,7 +194,7 @@ async fn compute_upgrade_ship(body: Json<UpgradeShip>) -> impl web::Responder {
     }
     pilot.rank = pilot_end_rank;
     let end_wage = pilot.wage();
-    let end_stats = ShipStats::new(end_reactor_power, end_shield_power, Some(&pilot));
+    let end_stats = ShipStats::new(end_reactor_rank, end_shield_rank, Some(&pilot));
     build_response(Ok(json!({
         "wage_increase": end_wage - start_wage,
         "pilot_upgrade_price": crew_upgrade_price,

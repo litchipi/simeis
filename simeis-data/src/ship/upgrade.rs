@@ -18,7 +18,7 @@ impl ShipUpgrade {
             ShipUpgrade::CargoExpansion => {
                 cfg.upgrade.ship_cargo_exp_add_cap * cfg.ship.cargo_cap_price * 1.0
             }
-            ShipUpgrade::Reactor => cfg.ship.reactor_power_price * 1.0,
+            ShipUpgrade::Reactor => cfg.ship.reactor_rank_price * 1.0,
             ShipUpgrade::HullUpgrade => {
                 cfg.upgrade.ship_hull_upg_add * cfg.ship.hull_resis_price * 1.0
             }
@@ -33,8 +33,8 @@ impl ShipUpgrade {
                 ship.cargo.capacity += cfg.upgrade.ship_cargo_exp_add_cap
             }
             ShipUpgrade::HullUpgrade => ship.hull_resistance += cfg.upgrade.ship_hull_upg_add,
-            ShipUpgrade::Reactor => ship.reactor_power += 1,
-            ShipUpgrade::Shield => ship.shield_power += 1,
+            ShipUpgrade::Reactor => ship.reactor_rank += 1,
+            ShipUpgrade::Shield => ship.shield_rank += 1,
         }
         ship.update_perf_stats();
     }

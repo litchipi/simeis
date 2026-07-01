@@ -62,7 +62,7 @@
     "fuel_tank_cap_price": 30.0,
     "cargo_cap_price": 20.0,
     "hull_resis_price": 9.0,
-    "reactor_power_price": 4000.0,
+    "reactor_rank_price": 4000.0,
     "shield_price": 2500.0,
     "default_pow_attr": 128,
     "module_base_price": 4500.0,
@@ -71,7 +71,7 @@
     "module_exrate_fact": 0.6,
     "hull_usage_rate": 0.15,
     "reactor_speed_rate": 50.0,
-    "shield_power_log": 3.5,
+    "shield_rank_log": 3.5,
     "pilot_fuel_share": 5,
     "pilot_rank_speed_powf": 0.6
   },
