@@ -309,6 +309,15 @@ class SimeisSDK:
             "power_attribution": power_attr,
         })
 
+    def compute_ship_mining_rate(self, ship_id, planet, power_attr={}):
+        return  self.post(f"/calc/mining_rate/{ship_id}", body={
+            "module_type": modtype,
+            "module_rank": modrank,
+            "operator_rank": oprank,
+            "planet_coord": planet,
+            "power_attribution": power_attr,
+        })
+
     def compute_upgrade_ship(self, start_reactor, start_shield, start_pilot, end_reactor=None, end_shield=None, end_pilot=None):
         if end_reactor is None:
             end_reactor = start_reactor

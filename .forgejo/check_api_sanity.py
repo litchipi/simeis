@@ -508,6 +508,11 @@ class ApiChecker:
             "module_rank": 5,
             "operator_rank": 2,
             "planet_coord": target,
+            "power_attr": { "Iron": 100, "Coppyer": 150, "Titanium": 200 },
+        })
+        self.prepare_post("/calc/mining_rate/{ship_id}", body={
+            "planet_coord": target,
+            "power_attr": { "Iron": 200, "Coppyer": 150, "Titanium": 100 },
         })
 
         self.prepare_post("/calc/upgrade/module", body={

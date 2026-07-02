@@ -638,7 +638,14 @@ impl SimeisSDK {
         modrank: u8,
         oprank: u8,
         planet: (u64, u64, u64),
+        power_attr: Option<&[(&'static str, u8)]>,
     ) -> Result<HashMap<String, f64>, Value> {
+        let mut pa = HashMap::new();
+        if let Some(power_attr) = power_attr {
+            for (key, val) in power_attr {
+                pa.insert(key, val);
+            }
+        }
         let data = self.post_with_body(
             "/calc/mining_rate",
             json!({
@@ -646,6 +653,33 @@ impl SimeisSDK {
                 "module_rank": modrank,
                 "operator_rank": oprank,
                 "planet_coord": planet,
+                "power_attribution": pa,
+            }),
+        )?;
+        let mut result = HashMap::new();
+        for (res, rate) in data.as_object().unwrap() {
+            result.insert(res.clone(), rate.as_f64().unwrap());
+        }
+        Ok(result)
+    }
+
+    pub fn compute_ship_mining_rate(
+        &self,
+        ship_id: u64,
+        planet: (u64, u64, u64),
+        power_attr: Option<&[(&'static str, u8)]>,
+    ) -> Result<HashMap<String, f64>, Value> {
+        let mut pa = HashMap::new();
+        if let Some(power_attr) = power_attr {
+            for (key, val) in power_attr {
+                pa.insert(key, val);
+            }
+        }
+        let data = self.post_with_body(
+            format!("/calc/mining_rate/{ship_id}"),
+            json!({
+                "planet_coord": planet,
+                "power_attribution": pa,
             }),
         )?;
         let mut result = HashMap::new();

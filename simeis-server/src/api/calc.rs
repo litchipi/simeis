@@ -1,14 +1,15 @@
 use std::collections::BTreeMap;
 
 use ntex::router::IntoPattern;
-use ntex::web::types::Json;
-use ntex::web::{self, scope, ServiceConfig};
+use ntex::web::types::{Json, Path};
+use ntex::web::{self, scope, HttpRequest, ServiceConfig};
 use simeis_data::crew::{CrewMember, CrewMemberType};
 use simeis_data::errors::Errcode;
 use simeis_data::market::fee_rate;
 use simeis_data::ship::module::{calc_extraction_rate, ShipModule, ShipModuleType};
 use simeis_data::ship::resources::{apply_power_attribution, Resource};
 use simeis_data::ship::upgrade::ShipUpgrade;
+use simeis_data::ship::ShipId;
 use strum::IntoEnumIterator;
 
 use crate::api::build_response;
@@ -38,6 +39,79 @@ async fn compute_travel_costs(body: Json<NavigationComputation>) -> impl web::Re
     let travel = Travel::new(dest);
     let cost = travel.compute_from_stats(&origin, &ship_stats);
     build_response(cost.map(|v| json!({"costs": v})))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ShipMiningRateComputation {
+    planet_coord: SpaceCoord,
+    #[serde(default)]
+    power_attribution: BTreeMap<Resource, u8>,
+}
+
+// @summary Compute how much resources a given ship can be extract from a given planet
+// @returns The mining rate for each resources
+#[web::post("/mining_rate/{ship_id}")]
+async fn compute_ship_mining_rate(
+    srv: GameState,
+    req: HttpRequest,
+    ship_id: Path<ShipId>,
+    body: Json<ShipMiningRateComputation>,
+) -> impl web::Responder {
+    let pkey = get_player_key!(req);
+    let ShipMiningRateComputation {
+        planet_coord,
+        power_attribution,
+    } = body.0;
+
+    let ship_data = srv
+        .map_ship(&pkey, &ship_id, |_, ship| {
+            Box::pin(async move {
+                let mut result = vec![];
+                for (_, m) in ship.modules.iter() {
+                    let Some(ref opid) = m.operator else {
+                        continue;
+                    };
+                    let Some(cm) = ship.crew.0.get(opid) else {
+                        continue;
+                    };
+                    result.push((m.modtype, m.rank, cm.rank));
+                }
+                Ok(result)
+            })
+        })
+        .await;
+
+    if let Err(e) = ship_data {
+        return build_response(Err(e));
+    }
+    let ship_data = ship_data.unwrap();
+    let data = srv
+        .map_galaxy_coord(&planet_coord, |spaceobj, galaxy| {
+            Box::pin(async move {
+                let SpaceObject::Planet(planet_id) = spaceobj else {
+                    return Err(Errcode::NotAPlanet);
+                };
+                let planet = galaxy.planets.get(planet_id).unwrap();
+                let mut result = BTreeMap::new();
+                for (res, density) in planet.resources_density.iter() {
+                    for (modtype, mod_rank, op_rank) in ship_data.iter() {
+                        if !res.extractable(&modtype, *op_rank) {
+                            continue;
+                        }
+                        let rate = calc_extraction_rate(res, *mod_rank, *op_rank, *density);
+                        if let Some(r) = result.get_mut(res) {
+                            *r += rate;
+                        } else {
+                            result.insert(*res, rate);
+                        }
+                    }
+                }
+                apply_power_attribution(&power_attribution, &mut result);
+                Ok(to_value(result).unwrap())
+            })
+        })
+        .await;
+    build_response(data)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -275,6 +349,7 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
         scope(base)
             .service(compute_travel_costs)
             .service(compute_ship_wages)
+            .service(compute_ship_mining_rate)
             .service(compute_mining_rate)
             .service(compute_upgrade_ship)
             .service(compute_upgrade_trader)
