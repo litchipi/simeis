@@ -284,6 +284,7 @@ class Tester:
     def test_ping(self):
         got = self.get_ok("/ping")
         self.assert_got(got, "ping", "pong")
+        # TODO Test get server configuration
 
     @functest
     def test_create_player(self):
@@ -1183,6 +1184,9 @@ class Tester:
             "operator_rank": 2,
             "planet_coord": planet,
         })
+
+        # TODO Test mining rate on specifc ship
+        # TODO Test mining rate with power attribution
 
     @functest
     def test_compute_upgrade_module(self):
