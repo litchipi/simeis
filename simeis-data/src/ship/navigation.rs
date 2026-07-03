@@ -22,6 +22,15 @@ impl Travel {
         origin: &SpaceCoord,
         stats: &ShipStats,
     ) -> Result<TravelCost, Errcode> {
+        if stats.speed <= 0.0 {
+            return Err(Errcode::InvalidArgument("speed <= 0"));
+        }
+        if stats.fuel_consumption < 0.0 {
+            return Err(Errcode::InvalidArgument("fuelcons < 0"));
+        }
+        if stats.hull_usage_rate < 0.0 {
+            return Err(Errcode::InvalidArgument("hullusage < 0"));
+        }
         let distance = get_distance(origin, &self.destination);
         if distance == 0.0 {
             return Err(Errcode::NullDistance);

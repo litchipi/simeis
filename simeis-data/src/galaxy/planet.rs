@@ -46,8 +46,8 @@ impl Planet {
     pub fn random<R: rand::Rng>(coord: SpaceCoord, rng: &mut R) -> Planet {
         let mut resources_density = BTreeMap::new();
         for res in Resource::iter() {
-            if res.pumpable(0) || res.mineable(0) || res.suckable(0) {
-                resources_density.insert(res, rng.random_range(0.5..=1.0));
+            if res.pumpable(1) || res.mineable(1) || res.suckable(1) {
+                resources_density.insert(res, rng.random_range(0.8..=1.0));
             } else if res.pumpable(u8::MAX) || res.mineable(u8::MAX) | res.suckable(u8::MAX) {
                 resources_density.insert(res, rng.random_range(0.0..=1.0));
             }

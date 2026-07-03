@@ -502,6 +502,7 @@ class ApiChecker:
 
         pl = self.prepare_post("/player/new/{name}", name="xX_GigaProf_Xx")
         self.prepare_get("/player/{player_id}", player_id=pl["playerId"])
+        player = self.prepare_get("/player/{player_id}", player_id=pid)
 
         self.prepare_post("/calc/mining_rate", body={
             "module_type": "Miner",

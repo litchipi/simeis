@@ -146,7 +146,7 @@ config_fields!(SimeisShipConfig;
     default_pow_attr: u8 => "" => 128,
 
     module_base_price: f64 => "" => 4500.0,
-    module_base_extraction_mult: f64 => "" => 30.0,
+    module_base_extraction_mult: f64 => "" => 50.0,
     module_exrate_diff_fact: f64 => "" => 1.5,
     module_exrate_fact: f64 => "" => 0.6,
 

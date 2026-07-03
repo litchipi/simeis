@@ -13,8 +13,8 @@ import json
 import time
 import urllib.request
 
-if len(sys.argv) > 1:
-    PLAYERS = sys.argv[1:]
+if len(sys.argv) > 3:
+    PLAYERS = sys.argv[3:]
 else:
     PLAYERS = None
 
