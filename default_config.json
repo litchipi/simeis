@@ -49,7 +49,7 @@
   },
   "upgrade": {
     "industry_unitupg_powf_div": 75.0,
-    "ship_cargo_exp_add_cap": 120.0,
+    "ship_cargo_exp_add_cap": 100.0,
     "ship_hull_upg_add": 100.0,
     "module_upg_powf_div": 75.0
   },
@@ -60,13 +60,13 @@
   },
   "ship": {
     "fuel_tank_cap_price": 30.0,
-    "cargo_cap_price": 20.0,
+    "cargo_cap_price": 50.0,
     "hull_resis_price": 9.0,
     "reactor_rank_price": 4000.0,
     "shield_price": 2500.0,
     "default_pow_attr": 128,
     "module_base_price": 4500.0,
-    "module_base_extraction_mult": 30.0,
+    "module_base_extraction_mult": 50.0,
     "module_exrate_diff_fact": 1.5,
     "module_exrate_fact": 0.6,
     "hull_usage_rate": 0.15,
@@ -77,10 +77,10 @@
   },
   "crew": {
     "wage_rank_powf": 0.85,
-    "wage_next_rank_powf": 1.5,
-    "wage_next_rank_mult": 1900.0,
+    "wage_next_rank_powf": 1.4,
+    "wage_next_rank_mult": 1500.0,
     "base_op_wage": 0.75,
-    "pilot_wage_mult": 8.0,
+    "pilot_wage_mult": 3.5,
     "trader_wage_mult": 5.0,
     "solider_wage_mult": 2.5
   },

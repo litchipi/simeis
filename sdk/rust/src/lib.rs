@@ -660,7 +660,7 @@ impl SimeisSDK {
         modrank: u8,
         oprank: u8,
         planet: (u64, u64, u64),
-        power_attr: Option<&[(&'static str, u8)]>,
+        power_attr: Option<&[(String, u8)]>,
     ) -> Result<HashMap<String, f64>, Value> {
         let mut pa = HashMap::new();
         if let Some(power_attr) = power_attr {
@@ -689,7 +689,7 @@ impl SimeisSDK {
         &self,
         ship_id: u64,
         planet: (u64, u64, u64),
-        power_attr: Option<&[(&'static str, u8)]>,
+        power_attr: Option<&[(String, u8)]>,
     ) -> Result<HashMap<String, f64>, Value> {
         let mut pa = HashMap::new();
         if let Some(power_attr) = power_attr {

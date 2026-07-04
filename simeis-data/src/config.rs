@@ -131,7 +131,7 @@ config_fields!(SimeisGameConfig;
 
 config_fields!(SimeisUpgradeConfig;
     industry_unitupg_powf_div: f64 => "" => 75.0,
-    ship_cargo_exp_add_cap: f64 => "" => 120.0,
+    ship_cargo_exp_add_cap: f64 => "" => 100.0,
     ship_hull_upg_add: f64 => "" => 100.0,
 
     module_upg_powf_div: f64 => "" => 75.0,
@@ -139,7 +139,7 @@ config_fields!(SimeisUpgradeConfig;
 
 config_fields!(SimeisShipConfig;
     fuel_tank_cap_price: f64 => "" => 30.0,
-    cargo_cap_price: f64 => "" => 20.0,
+    cargo_cap_price: f64 => "" => 50.0,
     hull_resis_price: f64 => "" => 9.0,
     reactor_rank_price: f64 => "" => 4000.0,
     shield_price: f64 => "" => 2500.0,
@@ -163,11 +163,11 @@ config_fields!(SimeisStationConfig;
 );
 config_fields!(SimeisCrewConfig;
     wage_rank_powf: f64 => "" => 0.85,
-    wage_next_rank_powf: f64 => "" => 1.5,
-    wage_next_rank_mult: f64 => "" => 1900.0,
+    wage_next_rank_powf: f64 => "" => 1.4,
+    wage_next_rank_mult: f64 => "" => 1500.0,
 
     base_op_wage: f64 => "" => 0.75,
-    pilot_wage_mult: f64 => "" => 8.0,
+    pilot_wage_mult: f64 => "" => 3.5,
     trader_wage_mult: f64 => "" => 5.0,
     solider_wage_mult: f64 => "" => 2.5,
 );
