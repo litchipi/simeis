@@ -55,6 +55,7 @@ pub fn get_position(planet: &Value) -> Option<(u64, u64, u64)> {
     }
 }
 
+#[inline]
 pub fn json_get_key<'a>(key: &str, mut val: &'a Value) -> Option<&'a Value> {
     if !key.contains(".") {
         let obj = val.as_object()?;
@@ -66,10 +67,12 @@ pub fn json_get_key<'a>(key: &str, mut val: &'a Value) -> Option<&'a Value> {
     }
     Some(val)
 }
+#[inline]
 pub fn json_get_list<'a>(key: &str, val: &'a Value) -> Option<Vec<&'a Value>> {
     let val = json_get_key(key, val)?.as_array()?;
     Some(val.iter().collect())
 }
+#[inline]
 pub fn json_get_dict<'a>(key: &str, val: &'a Value) -> Option<HashMap<&'a String, &'a Value>> {
     let val = json_get_key(key, val)?.as_object()?;
     let mut res = HashMap::new();
@@ -78,15 +81,19 @@ pub fn json_get_dict<'a>(key: &str, val: &'a Value) -> Option<HashMap<&'a String
     }
     Some(res)
 }
+#[inline]
 pub fn json_get_float(key: &str, val: &Value) -> Option<f64> {
     json_get_key(key, val)?.as_f64()
 }
+#[inline]
 pub fn json_get_string<'a>(key: &str, val: &'a Value) -> Option<&'a str> {
     json_get_key(key, val)?.as_str()
 }
+#[inline]
 pub fn json_get_uint(key: &str, val: &Value) -> Option<u64> {
     json_get_key(key, val)?.as_u64()
 }
+#[inline]
 pub fn json_get_bool(key: &str, val: &Value) -> Option<bool> {
     json_get_key(key, val)?.as_bool()
 }
@@ -98,6 +105,13 @@ pub struct SimeisSDK {
     url: String,
     player_id: Option<u64>,
     player_key: Option<String>,
+    game_config: Option<serde_json::Value>,
+}
+
+impl std::fmt::Debug for SimeisSDK {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SimeisSDK").finish()
+    }
 }
 
 impl SimeisSDK {
@@ -107,11 +121,19 @@ impl SimeisSDK {
             url,
             player_id: None,
             player_key: None,
+            game_config: None,
         };
         assert!(sdk.ping(), "Unable to connect to server, ping failed");
         sdk.setup_player(username, false)
             .expect("Unable to setup player");
+        let config = sdk.get_game_config().unwrap();
+        sdk.game_config = Some(config);
         sdk
+    }
+
+    pub fn config(&self, key: &'static str) -> Option<&Value> {
+        let cfg = self.game_config.as_ref()?;
+        json_get_key(key, cfg)
     }
 
     fn api<T: ToString>(&self, path: T, get: bool, body: Option<Value>) -> ApiResult {
