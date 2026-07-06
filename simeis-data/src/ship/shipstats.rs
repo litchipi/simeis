@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config::get_config,
+    config::{get_config, SimeisConfig},
     crew::{CrewMember, CrewMemberType},
 };
 
@@ -15,8 +15,7 @@ pub struct ShipStats {
 impl ShipStats {
     pub fn new(rpow: u16, spow: u16, pilot: Option<&CrewMember>) -> ShipStats {
         let cfg = get_config();
-        let hull_usage_rate =
-            cfg.ship.hull_usage_rate / (1.0 + (1.0 + spow as f64).log(cfg.ship.shield_rank_log));
+        let hull_usage_rate = compute_hull_usage_ratio(cfg, spow as f64);
         let mut fuel_consumption = rpow as f64;
         let mut speed = 0.0;
         if let Some(pilot) = pilot {
@@ -39,4 +38,8 @@ impl ShipStats {
             fuel_consumption,
         }
     }
+}
+
+pub fn compute_hull_usage_ratio(cfg: &SimeisConfig, spow: f64) -> f64 {
+    cfg.ship.hull_usage_rate / (1.0 + (1.0 + spow).log(cfg.ship.shield_rank_log))
 }

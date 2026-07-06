@@ -147,7 +147,7 @@ config_fields!(SimeisShipConfig;
     module_exrate_diff_fact: f64 => "" => 1.5,
     module_exrate_fact: f64 => "" => 0.6,
 
-    hull_usage_rate: f64 => "" => 15.0 / 100.0,
+    hull_usage_rate: f64 => "" => 30.0 / 1000.0,
     reactor_speed_rate: f64 => "" => 50.0,
     shield_rank_log: f64 => "" => 3.5,
     pilot_fuel_share: u8 => "" => 5,
@@ -194,25 +194,25 @@ config_fields!(SimeisIndustryConfig;
     advanced_res3rq: f64 => "" => 0.2,
 );
 config_fields!(SimeisResourcesConfig;
-    tier1_price: f64 => "" => 4.0,
-    tier2_price_mult: f64 => "" => 3.0,
-    tier3_price_mult: f64 => "" => 7.0,
-    tier4_price_mult: f64 => "" => 9.0,
+    tier1_price: f64 => "" => 6.0,
+    tier2_price_mult: f64 => "" => 2.0,
+    tier3_price_mult: f64 => "" => 5.0,
+    tier4_price_mult: f64 => "" => 8.0,
 
-    tier1_volume: f64 => "" => 5.0,
-    tier2_volume: f64 => "" => 3.6,
-    tier3_volume: f64 => "" => 2.3,
-    tier4_volume: f64 => "" => 1.25,
+    tier1_volume: f64 => "" => 2.5,
+    tier2_volume: f64 => "" => 1.9,
+    tier3_volume: f64 => "" => 1.2,
+    tier4_volume: f64 => "" => 0.85,
 
-    fuel_price: f64 => "" => 2.0,
-    hull_price: f64 => "" => 2.0,
+    fuel_price: f64 => "" => 10.0,
+    hull_price: f64 => "" => 1.0,
     fuel_volume: f64 => "" => 2.0,
     hull_volume: f64 => "" => 0.75,
 
     tier1_difficulty: f64 => "" => 1.0,
-    tier2_difficulty_mult: f64 => "" => 3.0,
-    tier3_difficulty_mult: f64 => "" => 7.0,
-    tier4_difficulty_mult: f64 => "" => 9.0,
+    tier2_difficulty_mult: f64 => "" => 2.0,
+    tier3_difficulty_mult: f64 => "" => 5.0,
+    tier4_difficulty_mult: f64 => "" => 8.0,
 
     tier1_min_rank: u8 => "" => 0,
     tier2_min_rank: u8 => "" => 2,
