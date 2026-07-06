@@ -287,6 +287,8 @@ in {
         " api\\("
         " get\\("
         " post\\("
+        " fmt\\("
+        " config\\("
       ];
       app = pkgs.writeShellApplication {
         name = "check-sdk-sync";

@@ -13,9 +13,9 @@ FAILFAST=os.getenv("CI") is None
 
 ITER_PERIOD = 20 / 1000
 
-SOLID=["Iron", "Copper", "Titanium", "Uranium"]
-LIQUID=["Water", "Ammonia", "SulfuricAcid", "Brine"]
-GAS=["Hydrogen", "Helium", "Oxygen", "Ozone"]
+SOLID=["iron", "copper", "titanium", "uranium"]
+LIQUID=["water", "ammonia", "sulfuric_acid", "brine"]
+GAS=["hydrogen", "helium", "oxygen", "ozone"]
 
 ADMIN_TOKEN=os.getenv("SIMEIS_ADMIN_TOKEN")
 
@@ -374,7 +374,7 @@ class Tester:
             stationstatus = self.get_ok(f"/station/{self.station}")
             idled = self.assert_got(stationstatus, "idle_crew", None)
             assert len(idled) == nidle + 1
-            assert idled[str(crew_id)] == { "member_type": ctype.capitalize(), "rank": 1 }
+            assert idled[str(crew_id)] == { "member_type": ctype, "rank": 1 }
             nidle += 1
         self.post_err(f"/station/{self.station}/crew/hire/noteist", expcode=404)
 
@@ -420,7 +420,7 @@ class Tester:
         assert len(self.assert_got(stationstatus, "idle_crew", None)) == 3
 
         shipstatus = self.get_ok(f"/ship/{shipid}")
-        self.assert_got(shipstatus, "crew", { str(pilot["id"]): { "member_type": "Pilot", "rank": 1 }})
+        self.assert_got(shipstatus, "crew", { str(pilot["id"]): { "member_type": "pilot", "rank": 1 }})
         self.assert_got(shipstatus, "pilot", pilot["id"])
         stats = self.assert_got(shipstatus, "stats", None)
         speed_after = self.assert_got(stats, "speed", None)
@@ -675,7 +675,7 @@ class Tester:
         self.addtrace("Ship arrived")
         extraction_info = self.post_ok(f"/ship/{shipid}/extraction/start")
         extraction_rates = self.assert_got(extraction_info, "mining_rate", None)
-        assert ("Iron" in extraction_rates) or ("Hydrogen" in extraction_rates) or ("Water" in extraction_rates)
+        assert ("iron" in extraction_rates) or ("hydrogen" in extraction_rates) or ("water" in extraction_rates)
         self.tick()
 
         before = self.get_ok(f"/ship/{shipid}")
@@ -747,7 +747,7 @@ class Tester:
     @functest
     def test_market_buy_sell(self):
         player = self.create_test_player("test-rich-market")
-        resname = "Iron"
+        resname = "iron"
         resamnt = 100
 
         self.post_err(f"/market/{self.station}/sell/{resname}/{resamnt}", errtype="NoTraderAssigned")
@@ -781,7 +781,7 @@ class Tester:
         assert aftermoney - (beforemoney + tx["added_money"]) < (tdelta * costs)
 
         cargo = self.get_ok(f"/station/{self.station}")["cargo"]
-        self.assert_got(cargo, "resources", {resname.capitalize(): 0.0})
+        self.assert_got(cargo, "resources", {resname: 0.0})
         self.assert_got(cargo, "usage", 0)
 
         self.post_err(
@@ -915,7 +915,7 @@ class Tester:
         self.addtrace("Ship arrived")
         old_extraction_rates = self.assert_got(self.post_ok(f"/ship/{shipid}/extraction/start"), "mining_rate", None)
 
-        assert ("Iron" in old_extraction_rates) or ("Hydrogen" in old_extraction_rates) or  ("Water" in old_extraction_rates)
+        assert ("iron" in old_extraction_rates) or ("hydrogen" in old_extraction_rates) or  ("water" in old_extraction_rates)
         self.tick()
         self.tick()
         self.post_ok(f"/ship/{shipid}/extraction/stop")
@@ -1168,10 +1168,10 @@ class Tester:
             "planet_coord": planet,
         })
 
-        self.assert_got(little, "Iron", self.assert_got(same, "Iron", None))
-        self.assert_got(little, "Iron", None) < self.assert_got(mid, "Iron", None)
-        self.assert_got(mid, "Iron", None) < self.assert_got(big, "Iron", None)
-        self.assert_got(little, "Oxygen", None, negate=True)
+        self.assert_got(little, "iron", self.assert_got(same, "iron", None))
+        self.assert_got(little, "iron", None) < self.assert_got(mid, "iron", None)
+        self.assert_got(mid, "iron", None) < self.assert_got(big, "iron", None)
+        self.assert_got(little, "oxygen", None, negate=True)
         wpump = self.post_ok("/calc/mining_rate",body={
             "module_type": "pump",
             "module_rank": 3,

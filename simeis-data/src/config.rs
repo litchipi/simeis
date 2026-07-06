@@ -139,7 +139,7 @@ config_fields!(SimeisUpgradeConfig;
 
 config_fields!(SimeisShipConfig;
     fuel_tank_cap_price: f64 => "" => 30.0,
-    cargo_cap_price: f64 => "" => 50.0,
+    cargo_cap_price: f64 => "" => 20.0,
     hull_resis_price: f64 => "" => 9.0,
     reactor_rank_price: f64 => "" => 4000.0,
     shield_price: f64 => "" => 2500.0,

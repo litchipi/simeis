@@ -7,16 +7,16 @@ from sdk import SimeisSDK
 def decide_mod_to_buy(planet):
     res = planet["resources_density"]
     print("Deciding which resource to extract from planet", planet["position"])
-    print("Iron:", res["Iron"])
-    print("Water:", res["Water"])
-    print("Hydrogen:", res["Hydrogen"])
-    # More iron -> Miner
-    if res["Iron"] > res["Water"] and res["Iron"] > res["Hydrogen"]:
+    print("iron:", res["iron"])
+    print("water:", res["water"])
+    print("hydrogen:", res["hydrogen"])
+    # More iron -> miner
+    if res["iron"] > res["water"] and res["iron"] > res["hydrogen"]:
         return "miner"
-    # More water -> Pump
-    elif res["Water"] > res["Hydrogen"]:
+    # More water -> pump
+    elif res["water"] > res["hydrogen"]:
         return "pump"
-    # More gas -> GasSucker
+    # More gas -> gas_sucker
     else:
         return "gas_sucker"
 
@@ -71,6 +71,7 @@ class Game:
         #     On vends les resources
         while True:
             status = self.sdk.get_player_status()
+            print(status)
             print("Current status: {} credits, costs: {}, time left before lost: {} secs".format(
                 round(status["money"], 2), round(status["costs"], 2), int(status["money"] / status["costs"]),
             ))
@@ -79,7 +80,8 @@ class Game:
                 return
 
             # On va à la planète
-            self.sdk.travel(ship["id"], nearest_planet["position"])
+            costs = self.sdk.travel(ship["id"], nearest_planet["position"])
+            print("Took {}s to travel to planet".format(costs["duration"]))
 
             # On mine
             prices = self.sdk.get_market_prices()
@@ -98,7 +100,9 @@ class Game:
             self.sdk.wait_until_ship_idle(ship["id"])
 
             # On retourne à la station, et on décharge le cargo
-            self.sdk.return_station_and_unload_all(sta, ship["id"])
+            result = self.sdk.return_station_and_unload_all(sta, ship["id"])
+            if "travel" in result:
+                print("Took {}s to come back home".format(result["travel"]["duration"]))
 
             # On vends tout
             cycletot = 0

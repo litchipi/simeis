@@ -120,7 +120,7 @@ async fn resources_info() -> impl web::Responder {
     for res in Resource::iter() {
         if res.mineable(u8::MAX) || res.suckable(u8::MAX) || res.pumpable(u8::MAX) {
             data.insert(
-                format!("{res:?}"),
+                res.to_string(),
                 json!({
                     "base-price": res.base_price(),
                     "volume": res.volume(),
@@ -130,7 +130,7 @@ async fn resources_info() -> impl web::Responder {
             );
         } else {
             data.insert(
-                format!("{res:?}"),
+                res.to_string(),
                 json!({
                     "base-price": res.base_price(),
                     "volume": res.volume(),

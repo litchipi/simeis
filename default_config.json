@@ -60,7 +60,7 @@
   },
   "ship": {
     "fuel_tank_cap_price": 30.0,
-    "cargo_cap_price": 50.0,
+    "cargo_cap_price": 20.0,
     "hull_resis_price": 9.0,
     "reactor_rank_price": 4000.0,
     "shield_price": 2500.0,

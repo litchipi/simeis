@@ -14,9 +14,9 @@ fn get_density(key: &str, densities: &HashMap<&String, &serde_json::Value>) -> f
 // We want to extract the resource that is the most dense on the planet
 fn decide_mod_to_buy(planet: &serde_json::Value) -> &'static str {
     let res_densities = json_get_dict("resources_density", planet).unwrap();
-    let iron = get_density("Iron", &res_densities);
-    let water = get_density("Water", &res_densities);
-    let hydrogen = get_density("Hydrogen", &res_densities);
+    let iron = get_density("iron", &res_densities);
+    let water = get_density("water", &res_densities);
+    let hydrogen = get_density("hydrogen", &res_densities);
     if iron > water && iron > hydrogen {
         "miner"
     } else if water > hydrogen {

@@ -25,7 +25,8 @@ use shipstats::ShipStats;
 
 pub type ShipId = u64;
 
-#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[derive(strum::Display, Debug, Clone, Deserialize, Serialize, Default)]
+#[strum(serialize_all = "snake_case")]
 pub enum ShipState {
     #[default]
     Idle,

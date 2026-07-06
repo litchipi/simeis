@@ -95,7 +95,7 @@ async fn compute_ship_mining_rate(
                 let mut result = BTreeMap::new();
                 for (res, density) in planet.resources_density.iter() {
                     for (modtype, mod_rank, op_rank) in ship_data.iter() {
-                        if !res.extractable(&modtype, *op_rank) {
+                        if !res.extractable(modtype, *op_rank) {
                             continue;
                         }
                         let rate = calc_extraction_rate(res, *mod_rank, *op_rank, *density);

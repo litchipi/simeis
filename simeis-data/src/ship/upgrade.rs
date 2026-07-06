@@ -5,6 +5,7 @@ use crate::{config::get_config, define_type_enum};
 use super::Ship;
 
 define_type_enum!(ShipUpgrade {
+    // TODO    Do the same as for stations:     Buy the amount of cargo I want
     CargoExpansion,
     Reactor,
     HullUpgrade,

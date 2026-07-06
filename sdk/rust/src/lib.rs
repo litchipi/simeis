@@ -131,11 +131,6 @@ impl SimeisSDK {
         sdk
     }
 
-    pub fn config(&self, key: &'static str) -> Option<&Value> {
-        let cfg = self.game_config.as_ref()?;
-        json_get_key(key, cfg)
-    }
-
     fn api<T: ToString>(&self, path: T, get: bool, body: Option<Value>) -> ApiResult {
         debug_assert!(path.to_string().starts_with("/"));
 
@@ -345,7 +340,7 @@ impl SimeisSDK {
     pub fn station_has_trader(&self, station_id: u64) -> Result<bool, Value> {
         let station = self.get_station_status(station_id)?;
         for cm in json_get_list("crew", &station).unwrap() {
-            if json_get_string("member_type", cm).unwrap() == "Trader" {
+            if json_get_string("member_type", cm).unwrap() == "trader" {
                 return Ok(true);
             }
         }
@@ -426,10 +421,10 @@ impl SimeisSDK {
         }
 
         let cargo = self.get_station_resources(station_id)?;
-        let amnt_got = cargo.get("Hull").cloned().unwrap_or(0.0);
+        let amnt_got = cargo.get("hull").cloned().unwrap_or(0.0);
         if amnt_got < req {
             let need = req - amnt_got;
-            Ok(Some(self.buy_resource(station_id, "Hull", need)?))
+            Ok(Some(self.buy_resource(station_id, "hull", need)?))
         } else {
             Ok(None)
         }
@@ -445,7 +440,7 @@ impl SimeisSDK {
         }
 
         let cargo = self.get_station_resources(station_id)?;
-        let amnt_got = cargo.get("Hull").cloned().unwrap_or(0.0);
+        let amnt_got = cargo.get("hull").cloned().unwrap_or(0.0);
 
         if amnt_got > 0.0 {
             Ok(Some(
@@ -472,10 +467,10 @@ impl SimeisSDK {
         }
 
         let cargo = self.get_station_resources(station_id)?;
-        let amnt_got = cargo.get("Fuel").cloned().unwrap_or(0.0);
+        let amnt_got = cargo.get("fuel").cloned().unwrap_or(0.0);
         if amnt_got < req {
             let need = req - amnt_got;
-            Ok(Some(self.buy_resource(station_id, "Fuel", need)?))
+            Ok(Some(self.buy_resource(station_id, "fuel", need)?))
         } else {
             Ok(None)
         }
@@ -492,7 +487,7 @@ impl SimeisSDK {
         }
 
         let cargo = self.get_station_resources(station_id)?;
-        let amnt_got = cargo.get("Fuel").cloned().unwrap_or(0.0);
+        let amnt_got = cargo.get("fuel").cloned().unwrap_or(0.0);
 
         if amnt_got > 0.0 {
             Ok(Some(

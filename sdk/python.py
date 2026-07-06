@@ -23,6 +23,13 @@ class SimeisSDK:
         self.debug = debug
         assert self.api("/ping")["ping"] == "pong"
         self.setup_player(username)
+        self.game_config = self.get_game_config()
+
+    def config(self, key):
+        val = self.game_config
+        for k in key.split("."):
+            val = val[k]
+        return val
 
     def api(self, path, method="GET", timeout=5, body=None, **qry):
         if self.debug:
@@ -150,6 +157,7 @@ class SimeisSDK:
         if wait_end:
             time.sleep(costs["duration"])
             self.wait_until_ship_idle(ship_id)
+        return costs
 
     def stop_travel(self, ship_id):
         return self.post(f"/ship/{ship_id}/navigation/stop")
@@ -248,9 +256,11 @@ class SimeisSDK:
     def return_station_and_unload_all(self, sta, ship_id):
         ship = self.get(f"/ship/{ship_id}")
         station = self.get(f"/station/{sta}")
+        result = {}
         if ship["position"] != station["position"]:
-            self.travel(ship["id"], station["position"])
-        return self.unload_all(sta, ship_id)
+            result["travel"] = self.travel(ship["id"], station["position"])
+        result["unload"] = self.unload_all(sta, ship_id)
+        return result
 
     def get_station_resources(self, sta):
         return self.get(f"/station/{sta}")["cargo"]["resources"]
