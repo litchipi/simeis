@@ -131,9 +131,6 @@ config_fields!(SimeisGameConfig;
 
 config_fields!(SimeisUpgradeConfig;
     industry_unitupg_powf_div: f64 => "" => 75.0,
-    ship_cargo_exp_add_cap: f64 => "" => 100.0,
-    ship_hull_upg_add: f64 => "" => 100.0,
-
     module_upg_powf_div: f64 => "" => 75.0,
 );
 

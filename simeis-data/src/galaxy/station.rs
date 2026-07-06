@@ -433,10 +433,14 @@ impl Station {
         Ok(unloaded)
     }
 
+    pub fn get_inflation_ratio(&self) -> f64 {
+        // TODO (#9) Modify inflation based on station economy metrics
+        1.0
+    }
+
     pub fn get_ship_upgrade_price(&self, _ship: &Ship, upgrade: &ShipUpgrade) -> f64 {
-        // TODO (#9) Modify price based on station economy metrics
         // TODO (#9) Modify price based on upgrades already installed on the ship
-        upgrade.get_price()
+        upgrade.get_price() * self.get_inflation_ratio()
     }
 
     pub async fn get_cargo_potential_price(&self, id: &PlayerId) -> f64 {

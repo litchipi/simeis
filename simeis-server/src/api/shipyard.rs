@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::str::FromStr;
 
 use ntex::router::IntoPattern;
 use ntex::web;
@@ -9,6 +10,7 @@ use ntex::web::ServiceConfig;
 
 use serde_json::json;
 use serde_json::to_value;
+use simeis_data::ship::upgrade::ShipExpandUpgrade;
 use strum::IntoEnumIterator;
 
 use simeis_data::errors::Errcode;
@@ -94,10 +96,19 @@ async fn shipyard_list_upgrades(
                 for upgr in ShipUpgrade::iter() {
                     let price = station.get_ship_upgrade_price(ship, &upgr);
                     res.insert(
-                        upgr,
+                        upgr.to_string(),
                         json!({
                             "price": price,
                         }),
+                    );
+                }
+                for exp in ShipExpandUpgrade::iter() {
+                    let mut exp = exp.clone();
+                    exp.set_amount(1.0);
+                    let price = exp.get_price() * station.get_inflation_ratio();
+                    res.insert(
+                        exp.to_string(),
+                        json!({ "price": price, })
                     );
                 }
                 Ok(to_value(res).unwrap())
@@ -131,12 +142,40 @@ async fn shipyard_buy_upgrade(
     build_response(data)
 }
 
+// @summary
+// @returns
+#[web::post("/upgrade/{ship_id}/expand/{exp_type}/{n}")]
+async fn shipyard_buy_expansion(
+    srv: GameState,
+    args: Path<(StationId, ShipId, String, f64)>,
+    req: HttpRequest,
+) -> impl web::Responder {
+    let (station_id, ship_id, n) = (args.0, args.1, args.3);
+    let pkey = get_player_key!(req);
+    let Ok(mut expty) = ShipExpandUpgrade::from_str(&args.2) else {
+        return build_response(Err(Errcode::InvalidArgument("expansion type")));
+    };
+    expty.set_amount(n);
+    let data = srv
+        .map_player_mut(&pkey, |player| {
+            Box::pin(async move {
+                player
+                    .buy_ship_expansion(&station_id, &ship_id, &expty)
+                    .await
+                    .map(|v| json!({ "cost": v }))
+            })
+        })
+        .await;
+    build_response(data)
+}
+
 pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
     srv.service(
         scope(base)
             .service(shipyard_buy_ship)
             .service(list_shipyard_ships)
             .service(shipyard_buy_upgrade)
+            .service(shipyard_buy_expansion)
             .service(shipyard_list_upgrades),
     );
 }
