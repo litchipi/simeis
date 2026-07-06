@@ -90,7 +90,9 @@ def disp_market(resources):
         price = round(price, 3)
         space = " "*(1 + max_res_len - len(res))
 
-        disp[res] = {
+        resd = res.capitalize().replace("_", " ")
+        disp[resd] = {
+            "relp": relp,
             "head": f"{price}",
             "mid": f"({relp} %)",
             "tail": "({} < {} < {})".format(MIN[res], resources[res]["base-price"], MAX[res]),
@@ -102,7 +104,7 @@ def disp_market(resources):
     max_tail = max([len(d["tail"]) for _, d in disp.items()])
 
     buffer = ""
-    for res, d in disp.items():
+    for res, d in sorted(disp.items(), key=lambda x: x[1]["relp"], reverse=True):
         buffer += "{}{}{}{}{}{}{}".format(
             res, " " * (max_res + 1 - len(res)),
             d["head"], " " * (max_head + 1 - len(d["head"])),
