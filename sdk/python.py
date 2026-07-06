@@ -310,6 +310,9 @@ class SimeisSDK:
     def buy_ship_upgrade(self, sta, ship_id, upgtype):
         return self.post(f"/station/{sta}/shipyard/upgrade/{ship_id}/{upgtype}")
 
+    def buy_ship_expansion(self, sta, ship_id, exptype, n):
+        return self.post(f"/station/{sta}/shipyard/upgrade/{ship_id}/expand/{exptype}/{n}")
+
     def compute_mining_rate(self, modtype, modrank, oprank, planet, power_attr={}):
         return  self.post("/calc/mining_rate", body={
             "module_type": modtype,

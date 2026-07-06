@@ -813,12 +813,9 @@ class Tester:
         stationid = player["stations"][0]
         all_upg = self.get_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}")
         for (upgr, data) in all_upg.items():
-            assert self.assert_got(data, "price", None) > 100.0
+            assert self.assert_got(data, "price", None) > 0.0
 
         before = self.get_ok(f"/ship/{shipid}")
-
-        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/cargo_expansion")
-        assert self.assert_got(got, "cost", None) > 0
 
         got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/reactor")
         assert self.assert_got(got, "cost", None) > 0
@@ -826,12 +823,16 @@ class Tester:
         got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/shield")
         assert self.assert_got(got, "cost", None) > 0
 
-        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/hull_upgrade")
+        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/expand/cargo/30")
+        assert self.assert_got(got, "cost", None) > 0
+
+        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/expand/hull/30")
         assert self.assert_got(got, "cost", None) > 0
 
         after = self.get_ok(f"/ship/{shipid}")
         assert after["cargo"]["capacity"] > before["cargo"]["capacity"]
         assert after["reactor_rank"] > before["reactor_rank"]
+        assert after["shield_rank"] > before["shield_rank"]
         assert after["hull_resistance"] > before["hull_resistance"]
 
     @functest

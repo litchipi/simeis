@@ -199,7 +199,12 @@ impl Player {
         Ok(price)
     }
 
-    pub async fn buy_ship_expansion(&mut self, station: &StationId, ship_id: &ShipId, expansion: &ShipExpandUpgrade) -> Result<f64, Errcode> {
+    pub async fn buy_ship_expansion(
+        &mut self,
+        station: &StationId,
+        ship_id: &ShipId,
+        expansion: &ShipExpandUpgrade,
+    ) -> Result<f64, Errcode> {
         let ship = self
             .ships
             .get_mut(ship_id)

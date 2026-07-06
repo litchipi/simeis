@@ -465,6 +465,7 @@ class ApiChecker:
         fship = allships["ships"][0]["id"]
         ship = self.prepare_post("/station/{station_id}/shipyard/buy/{ship_id}", ship_id=fship)
         self.prepare_post("/station/{station_id}/shipyard/upgrade/{ship_id}/{upgrade_type}", upgrade_type="reactor")
+        self.prepare_post("/station/{station_id}/shipyard/upgrade/{ship_id}/expand/{exp_type}/{n}", exp_type="cargo", n=93.5)
         self.prepare_post("/station/{station_id}/shop/cargo/buy/{amount}", amount=1)
         pilot = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="pilot")
         self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/pilot", crew_id=pilot["id"])

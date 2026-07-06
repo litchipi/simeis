@@ -649,6 +649,18 @@ impl SimeisSDK {
         ))
     }
 
+    pub fn buy_ship_expansion(
+        &self,
+        station_id: u64,
+        ship_id: u64,
+        exptype: &str,
+        n: f64,
+    ) -> ApiResult {
+        self.post(format!(
+            "/station/{station_id}/shipyard/upgrade/{ship_id}/expand/{exptype}/{n}"
+        ))
+    }
+
     pub fn compute_mining_rate(
         &self,
         modtype: &str,

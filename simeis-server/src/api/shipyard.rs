@@ -106,10 +106,7 @@ async fn shipyard_list_upgrades(
                     let mut exp = exp.clone();
                     exp.set_amount(1.0);
                     let price = exp.get_price() * station.get_inflation_ratio();
-                    res.insert(
-                        exp.to_string(),
-                        json!({ "price": price, })
-                    );
+                    res.insert(exp.to_string(), json!({ "price": price, }));
                 }
                 Ok(to_value(res).unwrap())
             })
@@ -142,8 +139,8 @@ async fn shipyard_buy_upgrade(
     build_response(data)
 }
 
-// @summary
-// @returns
+// @summary Buy an expansion and install it on the ship
+// @returns The cost of the expansion
 #[web::post("/upgrade/{ship_id}/expand/{exp_type}/{n}")]
 async fn shipyard_buy_expansion(
     srv: GameState,

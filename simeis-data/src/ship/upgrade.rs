@@ -4,10 +4,7 @@ use crate::{config::get_config, define_type_enum};
 
 use super::Ship;
 
-define_type_enum!(ShipUpgrade {
-    Reactor,
-    Shield,
-});
+define_type_enum!(ShipUpgrade { Reactor, Shield });
 
 impl ShipUpgrade {
     pub fn get_price(&self) -> f64 {
@@ -30,29 +27,28 @@ impl ShipUpgrade {
 #[derive(strum::EnumString, strum::Display, strum::EnumIter, Clone)]
 #[strum(serialize_all = "snake_case")]
 pub enum ShipExpandUpgrade {
-    CargoExpansion(f64),
-    HullExpansion(f64),
+    Cargo(f64),
+    Hull(f64),
 }
 
 impl ShipExpandUpgrade {
     pub fn set_amount(&mut self, amnt: f64) {
         match self {
-            ShipExpandUpgrade::CargoExpansion(n)
-            | ShipExpandUpgrade::HullExpansion(n) => *n = amnt,
+            ShipExpandUpgrade::Cargo(n) | ShipExpandUpgrade::Hull(n) => *n = amnt,
         }
     }
     pub fn get_price(&self) -> f64 {
         let cfg = get_config();
         match self {
-            ShipExpandUpgrade::CargoExpansion(n) => n * cfg.ship.cargo_cap_price,
-            ShipExpandUpgrade::HullExpansion(n) => n * cfg.ship.hull_resis_price,
+            ShipExpandUpgrade::Cargo(n) => n * cfg.ship.cargo_cap_price,
+            ShipExpandUpgrade::Hull(n) => n * cfg.ship.hull_resis_price,
         }
     }
 
     pub fn install(&self, ship: &mut Ship) {
         match self {
-            ShipExpandUpgrade::CargoExpansion(n) => ship.cargo.capacity += n,
-            ShipExpandUpgrade::HullExpansion(n) => ship.hull_resistance += n,
+            ShipExpandUpgrade::Cargo(n) => ship.cargo.capacity += n,
+            ShipExpandUpgrade::Hull(n) => ship.hull_resistance += n,
         }
         ship.update_perf_stats();
     }
