@@ -49,8 +49,6 @@
   },
   "upgrade": {
     "industry_unitupg_powf_div": 75.0,
-    "ship_cargo_exp_add_cap": 100.0,
-    "ship_hull_upg_add": 100.0,
     "module_upg_powf_div": 75.0
   },
   "station": {
