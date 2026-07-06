@@ -195,14 +195,14 @@ config_fields!(SimeisIndustryConfig;
 );
 config_fields!(SimeisResourcesConfig;
     tier1_price: f64 => "" => 4.0,
-    tier2_price_mult: f64 => "" => 4.0,
-    tier3_price_mult: f64 => "" => 12.0,
-    tier4_price_mult: f64 => "" => 16.0,
+    tier2_price_mult: f64 => "" => 3.0,
+    tier3_price_mult: f64 => "" => 7.0,
+    tier4_price_mult: f64 => "" => 9.0,
 
-    tier1_volume: f64 => "" => 0.75,
-    tier2_volume: f64 => "" => 2.5,
-    tier3_volume: f64 => "" => 3.0,
-    tier4_volume: f64 => "" => 0.25,
+    tier1_volume: f64 => "" => 5.0,
+    tier2_volume: f64 => "" => 3.6,
+    tier3_volume: f64 => "" => 2.3,
+    tier4_volume: f64 => "" => 1.25,
 
     fuel_price: f64 => "" => 2.0,
     hull_price: f64 => "" => 2.0,
@@ -210,9 +210,9 @@ config_fields!(SimeisResourcesConfig;
     hull_volume: f64 => "" => 0.75,
 
     tier1_difficulty: f64 => "" => 1.0,
-    tier2_difficulty_mult: f64 => "" => 3.75,
-    tier3_difficulty_mult: f64 => "" => 11.0,
-    tier4_difficulty_mult: f64 => "" => 14.0,
+    tier2_difficulty_mult: f64 => "" => 3.0,
+    tier3_difficulty_mult: f64 => "" => 7.0,
+    tier4_difficulty_mult: f64 => "" => 9.0,
 
     tier1_min_rank: u8 => "" => 0,
     tier2_min_rank: u8 => "" => 2,
