@@ -1,0 +1,116 @@
+name: Release Artifacts
+
+on:
+  push:
+    branches:
+      - "release-*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Debian packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debhelper dpkg-dev build-essential fakeroot
+
+      - name: Install Typst
+        run: cargo install --locked typst-cli
+
+      - name: Build release binary
+        run: make release
+
+      - name: Strip binary
+        run: make strip
+
+      - name: Build manual
+        run: make manual
+
+      - name: Prepare Debian maintainer scripts
+        run: chmod +x debian/rules debian/simeis.postinst debian/simeis.prerm
+
+      - name: Build Debian package
+        env:
+          DEB_BUILD_OPTIONS: nocheck
+        run: |
+          export PATH="$PATH:/home/runner/.cargo/bin"
+          dpkg-buildpackage -us -uc -b -d
+
+      - name: Locate Debian package
+        id: deb
+        shell: bash
+        run: |
+          deb_file="$(find .. -maxdepth 1 -type f -name '*.deb' | head -n 1)"
+          if [ -z "$deb_file" ]; then
+            echo "No Debian package found" >&2
+            exit 1
+          fi
+          echo "file=$deb_file" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog
+        id: changelog
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.ref.replace('refs/heads/', '');
+
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              base: branch,
+              per_page: 100
+            });
+
+            const features = [];
+            const bugfix = [];
+            const other = [];
+
+            for (const pr of prs) {
+              if (!pr.merged_at) continue;
+
+              const line = `- [${pr.title}](${pr.html_url})`;
+
+              if (pr.head.ref.startsWith('feature/')) {
+                features.push(line);
+              } else if (pr.head.ref.startsWith('bug/')) {
+                bugfix.push(line);
+              } else {
+                other.push(line);
+              }
+            }
+
+            const body = `
+            ## Features
+            ${features.length ? features.join('\n') : '- Aucun changement'}
+
+            ## Bugfix
+            ${bugfix.length ? bugfix.join('\n') : '- Aucun changement'}
+
+            ## Autre
+            ${other.length ? other.join('\n') : '- Aucun changement'}
+            `;
+
+            core.setOutput('body', body);
+
+      - name: Create or update release
+        uses: mini-bomba/create-github-release@v1.2.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.body }}
+          files: |
+            target/release/simeis-server
+            doc/manual.pdf
+            ${{ steps.deb.outputs.file }}

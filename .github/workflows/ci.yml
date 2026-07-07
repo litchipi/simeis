@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - release
+ 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  checks:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run cargo check
+        run: make check
+
+      - name: Run tests
+        run: make test
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Run quick property-based tests
+        run: |
+          python tests/propertybased.py --time 5.0
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Run code coverage
+        id: coverage
+        run: |
+          cargo tarpaulin --workspace --out xml --output-dir coverage
+          COVERAGE=$(grep -oP 'line-rate="\K[^"]+' coverage/cobertura.xml | head -1)
+          COVERAGE_PERCENT=$(echo "$COVERAGE * 100" | bc -l | cut -d. -f1)
+          echo "coverage_percent=$COVERAGE_PERCENT" >> $GITHUB_OUTPUT
+          echo "Coverage: ${COVERAGE_PERCENT}%"
+
+      - name: Add label if coverage insufficient
+        if: failure() || (steps.coverage.outputs.coverage_percent && steps.coverage.outputs.coverage_percent < 50)
+        run: gh issue edit "$NUMBER" --add-label "not enough tests"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN}}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+
+  release-and-docs:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Typst
+        run: |
+          cargo install --locked typst-cli
+
+      - name: Build release
+        run: make release
+
+      - name: Strip binary
+        run: make strip
+
+      - name: Build manual
+        run: make manual
+
+  python-tests-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/release'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Run Python tests
+        run: |
+          python tests/marketTest.py --server 78.123.114.124 --port 42666
+          python tests/shipTest.py --server 78.123.114.124 --port 42666
+          python tests/stationTest.py --server 78.123.114.124 --port 42666
+          python tests/propertybased.py --time 5.0
+
+  heavy-tests-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/release'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Run heavy property-based tests
+        run: |
+          python tests/propertybased.py --time 30.0

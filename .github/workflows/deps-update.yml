@@ -1,0 +1,45 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-dependencies:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-edit
+        run: cargo install --locked cargo-edit
+
+      - name: Upgrade dependency requirements
+        run: cargo upgrade
+
+      - name: Update lockfile
+        run: cargo update
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/dependency-updates
+          commit-message: "chore: update Rust dependencies"
+          title: "chore: update Rust dependencies"
+          body: |
+            Automated dependency update.
+
+            This PR updates:
+            - dependency requirements in Cargo.toml
+            - Cargo.lock
+          labels: bot/update
+          delete-branch: true

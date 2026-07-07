@@ -1,0 +1,16 @@
+Source: simeis
+Section: games
+Priority: optional
+Maintainer: Elias Forget <elias.forget@supdevinci-edu.fr>
+Build-Depends: debhelper-compat (= 13), cargo, rustc
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/blizzard179/simeis
+
+Package: simeis
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}, cmatrix
+Description: API game server for Simeis
+ Simeis is an API-driven space trading game server inspired by
+ space trading games. This package installs the server binary,
+ a manual page, and a systemd service for Debian systems.

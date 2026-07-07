@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+
+export RUSTUP_TOOLCHAIN=stable
+
+%:
+	dh $@
+
+override_dh_auto_clean:
+	# Avoid calling the project Makefile clean target from debhelper.
+	# The package build only needs the release build step below.
+
+override_dh_auto_build:
+	cargo build --release -p simeis-server

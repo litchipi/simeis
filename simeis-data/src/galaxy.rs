@@ -259,12 +259,11 @@ pub fn translation(start: SpaceCoord, direction: (f64, f64, f64), dist: f64) -> 
 }
 
 fn is_in_sector(coord: &SpaceCoord, sector: &GalaxySector) -> bool {
-    coord.0 >= sector.0 .0
-        && coord.0 < sector.0 .1
-        && coord.1 >= sector.1 .0
-        && coord.1 < sector.1 .1
-        && coord.2 >= sector.2 .0
-        && coord.2 < sector.2 .1
+    fn in_axis(value: SpaceUnit, bounds: (SpaceUnit, SpaceUnit)) -> bool {
+        value >= bounds.0 && (value < bounds.1 || (bounds.1 == SpaceUnit::MAX && value == bounds.1))
+    }
+
+    in_axis(coord.0, sector.0) && in_axis(coord.1, sector.1) && in_axis(coord.2, sector.2)
 }
 
 fn sectors_around(center: &SpaceCoord, radius: f64) -> Vec<GalaxySector> {

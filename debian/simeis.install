@@ -1,0 +1,3 @@
+target/release/simeis-server usr/bin/simeis
+debian/simeis.service etc/systemd/system/simeis.service
+debian/simeis.1 usr/share/man/man1/simeis.1
