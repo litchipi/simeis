@@ -216,3 +216,73 @@ fn test_syslog_fifo() {
     );
     assert_eq!(all.last(), Some(&usize::MAX));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::block_on;
+
+    #[test]
+    fn test_empty_fifo_pops_none_and_removes_nothing() {
+        let mut fifo = Fifo::<u8>::new();
+        assert!(fifo.pop().is_none());
+        assert!(fifo.remove_all().is_empty());
+    }
+
+    #[test]
+    fn test_fifo_preserves_order_within_capacity() {
+        let mut fifo = Fifo::<usize>::new();
+        for n in 0..5 {
+            fifo.push(n);
+        }
+        assert_eq!(fifo.remove_all(), vec![0, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_fifo_default_matches_new() {
+        let fifo: Fifo<u8> = Fifo::default();
+        assert_eq!(fifo.len, 0);
+    }
+
+    #[test]
+    fn test_syslog_event_default_is_placeholder() {
+        assert!(matches!(SyslogEvent::default(), SyslogEvent::Placeholder));
+    }
+
+    #[test]
+    fn test_syslog_event_into_static_str() {
+        let s: &'static str = (&SyslogEvent::GameStarted).into();
+        assert_eq!(s, "GameStarted");
+        let s: &'static str = (&SyslogEvent::GameLost).into();
+        assert_eq!(s, "GameLost");
+    }
+
+    #[test]
+    fn test_channel_delivers_event_to_fifo() {
+        block_on(async {
+            let (send, recv) = SyslogSend::channel();
+            let pid: PlayerId = 1234;
+            send.event(&pid, SyslogEvent::GameStarted).await;
+            recv.update().await;
+
+            let sysfifo = recv.fifo.read().await;
+            let player_fifo = sysfifo.clone_val(&pid).await.expect("fifo for player");
+            let events = player_fifo.write().await.remove_all();
+            assert_eq!(events.len(), 1);
+            assert!(matches!(events[0].1, SyslogEvent::GameStarted));
+        });
+    }
+
+    #[test]
+    fn test_recv_event_directly() {
+        block_on(async {
+            let (_send, recv) = SyslogSend::channel();
+            let pid: PlayerId = 42;
+            recv.event(pid, SyslogEvent::GameLost).await;
+            let sysfifo = recv.fifo.read().await;
+            let player_fifo = sysfifo.clone_val(&pid).await.expect("fifo for player");
+            let events = player_fifo.write().await.remove_all();
+            assert_eq!(events.len(), 1);
+        });
+    }
+}

@@ -149,3 +149,67 @@ fn test_compute_cost_addition() {
     assert_eq!(c1.direction, c2.direction);
     assert_eq!(c1.direction, c3.direction);
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::field_reassign_with_default)]
+    use super::*;
+    use crate::crew::{CrewMember, CrewMemberType};
+
+    fn piloted_ship() -> Ship {
+        let mut ship = Ship::default();
+        ship.reactor_power = 2;
+        ship.crew
+            .0
+            .insert(1, CrewMember::from(CrewMemberType::Pilot));
+        ship.pilot = Some(1);
+        ship.update_perf_stats();
+        ship
+    }
+
+    #[test]
+    fn test_compute_costs_no_pilot() {
+        let ship = Ship::default();
+        let travel = Travel::new((10, 10, 10));
+        assert!(matches!(
+            travel.compute_costs(&ship),
+            Err(Errcode::NoPilotAssigned)
+        ));
+    }
+
+    #[test]
+    fn test_compute_costs_null_distance() {
+        let mut ship = piloted_ship();
+        ship.position = (5, 5, 5);
+        let travel = Travel::new((5, 5, 5));
+        assert!(matches!(
+            travel.compute_costs(&ship),
+            Err(Errcode::NullDistance)
+        ));
+    }
+
+    #[test]
+    fn test_have_enough_true_and_false() {
+        let mut ship = piloted_ship();
+        ship.fuel_tank = 1e9;
+        ship.hull_resistance = 1e9;
+        ship.hull_decay = 0.0;
+        let cost = Travel::new((100, 0, 0)).compute_costs(&ship).unwrap();
+        assert!(cost.have_enough(&ship));
+
+        // Empty tank: not enough fuel
+        ship.fuel_tank = 0.0;
+        assert!(!cost.have_enough(&ship));
+    }
+
+    #[test]
+    fn test_flight_data_new() {
+        let ship = piloted_ship();
+        let travel = Travel::new((300, 0, 0));
+        let cost = travel.compute_costs(&ship).unwrap();
+        let fd = FlightData::new(ship.position, &cost, &travel);
+        assert_eq!(fd.dist_done, 0.0);
+        assert_eq!(fd.dist_tot, cost.distance);
+        assert_eq!(fd.destination, (300, 0, 0));
+    }
+}

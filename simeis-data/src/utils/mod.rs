@@ -34,3 +34,17 @@ pub fn sleep(dur: Duration) -> AsyncSleepFuture {
         start: std::time::Instant::now(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::block_on;
+
+    #[test]
+    fn test_sleep_waits_at_least_the_duration() {
+        let dur = Duration::from_millis(5);
+        let start = Instant::now();
+        block_on(sleep(dur));
+        assert!(start.elapsed() >= dur);
+    }
+}

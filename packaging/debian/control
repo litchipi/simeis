@@ -1,0 +1,12 @@
+Package: simeis
+Version: __VERSION__
+Section: net
+Priority: optional
+Architecture: amd64
+Depends: __SHLIBS_DEPENDS__, cmatrix, adduser
+Maintainer: Maxence Mahieux <maxence.mahieux@ynov.com>
+Homepage: https://github.com/litchipi/simeis
+Description: Serveur de jeu accessible par API HTTP
+ simeis expose un jeu via une interface HTTP, permettant à des clients
+ distants de jouer en envoyant des requêtes à l'API. Le serveur est
+ écrit en Rust et utilise le framework ntex.

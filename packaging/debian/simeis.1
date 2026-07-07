@@ -1,0 +1,32 @@
+.TH SIMEIS 1 "01 April 2026" "1.0.0" "simeis manual"
+.SH NAME
+simeis \- serveur de jeu accessible par API HTTP
+.SH SYNOPSIS
+.B simeis
+.SH DESCRIPTION
+.B simeis
+est un serveur de jeu jouable à travers une API HTTP.
+.PP
+Au démarrage, le programme lance immédiatement le serveur HTTP et se met à
+écouter sur l'adresse
+.I 0.0.0.0
+et le port
+.I 8080
+(soit toutes les interfaces réseau de la machine).
+.PP
+Le programme n'accepte aucun argument en ligne de commande : tout argument
+qui lui est passé est ignoré, et le serveur démarre dans tous les cas. Il ne
+lit aucun fichier de configuration.
+.PP
+L'adresse et le port d'écoute sont fixés en dur dans le code source. Le
+serveur ne peut donc pas être reconfiguré sans recompilation.
+.SH AUTHOR
+Maxence Mahieux <maxence.mahieux@ynov.com>
+.SH BUGS
+Le port d'écoute (8080) et l'adresse (0.0.0.0) sont codés en dur et ne
+peuvent pas être modifiés sans recompiler le programme.
+.PP
+Le programme n'accepte aucune option en ligne de commande et n'affiche
+ni aide ni numéro de version.
+.PP
+Signalez les bugs sur https://github.com/Godlonx/simeis

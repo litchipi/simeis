@@ -1,0 +1,34 @@
+#!/bin/sh
+# Script pre-removal pour simeis
+# Exécuté par dpkg AVANT de supprimer les fichiers du paquet.
+# Argument $1 : 'remove', 'upgrade', 'deconfigure', etc.
+
+set -e
+
+case "$1" in
+    remove|upgrade|deconfigure)
+        # --- 1. Arrêter le service s'il tourne ---
+        # On vérifie avant d'arrêter (idempotence + évite une erreur si déjà stoppé).
+        # On préfixe avec '-' implicite via le if : si le service n'existe plus,
+        # is-active échoue silencieusement et on continue.
+        if systemctl is-active --quiet simeis.service; then
+            systemctl stop simeis.service
+        fi
+
+        # --- 2. Désactiver le démarrage au boot ---
+        # Sinon, le symlink dans multi-user.target.wants/ resterait orphelin.
+        if systemctl is-enabled --quiet simeis.service 2>/dev/null; then
+            systemctl disable simeis.service
+        fi
+        ;;
+
+    failed-upgrade)
+        ;;
+
+    *)
+        echo "prerm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

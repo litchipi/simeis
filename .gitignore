@@ -6,3 +6,13 @@ result
 .~lock.*.ods#
 scores.json
 __pycache__
+
+# --- Artefacts de packaging Debian ---
+# Paquets construits (régénérés à chaque build)
+*.deb
+# Arbo de build temporaire (créée par packaging/debian/build-deb.sh)
+build/
+debian-build/
+packaging-work/
+# Dossier de travail local des sources de packaging (ne pas committer)
+files/

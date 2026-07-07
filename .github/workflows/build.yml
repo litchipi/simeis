@@ -1,0 +1,72 @@
+name: CI-Build
+
+on:
+  pull_request:
+    branches: [develop]
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: target/
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock', '**/*.rs') }}
+          restore-keys: ${{ runner.os }}-cargo-build-
+      
+      - uses: dtolnay/rust-toolchain@stable
+      - run: make build
+
+  compile-doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Typst
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/typst
+          key: ${{ runner.os }}-typst-${{ hashFiles('**/*.typ') }}
+          restore-keys: ${{ runner.os }}-typst-
+
+      - uses: typst-community/setup-typst@v4
+      - run: make modify-typ
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: target/
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock', '**/*.rs') }}
+          restore-keys: ${{ runner.os }}-cargo-build-
+      
+      - uses: dtolnay/rust-toolchain@stable
+      - run: make tests
+
+  check:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: target/
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock', '**/*.rs') }}
+          restore-keys: ${{ runner.os }}-cargo-build-
+
+      - uses: dtolnay/rust-toolchain@stable
+      - run: make check

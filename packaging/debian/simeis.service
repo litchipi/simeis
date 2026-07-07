@@ -1,0 +1,40 @@
+[Unit]
+# Description courte qui apparaîtra dans systemctl status
+Description=Simeis - Serveur de jeu accessible par API HTTP
+# On démarre le service seulement après que le réseau soit prêt
+# (puisque simeis bind sur 0.0.0.0:8080)
+After=network.target
+# Documentation accessible via systemctl status
+Documentation=man:simeis(1)
+
+[Service]
+# simple = systemd considère le process comme lancé dès que ExecStart est exécuté
+# (notre binaire ne fork pas, il tourne au premier plan, donc simple est correct)
+Type=simple
+
+# User et groupe dédiés (créés par postinst à l'install)
+User=simeis
+Group=simeis
+
+# Commande à exécuter pour démarrer le service
+ExecStart=/usr/bin/simeis
+
+# Redémarre automatiquement si le process crash
+Restart=on-failure
+# Attendre 5 secondes avant de retenter, pour éviter une boucle de crash
+RestartSec=5s
+
+# Durcissement de sécurité — bonnes pratiques systemd modernes
+# Empêche le service d'accéder à /home, /root, /run/user
+ProtectHome=true
+# Système de fichiers /usr en lecture seule pour le service
+ProtectSystem=strict
+# Pas d'élévation de privilèges possible
+NoNewPrivileges=true
+# Le service ne peut pas créer de nouveaux namespaces
+PrivateTmp=true
+
+[Install]
+# Le service sera activé quand le système atteint multi-user.target
+# (l'équivalent moderne du "runlevel 3" — système multi-user sans GUI)
+WantedBy=multi-user.target

@@ -1,0 +1,78 @@
+name: CI-Advanced-Analysis                                                                                                                                                      
+
+on:                                          
+  push:
+    branches:
+      - 'release/**'
+
+concurrency:
+  group: advanced-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+                                              
+  heavy-tests:                                                                                                                                                                  
+    runs-on: ubuntu-latest
+    steps:                                                                                                                                                                      
+      - uses: actions/checkout@v4                                                                                                           
+      - uses: dtolnay/rust-toolchain@stable  
+
+      - uses: actions/cache@v4
+        with: 
+          path: target/
+          key: ${{ runner.os }}-cargo-analysis-${{ hashFiles('**/Cargo.lock', '**/*.rs') }}
+          restore-keys: ${{ runner.os }}-cargo-analysis-
+
+      - run: cargo test --features heavy-testing
+                                                                                                                                                                                
+  functional-tests:
+    runs-on: ubuntu-latest                                                                                                                                                      
+    steps:                                                                                                                                  
+      - uses: actions/checkout@v4    
+      
+      - uses: actions/cache@v4
+        with: 
+          path: target/
+          key: ${{ runner.os }}-cargo-analysis-${{ hashFiles('**/Cargo.lock', '**/*.rs') }}
+          restore-keys: ${{ runner.os }}-cargo-analysis-
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5                                                                                                                                           
+        with:
+          python-version: '3.x'                                                                                                                                                 
+      - name: Build project (debug) with heavy-testing                                                                                      
+        run: cargo build --features heavy-testing                                                                                                                               
+      - name: Run functional tests
+        run: python tests/functional/run_tests.py                                                                                                                               
+               
+        
+  property-based-heavy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Exécuter les tests basés sur les propriétés (version lourde)
+        run: python tests/propertybased.py --heavy
+
+  dependency-analysis:                       
+    runs-on: ubuntu-latest
+    steps:                                                                                                                                                                      
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: target/
+          key: ${{ runner.os }}-cargo-analysis-${{ hashFiles('**/Cargo.lock', '**/*.rs') }}
+          restore-keys: ${{ runner.os }}-cargo-analysis-
+
+      - uses: dtolnay/rust-toolchain@stable                                                                                                                                     
+      - name: Install nightly toolchain                                                                                                     
+        run: rustup toolchain install nightly
+      - name: Install cargo-audit and cargo-udeps                                                                                                                               
+        run: cargo install cargo-audit cargo-udeps
+      - name: Audit dependencies                                                                                                                                                
+        run: cargo audit                                                                                                                                                        
+      - name: Check for unused dependencies  
+        run: cargo +nightly udeps

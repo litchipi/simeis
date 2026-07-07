@@ -1,0 +1,23 @@
+name: CI-QUALITY-CHECK
+
+on:
+  pull_request:
+
+    
+concurrency:
+  group: quality-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - run: make full-check
+
+      - name: black install
+        run: pip install black
+
+      - name: python format check # fail if not formatted correctly
+        run: black --check tests/

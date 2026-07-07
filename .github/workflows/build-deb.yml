@@ -1,0 +1,93 @@
+name: Build Debian package
+
+# Déclencheurs :
+#   - automatiquement quand une release est publiée
+#   - manuellement (workflow_dispatch), avec un input "version" optionnel
+#     pour (re)construire le paquet sur une release existante.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version / tag de la release (ex: 1.0.0). Vide = dernière release."
+        required: false
+        type: string
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # nécessaire pour uploader l'asset sur la release
+    steps:
+      # --- 1. Récupération du code (sources de packaging incluses) ---
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # --- 2. Installation des outils Debian ---
+      - name: Install Debian build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev fakeroot lintian
+
+      # --- 3. Détermination de la version cible ---
+      - name: Determine version
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="$(gh release view --json tagName --jq .tagName)"
+          fi
+          if [ -z "$VERSION" ]; then
+            echo "ERREUR: impossible de déterminer la version" >&2
+            exit 1
+          fi
+          echo "Version retenue : $VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # --- 4. Téléchargement du tarball de la release ---
+      - name: Download release tarball
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "$VERSION" \
+            --pattern "simeis-server_*.tar.gz" \
+            --dir downloads
+          echo "Contenu de downloads/ :"
+          ls -la downloads/
+
+      # --- 5. Construction du paquet .deb ---
+      - name: Build .deb
+        run: |
+          TARBALL="$(ls downloads/simeis-server_*.tar.gz | head -n1)"
+          ./packaging/debian/build-deb.sh "$TARBALL" "$VERSION"
+
+      # --- 6. Upload du .deb sur la release ---
+      - name: Upload .deb to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$VERSION" "./simeis_${VERSION}_amd64.deb" --clobber
+
+      # --- 7. Affichage de l'URL publique du paquet ---
+      - name: Show package URL
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          URL="$(gh release view "$VERSION" \
+            --json assets \
+            --jq '.assets[] | select(.name == "simeis_'"$VERSION"'_amd64.deb") | .url')"
+          echo "=============================================================="
+          echo " Paquet Debian publié :"
+          echo "   simeis_${VERSION}_amd64.deb"
+          echo " URL de téléchargement :"
+          echo "   $URL"
+          echo "=============================================================="
+          echo "### Paquet Debian \`simeis_${VERSION}_amd64.deb\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "[$URL]($URL)" >> "$GITHUB_STEP_SUMMARY"

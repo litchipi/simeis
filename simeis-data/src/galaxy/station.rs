@@ -33,7 +33,6 @@ pub struct StationInfo {
 }
 
 impl StationInfo {
-    // TODO (#8) Based on the scanner rank, get informations on crew and cargo
     pub fn scan(_rank: u8, station: &Station) -> StationInfo {
         StationInfo {
             id: station.id,
@@ -87,7 +86,6 @@ impl Station {
         }
     }
 
-    // TODO (#8) Allow to build improvements for the scanner
     pub async fn scan(&self, galaxy: &Galaxy) -> ScanResult {
         galaxy.scan_sector(1, &self.position).await
     }
@@ -400,8 +398,6 @@ impl Station {
     }
 
     pub fn get_ship_upgrade_price(&self, _ship: &Ship, upgrade: &ShipUpgrade) -> f64 {
-        // TODO (#9) Modify price based on station economy metrics
-        // TODO (#9) Modify price based on upgrades already installed on the ship
         upgrade.get_price()
     }
 
@@ -585,5 +581,418 @@ impl Station {
         let inputs = industry.input(op.rank);
         let outputs = industry.output(op.rank);
         Ok((inputs, outputs))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::field_reassign_with_default)]
+    use super::*;
+    use crate::player::Player;
+    use crate::ship::module::ShipModuleType;
+    use crate::tests::block_on;
+
+    const POS: SpaceCoord = (100, 200, 300);
+
+    fn station() -> Arc<Station> {
+        Arc::new(Station::init(1, POS))
+    }
+
+    fn player(station: Arc<Station>) -> Player {
+        Player::new((station.id, station), "tester".to_string())
+    }
+
+    fn ship_owned_by(player: &Player) -> Ship {
+        let mut ship = Ship::default();
+        ship.owner = player.id;
+        ship.position = POS;
+        ship
+    }
+
+    #[test]
+    fn test_init_fields() {
+        let st = Station::init(42, POS);
+        assert_eq!(st.id, 42);
+        assert_eq!(st.position, POS);
+    }
+
+    #[test]
+    fn test_ensure_has_player_data_idempotent() {
+        block_on(async {
+            let st = station();
+            let p = player(st.clone());
+            assert!(!st.player_data.contains_key(&p.id).await);
+            st.ensure_has_player_data(&p.id).await;
+            st.ensure_has_player_data(&p.id).await;
+            assert!(st.player_data.contains_key(&p.id).await);
+        });
+    }
+
+    #[test]
+    fn test_cargo_price_default_is_one() {
+        block_on(async {
+            let st = station();
+            let p = player(st.clone());
+            // With the default capacity the exponent is 0 -> price 1.0
+            assert_eq!(st.cargo_price(&p.id).await, 1.0);
+        });
+    }
+
+    #[test]
+    fn test_hire_and_fire_crew() {
+        block_on(async {
+            let st = station();
+            let p = player(st.clone());
+            let id = st.hire_crew(&p.id, CrewMemberType::Operator).await;
+            let cm = st.fire_crew(&p.id, &id).await.unwrap();
+            assert_eq!(cm.member_type, CrewMemberType::Operator);
+            // Firing the same member again fails
+            assert!(matches!(
+                st.fire_crew(&p.id, &id).await,
+                Err(Errcode::CrewMemberNotFound(_))
+            ));
+        });
+    }
+
+    #[test]
+    fn test_buy_industry_success_and_insufficient_funds() {
+        block_on(async {
+            let st = station();
+            let mut p = player(st.clone());
+            let before = p.money;
+            let (uid, cost) = st
+                .buy_industry(&mut p, IndustryUnitType::SimpleFuelRefinery)
+                .await
+                .unwrap();
+            assert_eq!(cost, IndustryUnitType::SimpleFuelRefinery.get_price_buy());
+            assert!((p.money - (before - cost)).abs() < 1e-9);
+
+            // Drain the wallet, the next purchase must fail
+            p.money = 0.0;
+            assert!(matches!(
+                st.buy_industry(&mut p, IndustryUnitType::AdvancedFuelRefinery)
+                    .await,
+                Err(Errcode::NotEnoughMoney(_, _))
+            ));
+            // The first unit is still present
+            assert!(st.get_industry_production(&p.id, uid).await.is_ok());
+        });
+    }
+
+    #[test]
+    fn test_start_stop_and_upgrade_industry() {
+        block_on(async {
+            let st = station();
+            let mut p = player(st.clone());
+            let (uid, _) = st
+                .buy_industry(&mut p, IndustryUnitType::SimpleHullFoundry)
+                .await
+                .unwrap();
+
+            assert!(st.start_industry(&p.id, &uid).await.is_ok());
+            assert!(st.stop_industry(&p.id, &uid).await.is_ok());
+
+            let rank = st.upgrade_industry(&mut p, &uid).await.unwrap();
+            assert_eq!(rank, 2);
+
+            // Unknown units are rejected
+            assert!(matches!(
+                st.start_industry(&p.id, &999_999).await,
+                Err(Errcode::NoSuchIndustryUnit)
+            ));
+            assert!(matches!(
+                st.upgrade_industry(&mut p, &999_999).await,
+                Err(Errcode::NoSuchIndustryUnit)
+            ));
+        });
+    }
+
+    #[test]
+    fn test_assign_trader_errors_and_success() {
+        block_on(async {
+            let st = station();
+            let p = player(st.clone());
+            // Unknown crew member
+            assert!(matches!(
+                st.assign_trader(&p.id, 12345).await,
+                Err(Errcode::CrewMemberNotFound(_))
+            ));
+            let trader = st.hire_crew(&p.id, CrewMemberType::Trader).await;
+            assert!(st.assign_trader(&p.id, trader).await.is_ok());
+            // The fee rate is now available
+            assert!(st.get_fee_rate(&p.id).await.is_ok());
+            assert!(st.upgr_trader_price(&p.id).await.is_some());
+        });
+    }
+
+    #[test]
+    fn test_buy_and_add_cargo_capacity() {
+        block_on(async {
+            let st = station();
+            let mut p = player(st.clone());
+            let cargo = st.buy_cargo(&mut p, &100).await.unwrap();
+            assert!((cargo.capacity - (STATION_INIT_CARGO + 100.0)).abs() < 1e-9);
+            let cargo = st.add_cargo_cap(&p.id, 50).await;
+            assert!((cargo.capacity - (STATION_INIT_CARGO + 150.0)).abs() < 1e-9);
+        });
+    }
+
+    #[test]
+    fn test_buy_sell_resource_requires_trader() {
+        block_on(async {
+            let st = station();
+            let market = Market::init();
+            let p = player(st.clone());
+            // No trader assigned yet
+            assert!(matches!(
+                st.buy_resource(&market, &p.id, &Resource::Iron, 5.0).await,
+                Err(Errcode::NoTraderAssigned)
+            ));
+            assert!(matches!(
+                st.sell_resource(&market, &p.id, &Resource::Iron, 5.0).await,
+                Err(Errcode::NoTraderAssigned)
+            ));
+
+            let trader = st.hire_crew(&p.id, CrewMemberType::Trader).await;
+            st.assign_trader(&p.id, trader).await.unwrap();
+
+            // Buy then sell the same resource
+            let tx = st
+                .buy_resource(&market, &p.id, &Resource::Iron, 5.0)
+                .await
+                .unwrap();
+            assert_eq!(tx.added_cargo.unwrap().0, Resource::Iron);
+
+            let tx = st
+                .sell_resource(&market, &p.id, &Resource::Iron, 2.0)
+                .await
+                .unwrap();
+            assert_eq!(tx.removed_cargo.unwrap().0, Resource::Iron);
+
+            // Selling a resource we don't hold fails
+            assert!(matches!(
+                st.sell_resource(&market, &p.id, &Resource::Gold, 1.0).await,
+                Err(Errcode::SellNothing)
+            ));
+        });
+    }
+
+    #[test]
+    fn test_refuel_ship() {
+        block_on(async {
+            let st = station();
+            let p = player(st.clone());
+            let mut ship = ship_owned_by(&p);
+            ship.fuel_tank_capacity = 100.0;
+            ship.fuel_tank = 0.0;
+
+            // No fuel in cargo yet
+            assert!(matches!(
+                st.refuel_ship(&mut ship).await,
+                Err(Errcode::NoFuelInCargo)
+            ));
+
+            st.add_resource(&p.id, &Resource::Fuel, 30.0).await;
+            let unloaded = st.refuel_ship(&mut ship).await.unwrap();
+            assert_eq!(unloaded, 30.0);
+            assert_eq!(ship.fuel_tank, 30.0);
+
+            // A ship away from the station cannot refuel
+            ship.position = (0, 0, 0);
+            assert!(matches!(
+                st.refuel_ship(&mut ship).await,
+                Err(Errcode::ShipNotInStation)
+            ));
+        });
+    }
+
+    #[test]
+    fn test_repair_ship() {
+        block_on(async {
+            let st = station();
+            let p = player(st.clone());
+            let mut ship = ship_owned_by(&p);
+            ship.hull_resistance = 1000.0;
+            ship.hull_decay = 40.0;
+
+            assert!(matches!(
+                st.repair_ship(&mut ship).await,
+                Err(Errcode::NoHullInCargo)
+            ));
+
+            st.add_resource(&p.id, &Resource::Hull, 25.0).await;
+            let repaired = st.repair_ship(&mut ship).await.unwrap();
+            assert_eq!(repaired, 25.0);
+            assert_eq!(ship.hull_decay, 15.0);
+        });
+    }
+
+    #[test]
+    fn test_onboard_pilot_and_operator() {
+        block_on(async {
+            let st = station();
+            let p = player(st.clone());
+            let mut ship = ship_owned_by(&p);
+
+            // Pilot
+            let pilot = st.hire_crew(&p.id, CrewMemberType::Pilot).await;
+            st.onboard_pilot(&mut ship, &pilot).await.unwrap();
+            assert_eq!(ship.pilot, Some(pilot));
+            assert!(ship.crew.0.contains_key(&pilot));
+
+            // Operator on a module
+            ship.modules.insert(1, ShipModuleType::Miner.new_module());
+            let op = st.hire_crew(&p.id, CrewMemberType::Operator).await;
+            st.onboard_operator(&mut ship, &op, &1).await.unwrap();
+            assert_eq!(ship.modules.get(&1).unwrap().operator, Some(op));
+        });
+    }
+
+    #[test]
+    fn test_onboard_pilot_wrong_type_rejected() {
+        block_on(async {
+            let st = station();
+            let p = player(st.clone());
+            let mut ship = ship_owned_by(&p);
+            let op = st.hire_crew(&p.id, CrewMemberType::Operator).await;
+            assert!(matches!(
+                st.onboard_pilot(&mut ship, &op).await,
+                Err(Errcode::WrongCrewType(_))
+            ));
+        });
+    }
+
+    #[test]
+    fn test_assign_crew_to_industry() {
+        block_on(async {
+            let st = station();
+            let mut p = player(st.clone());
+            let (uid, _) = st
+                .buy_industry(&mut p, IndustryUnitType::SimpleFuelRefinery)
+                .await
+                .unwrap();
+            let op = st.hire_crew(&p.id, CrewMemberType::Operator).await;
+            assert!(st.assign_crew_to_industry(&p.id, &op, &uid).await.is_ok());
+            // After assigning an operator, production recipes are non-empty
+            let (inputs, outputs) = st.get_industry_production(&p.id, uid).await.unwrap();
+            assert!(!inputs.is_empty());
+            assert!(!outputs.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_upgrade_station_crew() {
+        block_on(async {
+            let st = station();
+            let p = player(st.clone());
+            let trader = st.hire_crew(&p.id, CrewMemberType::Trader).await;
+            st.assign_trader(&p.id, trader).await.unwrap();
+
+            let mut money = 1_000_000.0;
+            let (price, rank) = st
+                .upgrade_station_crew(&p.id, &mut money, &trader)
+                .await
+                .unwrap();
+            assert!(price > 0.0);
+            assert_eq!(rank, 2);
+            assert!((money - (1_000_000.0 - price)).abs() < 1e-9);
+
+            // Unknown crew member fails
+            assert!(matches!(
+                st.upgrade_station_crew(&p.id, &mut money, &999).await,
+                Err(Errcode::CrewMemberNotFound(_))
+            ));
+        });
+    }
+
+    #[test]
+    fn test_buy_ship_starters_are_kept() {
+        block_on(async {
+            let st = station();
+            let initial_len = st.shipyard.read().await.len();
+            let ship = st.buy_ship(0).await;
+            // Buying a starter (index < 3) does not shrink the shipyard
+            assert_eq!(st.shipyard.read().await.len(), initial_len);
+            assert_eq!(ship.fuel_tank, ship.fuel_tank_capacity);
+        });
+    }
+
+    #[test]
+    fn test_clone_cargo_and_potential_price() {
+        block_on(async {
+            let st = station();
+            let p = player(st.clone());
+            // Default cargo for an unknown player
+            let cargo = st.clone_cargo(&p.id).await;
+            assert_eq!(cargo.capacity, STATION_INIT_CARGO);
+            assert_eq!(st.get_cargo_potential_price(&p.id).await, 0.0);
+
+            st.add_resource(&p.id, &Resource::Gold, 10.0).await;
+            let price = st.get_cargo_potential_price(&p.id).await;
+            assert!((price - 10.0 * Resource::Gold.base_price()).abs() < 1e-9);
+        });
+    }
+
+    #[test]
+    fn test_sum_all_wages() {
+        block_on(async {
+            let st = station();
+            let p = player(st.clone());
+            assert_eq!(st.sum_all_wages(&p.id).await, 0.0);
+            st.hire_crew(&p.id, CrewMemberType::Pilot).await;
+            assert!(st.sum_all_wages(&p.id).await > 0.0);
+        });
+    }
+
+    #[test]
+    fn test_to_json_contains_station_id() {
+        block_on(async {
+            let st = station();
+            let p = player(st.clone());
+            let json = st.to_json(&p.id).await;
+            assert_eq!(json["id"], serde_json::json!(st.id));
+            assert_eq!(json["position"], serde_json::json!(st.position));
+        });
+    }
+
+    #[test]
+    fn test_update_crafting_consumes_and_produces() {
+        block_on(async {
+            let st = station();
+            let mut p = player(st.clone());
+            let (uid, _) = st
+                .buy_industry(&mut p, IndustryUnitType::SimpleFuelRefinery)
+                .await
+                .unwrap();
+            let op = st.hire_crew(&p.id, CrewMemberType::Operator).await;
+            st.assign_crew_to_industry(&p.id, &op, &uid).await.unwrap();
+            st.start_industry(&p.id, &uid).await.unwrap();
+
+            // Make room before stocking, otherwise the cargo fills up with the
+            // first resource and the others can't be added.
+            st.add_cargo_cap(&p.id, 100_000).await;
+            for res in [
+                Resource::Hydrogen,
+                Resource::Oxygen,
+                Resource::Carbon,
+                Resource::Water,
+            ] {
+                st.add_resource(&p.id, &res, 100.0).await;
+            }
+            st.update_crafting(1.0, &p.id).await;
+
+            let cargo = st.clone_cargo(&p.id).await;
+            assert!(cargo.resources.get(&Resource::Fuel).copied().unwrap_or(0.0) > 0.0);
+        });
+    }
+
+    #[test]
+    fn test_get_ship_upgrade_price_delegates() {
+        let st = Station::init(1, POS);
+        let ship = Ship::default();
+        assert_eq!(
+            st.get_ship_upgrade_price(&ship, &ShipUpgrade::Shield),
+            ShipUpgrade::Shield.get_price()
+        );
     }
 }

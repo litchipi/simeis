@@ -1,0 +1,168 @@
+name: CI-Create-Update-Release
+
+on:
+  pull_request:
+    branches:
+      - release/**
+    types: [closed]
+
+jobs:
+  
+  build-changelog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          echo "VERSION=${VERSION#release/}" >> $GITHUB_ENV
+
+      - name: Create changelog
+        id: changelog
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_BRANCH: ${{ github.ref_name }}
+        run: |
+          VERSION=${{ env.VERSION }}
+          DATE=$(date -R)
+          MAINTAINER="Your Name <your@email.com>"
+
+          PRS=$(gh pr list \
+            --base "$RELEASE_BRANCH" \
+            --state merged \
+            --json title,headRefName,url \
+            --limit 100)
+
+          FEATURES=""
+          BUGFIXES=""
+          OTHERS=""
+          DEB_ENTRIES=""
+
+          while IFS= read -r pr; do
+            TITLE=$(echo "$pr"  | jq -r '.title')
+            URL=$(echo "$pr"    | jq -r '.url')
+            BRANCH=$(echo "$pr" | jq -r '.headRefName')
+            LINE="- [$TITLE]($URL)"
+
+            if [[ "$BRANCH" == feature/* ]]; then
+              FEATURES="$FEATURES\n$LINE"
+              DEB_ENTRIES="$DEB_ENTRIES  * [Feature] $TITLE\n"
+            elif [[ "$BRANCH" == bug/* ]]; then
+              BUGFIXES="$BUGFIXES\n$LINE"
+              DEB_ENTRIES="$DEB_ENTRIES  * [Bugfix] $TITLE\n"
+            else
+              OTHERS="$OTHERS\n$LINE"
+              DEB_ENTRIES="$DEB_ENTRIES  * $TITLE\n"
+            fi
+          done < <(echo "$PRS" | jq -c '.[]')
+
+          # changelog.md
+          CHANGELOG="## Changelog $VERSION\n\n"
+          [ -n "$FEATURES" ] && CHANGELOG="${CHANGELOG}### ✨ Features\n${FEATURES}\n\n"
+          [ -n "$BUGFIXES" ] && CHANGELOG="${CHANGELOG}### 🐛 Bugfixes\n${BUGFIXES}\n\n"
+          [ -n "$OTHERS"   ] && CHANGELOG="${CHANGELOG}### 🔧 Autres\n${OTHERS}\n\n"
+          echo -e "$CHANGELOG" > changelog.md
+
+          # changelog.debian
+          {
+            echo "simeis-server ($VERSION) stable; urgency=medium"
+            echo ""
+            echo -e "$DEB_ENTRIES"
+            echo " -- $MAINTAINER  $DATE"
+          } > changelog.debian
+
+      - name: Upload changelog
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: |
+            changelog.md
+            changelog.debian
+
+  build-artifacts:
+   runs-on: ubuntu-latest
+   needs: build-changelog
+   steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build binary
+        run: make build-release
+
+      - name: Build PDF documentation
+        uses: typst-community/setup-typst@v4
+      - run: make modify-typ
+
+      - name: Download changelog
+        uses: actions/download-artifact@v4
+        with:
+          name: changelog
+
+      - name: Package tar.gz
+        run: |
+         VERSION="${{ github.ref_name }}"
+         VERSION="${VERSION#release/}"
+         mkdir -p package
+         cp target/release/simeis-server package/
+         cp doc/manual.pdf package/
+         cp changelog.debian package/changelog.debian
+         tar czf simeis-server_${VERSION}.tar.gz -C package .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+         name: release-artifacts
+         path: simeis-server_${VERSION}.tar.gz
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [build-artifacts, build-changelog]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          echo "VERSION=${VERSION#release/}" >> $GITHUB_ENV
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+
+      - name: Download changelog
+        uses: actions/download-artifact@v4
+        with:
+          name: changelog
+
+      - name: Create git tag
+        run: |
+          git tag "${{ env.VERSION }}" || true
+          git push origin "${{ env.VERSION }}" || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create or update release
+        run: |
+          TAG="${{ env.VERSION }}"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" \
+              --notes-file changelog.md \
+              --title "Release $TAG"
+          else
+            gh release create "$TAG" \
+              --notes-file changelog.md \
+              --title "Release $TAG"
+          fi
+          gh release upload "$TAG" simeis-server_${TAG}.tar.gz --clobber
+          gh release upload "$TAG" doc/manual.pdf --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

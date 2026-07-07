@@ -1,0 +1,38 @@
+#!/bin/sh
+# Script post-removal pour simeis
+# Exécuté par dpkg APRES la suppression des fichiers.
+# Argument $1 : 'remove' (suppression simple), 'purge' (suppression + config),
+# 'upgrade', etc.
+
+set -e
+
+case "$1" in
+    purge)
+        # --- Purge : on nettoie tout, y compris l'utilisateur système ---
+        # 'remove' garde l'user (le sysadmin pourrait vouloir le réutiliser).
+        # 'purge' supprime tout. C'est la convention Debian.
+        if getent passwd simeis > /dev/null; then
+            deluser --system simeis || true
+            # Le '|| true' empêche le script d'échouer si deluser râle
+            # (par exemple si l'user est encore utilisé par un autre processus).
+        fi
+
+        # Reload systemd au cas où.
+        systemctl daemon-reload || true
+        ;;
+
+    remove)
+        # Reload systemd pour qu'il oublie le service supprimé.
+        systemctl daemon-reload || true
+        ;;
+
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

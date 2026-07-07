@@ -1,0 +1,52 @@
+#!/bin/sh
+# Script post-installation pour simeis
+# Exécuté par dpkg APRES que les fichiers du paquet aient été copiés sur le système.
+# Argument $1 indique le contexte d'appel : 'configure' (install neuve ou upgrade),
+# 'abort-upgrade', 'abort-remove', etc.
+
+set -e  # Stoppe le script à la première erreur (sinon une install partielle passerait inaperçue)
+
+case "$1" in
+    configure)
+        # --- 1. Créer l'utilisateur système simeis si absent ---
+        # getent interroge la base utilisateur du système.
+        # On vérifie l'existence avant de créer pour rendre le script idempotent
+        # (ré-exécutable sans erreur, important lors des upgrades).
+        if ! getent passwd simeis > /dev/null; then
+            adduser --system \
+                    --group \
+                    --no-create-home \
+                    --home /nonexistent \
+                    --shell /usr/sbin/nologin \
+                    --gecos "Simeis service user" \
+                    simeis
+        fi
+
+        # --- 2. Recharger systemd ---
+        # systemd ne voit pas automatiquement les nouveaux fichiers .service ajoutés
+        # dans /etc/systemd/system/. Il faut lui dire de re-scanner.
+        systemctl daemon-reload
+
+        # --- 3. Activer le service au démarrage du système ---
+        # 'enable' crée le symlink dans multi-user.target.wants/
+        # → au prochain boot, le service démarrera tout seul.
+        systemctl enable simeis.service
+
+        # --- 4. Démarrer le service maintenant ---
+        # Sans ça, l'utilisateur devrait reboot ou faire 'systemctl start' à la main.
+        # Le TP demande "Autoriser & démarrer le service".
+        systemctl start simeis.service
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        # Cas où une opération précédente a échoué et dpkg fait machine arrière.
+        # On ne fait rien de spécial.
+        ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

@@ -1,0 +1,33 @@
+name: CI-Build-Release-Matrix
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-release-matrix:
+    # Ne s'exécute que pour les PR provenant d'une branche feature/* vers main
+    if: startsWith(github.head_ref, 'feature/')
+    name: build-release (${{ matrix.os }}, rust ${{ matrix.rust }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # On veut voir le résultat de chaque combinaison, pas s'arrêter au premier échec
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        rust: ['1.75.0', '1.80.0', '1.85.0', '1.88.0']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer la toolchain Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - name: Build de simeis (release)
+        run: cargo build --release --workspace --verbose
