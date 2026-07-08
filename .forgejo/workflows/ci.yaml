@@ -4,9 +4,17 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# TODO Make code check first, in parallel with TODO checks and SDK checks
+# Then launch tests, func tests, api & swagger generation
+
+# TODO Create a CD:
+# When label "release" on the PR, and PR is merged
+# Create a debian package, then publish it as an artifact
+
 jobs:
   tests:
     runs-on: nix
+    needs: code-check
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +47,7 @@ jobs:
 
   api-check:
     runs-on: nix
+    needs: code-check
     steps:
       - uses: actions/checkout@v4
 
@@ -104,6 +113,7 @@ jobs:
 
   check-runs-well:
     runs-on: nix
+    needs: code-check
     steps:
       - uses: actions/checkout@v4
 
