@@ -99,9 +99,13 @@ impl Station {
         } else {
             cfg.station.init_cargo
         };
-        cfg.station
-            .cargo_base_price
-            .powf((cap - cfg.station.init_cargo) / cfg.station.cargo_price_incdiv)
+        let capdiff = cap - cfg.station.init_cargo;
+        if capdiff < cfg.station.cargo_price_incdiv {
+            cfg.station.cargo_base_price
+        } else {
+            let mult = 1.0 + (capdiff / cfg.station.cargo_price_incdiv).ln();
+            cfg.station.cargo_base_price * mult
+        }
     }
 
     pub async fn buy_industry(

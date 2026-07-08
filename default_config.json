@@ -8,9 +8,9 @@
   "game": {
     "shards": 5,
     "player_init_money": 72000.0,
-    "sector_size": 5000,
-    "planets_per_sector": 8,
-    "station_fplanet_dist": 500.0
+    "sector_size": 2000,
+    "planets_per_sector": 12,
+    "station_fplanet_dist": 300.0
   },
   "resources": {
     "tier1_price": 6.0,
@@ -21,11 +21,11 @@
     "tier2_volume": 1.9,
     "tier3_volume": 1.2,
     "tier4_volume": 0.85,
-    "fuel_price": 10.0,
+    "fuel_price": 12.0,
     "hull_price": 1.0,
-    "fuel_volume": 2.0,
+    "fuel_volume": 6.0,
     "hull_volume": 0.75,
-    "tier1_difficulty": 1.0,
+    "tier1_difficulty": 2.0,
     "tier2_difficulty_mult": 2.0,
     "tier3_difficulty_mult": 5.0,
     "tier4_difficulty_mult": 8.0,
@@ -52,26 +52,27 @@
     "module_upg_powf_div": 75.0
   },
   "station": {
-    "cargo_base_price": 2.0,
+    "cargo_base_price": 20.0,
     "cargo_price_incdiv": 100.0,
-    "init_cargo": 1000.0
+    "init_cargo": 2000.0
   },
   "ship": {
     "fuel_tank_cap_price": 30.0,
     "cargo_cap_price": 20.0,
     "hull_resis_price": 9.0,
-    "reactor_rank_price": 4000.0,
-    "shield_price": 2500.0,
+    "reactor_rank_price": 5000.0,
+    "shield_price": 3500.0,
     "default_pow_attr": 128,
     "module_base_price": 4500.0,
     "module_base_extraction_mult": 50.0,
     "module_exrate_diff_fact": 1.5,
     "module_exrate_fact": 0.6,
+    "module_rank_weight": 2.0,
     "hull_usage_rate": 0.03,
-    "reactor_speed_rate": 50.0,
-    "shield_rank_log": 3.5,
-    "pilot_fuel_share": 5,
-    "pilot_rank_speed_powf": 0.6
+    "reactor_speed_rate": 30.0,
+    "shield_rank_log": 4.0,
+    "pilot_fuel_share": 7,
+    "pilot_rank_speed_powf": 1.2
   },
   "crew": {
     "wage_rank_powf": 0.85,
@@ -83,11 +84,11 @@
     "solider_wage_mult": 2.5
   },
   "market": {
-    "max_avg_ampl": 0.055,
-    "std_div": 1.15,
-    "change_sec": 20.0,
+    "max_avg_ampl": 0.032,
+    "std_div": 1.08,
+    "change_sec": 10.0,
     "base_fee_rate": 0.25,
-    "fee_rate_dev_powf": 1.15,
-    "upd_price_proba": 0.8
+    "fee_rate_dev_powf": 0.95,
+    "upd_price_proba": 0.3
   }
 }

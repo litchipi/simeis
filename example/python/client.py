@@ -107,7 +107,7 @@ class Game:
             # On vends tout
             cycletot = 0
             for res, amnt in self.sdk.get_station_resources(sta).items():
-                if res in [ "Fuel", "Hull" ]:
+                if res in [ "fuel", "hull" ]:
                     continue
                 got = self.sdk.sell_resource(sta, res, amnt)
                 print("Sold", amnt, "of", res, "for", got["added_money"], "credits (fees", got["fees"], "credits)")

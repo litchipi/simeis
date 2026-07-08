@@ -124,9 +124,9 @@ config_fields!(SimeisServerConfig;
 config_fields!(SimeisGameConfig;
     shards: usize => "SIMEIS_LOCKS_SHARDS" => 5,
     player_init_money: f64 => "SIMEIS_PLAYER_INIT_MONEY" => 72000.0,
-    sector_size: u32 => "" => 5000,
-    planets_per_sector: usize => "" => 8,
-    station_fplanet_dist: f64 => "" => 500.0,
+    sector_size: u32 => "" => 2000,
+    planets_per_sector: usize => "" => 12,
+    station_fplanet_dist: f64 => "" => 300.0,
 );
 
 config_fields!(SimeisUpgradeConfig;
@@ -138,25 +138,26 @@ config_fields!(SimeisShipConfig;
     fuel_tank_cap_price: f64 => "" => 30.0,
     cargo_cap_price: f64 => "" => 20.0,
     hull_resis_price: f64 => "" => 9.0,
-    reactor_rank_price: f64 => "" => 4000.0,
-    shield_price: f64 => "" => 2500.0,
+    reactor_rank_price: f64 => "" => 5000.0,
+    shield_price: f64 => "" => 3500.0,
     default_pow_attr: u8 => "" => 128,
 
     module_base_price: f64 => "" => 4500.0,
     module_base_extraction_mult: f64 => "" => 50.0,
     module_exrate_diff_fact: f64 => "" => 1.5,
     module_exrate_fact: f64 => "" => 0.6,
+    module_rank_weight: f64 => "" => 2.0,
 
     hull_usage_rate: f64 => "" => 30.0 / 1000.0,
-    reactor_speed_rate: f64 => "" => 50.0,
-    shield_rank_log: f64 => "" => 3.5,
-    pilot_fuel_share: u8 => "" => 5,
-    pilot_rank_speed_powf: f64 => "" => 0.6,
+    reactor_speed_rate: f64 => "" => 30.0,
+    shield_rank_log: f64 => "" => 4.0,
+    pilot_fuel_share: u8 => "" => 7,
+    pilot_rank_speed_powf: f64 => "" => 1.2,
 );
 config_fields!(SimeisStationConfig;
-    cargo_base_price: f64 => "" => 2.0,
+    cargo_base_price: f64 => "" => 20.0,
     cargo_price_incdiv: f64 => "" => 100.0,
-    init_cargo: f64 => "" => 1000.0,
+    init_cargo: f64 => "" => 2000.0,
 );
 config_fields!(SimeisCrewConfig;
     wage_rank_powf: f64 => "" => 0.85,
@@ -170,12 +171,12 @@ config_fields!(SimeisCrewConfig;
 );
 
 config_fields!(SimeisMarketConfig;
-    max_avg_ampl: f64 => "" => 5.5 / 100.0,
-    std_div: f64 => "" => 1.15,
-    change_sec: f64 => "" => 20.0,
+    max_avg_ampl: f64 => "" => 3.2 / 100.0,
+    std_div: f64 => "" => 1.08,
+    change_sec: f64 => "" => 10.0,
     base_fee_rate: f64 => "" => 25.0 / 100.0,
-    fee_rate_dev_powf: f64 => "" => 1.15,
-    upd_price_proba: f64 => "" => 0.80,
+    fee_rate_dev_powf: f64 => "" => 0.95,
+    upd_price_proba: f64 => "" => 0.30,
 );
 
 config_fields!(SimeisIndustryConfig;
@@ -204,12 +205,12 @@ config_fields!(SimeisResourcesConfig;
     tier3_volume: f64 => "" => 1.2,
     tier4_volume: f64 => "" => 0.85,
 
-    fuel_price: f64 => "" => 10.0,
+    fuel_price: f64 => "" => 12.0,
     hull_price: f64 => "" => 1.0,
-    fuel_volume: f64 => "" => 2.0,
+    fuel_volume: f64 => "" => 6.0,
     hull_volume: f64 => "" => 0.75,
 
-    tier1_difficulty: f64 => "" => 1.0,
+    tier1_difficulty: f64 => "" => 2.0,
     tier2_difficulty_mult: f64 => "" => 2.0,
     tier3_difficulty_mult: f64 => "" => 5.0,
     tier4_difficulty_mult: f64 => "" => 8.0,

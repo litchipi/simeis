@@ -176,11 +176,11 @@ class SimeisSDK:
             return None
 
         cargo = self.get(f"/station/{sta}")["cargo"]
-        if "Hull" not in cargo["resources"]:
-            cargo["resources"]["Hull"] = 0
+        if "hull" not in cargo["resources"]:
+            cargo["resources"]["hull"] = 0
 
-        if cargo["resources"]["Hull"] < req:
-            need = req - cargo["resources"]["Hull"]
+        if cargo["resources"]["hull"] < req:
+            need = req - cargo["resources"]["hull"]
             return self.post(f"/market/{sta}/buy/hull/{need}")
         return None
 
@@ -193,10 +193,10 @@ class SimeisSDK:
             return None
 
         cargo = self.get(f"/station/{sta}")["cargo"]
-        if "Hull" not in cargo["resources"]:
-            cargo["resources"]["Hull"] = 0
+        if "hull" not in cargo["resources"]:
+            cargo["resources"]["hull"] = 0
 
-        if cargo["resources"]["Hull"] > 0:
+        if cargo["resources"]["hull"] > 0:
             return self.post(f"/station/{sta}/repair/{ship_id}")
 
         return None
@@ -210,11 +210,11 @@ class SimeisSDK:
             return
 
         cargo = self.get(f"/station/{sta}")["cargo"]
-        if "Fuel" not in cargo["resources"]:
-            cargo["resources"]["Fuel"] = 0
+        if "fuel" not in cargo["resources"]:
+            cargo["resources"]["fuel"] = 0
 
-        if cargo["resources"]["Fuel"] < req:
-            need = req - cargo["resources"]["Fuel"]
+        if cargo["resources"]["fuel"] < req:
+            need = req - cargo["resources"]["fuel"]
             return self.post(f"/market/{sta}/buy/fuel/{need}")
         return None
 
@@ -227,10 +227,10 @@ class SimeisSDK:
             return
 
         cargo = self.get(f"/station/{sta}")["cargo"]
-        if "Fuel" not in cargo["resources"]:
-            cargo["resources"]["Fuel"] = 0        
+        if "fuel" not in cargo["resources"]:
+            cargo["resources"]["fuel"] = 0        
 
-        if cargo["resources"]["Fuel"] > 0:
+        if cargo["resources"]["fuel"] > 0:
             return self.post(f"/station/{sta}/refuel/{ship_id}")
         return None
 
