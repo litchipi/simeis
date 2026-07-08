@@ -321,4 +321,18 @@ in {
         '';
       };
     in "${app}/bin/check-sdk-sync";
+
+    disp_version = let
+      app = pkgs.writeShellApplication {
+        name = "disp_version";
+        runtimeInputs = [ pkgs.ripgrep ];
+        text = ''
+          V=$(cat ${../simeis-server/Cargo.toml} \
+            | rg "^version" \
+            | cut -d '"' -f 2 \
+          )
+          echo "simeis-version=$V"
+        '';
+      };
+    in "${app}/bin/disp_version";
   }
