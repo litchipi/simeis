@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["simeis-data", "simeis-server", "sdk/rust"]
+members = ["simeis-data", "simeis-server", "sdk/rust" ] #, "example/rust"]
+exclude = ["example/rust"]
 
 [workspace.dependencies]
 log = "0.4.29"

@@ -6,7 +6,7 @@ use sdk::*;
 
 fn get_density(key: &str, densities: &HashMap<&String, &serde_json::Value>) -> f64 {
     let key = key.to_string();
-    let val : &serde_json::Value = densities.get(&key).unwrap();
+    let val: &serde_json::Value = densities.get(&key).unwrap();
     val.as_f64().unwrap()
 }
 
@@ -88,7 +88,8 @@ impl Game {
         else {
             ship = all_my_ships.first().unwrap();
             ship_id = get_id(ship);
-            self.sdk.return_station_and_unload_all(station_id, ship_id)?;
+            self.sdk
+                .return_station_and_unload_all(station_id, ship_id)?;
         }
 
         // Cycle infini
@@ -136,13 +137,14 @@ impl Game {
                 .wait_until_ship_idle(ship_id, Duration::from_millis(200))?;
 
             // On retourne à la station, et on décharge le cargo
-            self.sdk.return_station_and_unload_all(station_id, ship_id)?;
+            self.sdk
+                .return_station_and_unload_all(station_id, ship_id)?;
 
             // On vends tout
             let mut cycletot = 0.0;
             let station_resources = self.sdk.get_station_resources(station_id)?;
             for (res, amnt) in station_resources.iter() {
-                if ["Fuel", "Hull"].contains(&res.as_str()) {
+                if ["fuel", "hull"].contains(&res.as_str()) {
                     continue;
                 }
 
@@ -205,10 +207,25 @@ fn main() {
         .filter_module("ureq", log::LevelFilter::Warn)
         .init();
     let mut args = std::env::args();
-    let name = args.nth(1).expect("Requires the username as an argument");
-    let ip = args.next().expect("Requires the IP of the server as an argument");
-    let port = args.next().expect("Requires the port of the server as an argument");
-    let port : u16 = port.parse().expect("Invalid port value");
+    let Some(name) = args.nth(1) else {
+        println!("Missing player name");
+        println!("Usage: simeis-rust-example <name> <ip> <port>");
+        std::process::exit(1);
+    };
+    let Some(ip) = args.next() else {
+        println!("Missing server IP");
+        println!("Usage: simeis-rust-example <name> <ip> <port>");
+        std::process::exit(1);
+    };
+    let Some(port) = args.next() else {
+        println!("Missing server port");
+        println!("Usage: simeis-rust-example <name> <ip> <port>");
+        std::process::exit(1);
+    };
+    let Ok(port) = port.parse::<u16>() else {
+        println!("Invalid port number");
+        std::process::exit(1);
+    };
     let game = Game::new(name, &ip, port);
     game.gameloop().expect("Uncaught error when calling API");
 }
