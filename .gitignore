@@ -8,3 +8,4 @@ scores.json
 __pycache__
 *.json
 !default_config.json
+supply-chain

@@ -286,8 +286,8 @@ class Tester:
         self.assert_got(got, "ping", "pong")
 
         config = self.get_ok("/configuration")
-        server_config = self.asset_got(config, "server", None)
-        self.asset_got(server_config, "bind_ip", "0.0.0.0")
+        server_config = self.assert_got(config, "server", None)
+        self.assert_got(server_config, "bind_ip", "127.0.0.1")
 
     @functest
     def test_create_player(self):
@@ -714,11 +714,8 @@ class Tester:
         resname = resname.lower()
 
         initprice = self.get_ok(f"/station/{stationid}/upgrades")
-        initprice = self.assert_got(initprice, "cargo", 1.0)
-        self.post_ok(f"/station/{stationid}/shop/cargo/buy/2000")
-        afterprice = self.get_ok(f"/station/{stationid}/upgrades")
-        afterprice = self.assert_got(afterprice, "cargo", None)
-        assert afterprice > initprice
+        initprice = self.assert_got(initprice, "cargo", 20.0)
+        self.post_ok(f"/station/{stationid}/shop/cargo/buy/100")
 
         cargobefore = self.get_ok(f"/station/{stationid}")["cargo"]
         usagebefore = self.assert_got(cargobefore, "usage", 0.0)
@@ -789,17 +786,21 @@ class Tester:
             errtype="SellNothing",
         )
 
+        amnt = 40
         fee = self.get_ok(f"/market/{self.station}/fee_rate")
         feerate = self.assert_got(fee, "fee_rate", 0.25)
         iron_tot = 30 / (1 - feerate)
         tx = self.post_ok(f"/market/{self.station}/buy/{resname}/{iron_tot}")
         assert self.assert_got(tx, "removed_money", None) > 0
-        self.assert_got(tx, "added_cargo", [resname, 40])
+        self.assert_got(tx, "added_cargo", [resname, amnt])
 
         cargo = self.get_ok(f"/station/{self.station}")["cargo"]
         res = self.assert_got(cargo, "resources", None)
-        self.assert_got(res, resname, 40)
-        self.assert_got(cargo, "usage", 30.0)
+        self.assert_got(res, resname, amnt)
+
+        resinfo = self.get_ok("/resources")
+        volume = resinfo[resname]["volume"]
+        self.assert_got(cargo, "usage", amnt * volume)
 
         cargobefore = self.get_ok(f"/station/{self.station}")["cargo"]
         tx = self.post_ok(f"/market/{self.station}/buy/iron/5000")

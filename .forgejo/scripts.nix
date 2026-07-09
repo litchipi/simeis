@@ -8,11 +8,19 @@
     head ? "",
     config ? {},
   }: let
-    config_file = pkgs.writeText "config.json" (builtins.toJSON config);
+    defaultcfg = {
+      server = {
+        workers = 1;
+        bind_ip = "127.0.0.1";
+      };
+    };
+    config_file = pkgs.writeText "config.json" (builtins.toJSON (
+      pkgs.lib.attrsets.recursiveUpdate defaultcfg config
+    ));
     fflags = "--features ${builtins.concatStringsSep "," (features ++ ["tokio"])}";
     rf = if release then "--release" else "";
-    bcmd = "cargo build ${rf} --target-dir ./target/${key} ${fflags} --no-default-features";
-    targetdir = "./target/${key}/${if release then "release" else "debug"}";
+    bcmd = "cargo build ${rf} ${fflags} --no-default-features";
+    targetdir = "./target/${if release then "release" else "debug"}";
     rcmd = "${targetdir}/simeis-server ${config_file} 1>/tmp/${key}_simeis_logs 2>&1 &";
   in ''
     #!/bin/bash
@@ -20,7 +28,7 @@
     export CARGO_HOME=$PWD/.cargohome
     export RUST_BACKTRACE=full
     export RUST_LOG=debug
-    mkdir -p target/${key}
+    mkdir -p target/
     ${head}
     echo "[*] Building server"
     ${bcmd}
@@ -126,6 +134,19 @@ in {
       };
     };
   in "${app}/bin/functionnal-tests";
+
+  build = let
+    app = pkgs.writeShellApplication {
+      name = "build-server";
+      runtimeInputs=deps;
+      text = ''
+        set -e
+        export CARGO_HOME=$PWD/.cargohome
+        echo "[*] Building the server"
+        cargo build
+      '';
+    };
+  in "${app}/bin/build-server";
 
   check_rust_code = let
     allIgnoredCVE = [
@@ -240,7 +261,6 @@ in {
         text = compile_and_run {
           key = "client_runwell_py";
           features = ["extraspeed"];
-          release=true;
           exec = "start_client_test";
           config.server.port = 9347;
           head = ''
@@ -261,7 +281,6 @@ in {
         text = compile_and_run {
           key = "client_runwell_rs";
           features = ["extraspeed"];
-          release=true;
           exec = "start_client_test";
           config.server.port = 9348;
           head = ''
