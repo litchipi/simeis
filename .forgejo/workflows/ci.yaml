@@ -4,10 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-# TODO Make code check first, in parallel with TODO checks and SDK checks
+# TODO (#62) Make code check first, in parallel with TODO checks and SDK checks
 # Then launch tests, func tests, api & swagger generation
 
-# TODO Create a CD:
+# TODO (#62) Create a CD:
 # When label "release" on the PR, and PR is merged
 # Create a debian package, then publish it as an artifact
 

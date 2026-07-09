@@ -284,7 +284,10 @@ class Tester:
     def test_ping(self):
         got = self.get_ok("/ping")
         self.assert_got(got, "ping", "pong")
-        # TODO Test get server configuration
+
+        config = self.get_ok("/configuration")
+        server_config = self.asset_got(config, "server", None)
+        self.asset_got(server_config, "bind_ip", "0.0.0.0")
 
     @functest
     def test_create_player(self):
@@ -359,9 +362,6 @@ class Tester:
         assert len(ships) > 0
         assert ships[0] == sid_can
         assert aftermoney < beforemoney
-
-        # TODO (#22)    Sell ship with given ID
-        # TODO (#22)   Assert ship no longer in possession
 
     @functest
     def test_hire_crew(self):
@@ -1186,8 +1186,8 @@ class Tester:
             "planet_coord": planet,
         })
 
-        # TODO Test mining rate on specifc ship
-        # TODO Test mining rate with power attribution
+        # TODO (#61) Test mining rate on specifc ship
+        # TODO (#61) Test mining rate with power attribution
 
     @functest
     def test_compute_upgrade_module(self):
