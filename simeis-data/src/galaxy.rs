@@ -279,42 +279,43 @@ fn test_compute_sector() {
         let sec = compute_sector(x, y, z);
         assert!(is_in_sector(&(x, y, z), &sec));
     }
-    const SECTOR_SIZE: u32 = 5000;
+    let cfg = get_config();
+    let sector_size = cfg.game.sector_size;
     assert_eq!(
-        compute_sector(SECTOR_SIZE - 1, 0, 0),
-        ((0, SECTOR_SIZE), (0, SECTOR_SIZE), (0, SECTOR_SIZE))
+        compute_sector(sector_size - 1, 0, 0),
+        ((0, sector_size), (0, sector_size), (0, sector_size))
     );
     assert_eq!(
-        compute_sector(0, SECTOR_SIZE - 1, 0),
-        ((0, SECTOR_SIZE), (0, SECTOR_SIZE), (0, SECTOR_SIZE))
+        compute_sector(0, sector_size - 1, 0),
+        ((0, sector_size), (0, sector_size), (0, sector_size))
     );
     assert_eq!(
-        compute_sector(0, 0, SECTOR_SIZE - 1),
-        ((0, SECTOR_SIZE), (0, SECTOR_SIZE), (0, SECTOR_SIZE))
+        compute_sector(0, 0, sector_size - 1),
+        ((0, sector_size), (0, sector_size), (0, sector_size))
     );
 
     assert_eq!(
-        compute_sector(SECTOR_SIZE, 0, 0),
+        compute_sector(sector_size, 0, 0),
         (
-            (SECTOR_SIZE, 2 * SECTOR_SIZE),
-            (0, SECTOR_SIZE),
-            (0, SECTOR_SIZE)
+            (sector_size, 2 * sector_size),
+            (0, sector_size),
+            (0, sector_size)
         )
     );
     assert_eq!(
-        compute_sector(0, SECTOR_SIZE, 0),
+        compute_sector(0, sector_size, 0),
         (
-            (0, SECTOR_SIZE),
-            (SECTOR_SIZE, 2 * SECTOR_SIZE),
-            (0, SECTOR_SIZE)
+            (0, sector_size),
+            (sector_size, 2 * sector_size),
+            (0, sector_size)
         )
     );
     assert_eq!(
-        compute_sector(0, 0, SECTOR_SIZE),
+        compute_sector(0, 0, sector_size),
         (
-            (0, SECTOR_SIZE),
-            (0, SECTOR_SIZE),
-            (SECTOR_SIZE, 2 * SECTOR_SIZE)
+            (0, sector_size),
+            (0, sector_size),
+            (sector_size, 2 * sector_size)
         )
     );
 }
