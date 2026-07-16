@@ -30,12 +30,14 @@ pub fn get_advanced_industry_resources_cost(cfg: &SimeisIndustryConfig) -> f64 {
         + (abase_req * cfg.advanced_res3rq * Resource::Helium.base_price()) // Gas 3
 }
 
+// TODO (#63)     Must update this:   The fuel and hull base prices are different now
 #[inline]
 pub fn get_sbase_produce_base(cfg: &SimeisIndustryConfig) -> f64 {
     let scost = get_simple_industry_resources_cost(cfg);
     scost / (cfg.simple_bprice_mult * Resource::Fuel.base_price())
 }
 
+// TODO (#63)    Must update this:   The fuel and hull base prices are different now
 #[inline]
 pub fn get_abase_produce_base(cfg: &SimeisIndustryConfig) -> f64 {
     let acost = get_advanced_industry_resources_cost(cfg);

@@ -42,6 +42,7 @@ pub enum Errcode {
     LoadConfigJson(serde_json::Error),
     DefaultConfigToJson(serde_json::Error),
     WriteDefaultConfig(std::io::Error),
+    SerializeConfig(serde_json::Error),
 }
 
 impl Errcode {
@@ -97,6 +98,7 @@ impl Errcode {
             Errcode::LoadConfigJson(error) => format!("Error while loading config from JSON format: {error:?}"),
             Errcode::DefaultConfigToJson(error) => format!("Error while serializing default configuration to JSON: {error:?}"),
             Errcode::WriteDefaultConfig(error) => format!("Error while saving default config to file: {error:?}"),
+            Errcode::SerializeConfig(error) => format!("Unable to serialize game configuration: {error:?}"),
         }
     }
 }

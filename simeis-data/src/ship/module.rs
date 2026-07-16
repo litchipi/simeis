@@ -86,7 +86,8 @@ impl ShipModule {
 #[inline]
 pub fn calc_extraction_rate(resource: &Resource, modrank: u8, oprank: u8, density: f64) -> f64 {
     let cfg = get_config();
-    let rank = ((oprank - resource.min_rank()) as f64) * (modrank as f64);
+    let rank = ((oprank - resource.min_rank()) as f64)
+        * (modrank as f64).powf(cfg.ship.module_rank_weight);
     let difficulty = resource
         .extraction_difficulty()
         .powf(cfg.ship.module_exrate_diff_fact);

@@ -12,7 +12,7 @@ use crate::errors::Errcode;
 use crate::galaxy::station::{Station, StationId};
 use crate::ship::cargo::ShipCargo;
 use crate::ship::module::{ShipModuleId, ShipModuleType};
-use crate::ship::upgrade::ShipUpgrade;
+use crate::ship::upgrade::{ShipExpandUpgrade, ShipUpgrade};
 use crate::ship::{Ship, ShipId};
 use crate::syslog::{SyslogEvent, SyslogRecv};
 
@@ -196,6 +196,30 @@ impl Player {
 
         self.money -= price;
         upgrade.install(ship);
+        Ok(price)
+    }
+
+    pub async fn buy_ship_expansion(
+        &mut self,
+        station: &StationId,
+        ship_id: &ShipId,
+        expansion: &ShipExpandUpgrade,
+    ) -> Result<f64, Errcode> {
+        let ship = self
+            .ships
+            .get_mut(ship_id)
+            .ok_or(Errcode::ShipNotFound(*ship_id))?;
+        let Some(station) = self.stations.get(station).cloned() else {
+            return Err(Errcode::NoSuchStation(*station));
+        };
+
+        let price = expansion.get_price() * station.get_inflation_ratio();
+        if price > self.money {
+            return Err(Errcode::NotEnoughMoney(self.money, price));
+        }
+
+        self.money -= price;
+        expansion.install(ship);
         Ok(price)
     }
 

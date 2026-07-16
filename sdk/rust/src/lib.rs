@@ -55,6 +55,7 @@ pub fn get_position(planet: &Value) -> Option<(u64, u64, u64)> {
     }
 }
 
+#[inline]
 pub fn json_get_key<'a>(key: &str, mut val: &'a Value) -> Option<&'a Value> {
     if !key.contains(".") {
         let obj = val.as_object()?;
@@ -66,10 +67,12 @@ pub fn json_get_key<'a>(key: &str, mut val: &'a Value) -> Option<&'a Value> {
     }
     Some(val)
 }
+#[inline]
 pub fn json_get_list<'a>(key: &str, val: &'a Value) -> Option<Vec<&'a Value>> {
     let val = json_get_key(key, val)?.as_array()?;
     Some(val.iter().collect())
 }
+#[inline]
 pub fn json_get_dict<'a>(key: &str, val: &'a Value) -> Option<HashMap<&'a String, &'a Value>> {
     let val = json_get_key(key, val)?.as_object()?;
     let mut res = HashMap::new();
@@ -78,15 +81,19 @@ pub fn json_get_dict<'a>(key: &str, val: &'a Value) -> Option<HashMap<&'a String
     }
     Some(res)
 }
+#[inline]
 pub fn json_get_float(key: &str, val: &Value) -> Option<f64> {
     json_get_key(key, val)?.as_f64()
 }
+#[inline]
 pub fn json_get_string<'a>(key: &str, val: &'a Value) -> Option<&'a str> {
     json_get_key(key, val)?.as_str()
 }
+#[inline]
 pub fn json_get_uint(key: &str, val: &Value) -> Option<u64> {
     json_get_key(key, val)?.as_u64()
 }
+#[inline]
 pub fn json_get_bool(key: &str, val: &Value) -> Option<bool> {
     json_get_key(key, val)?.as_bool()
 }
@@ -98,6 +105,13 @@ pub struct SimeisSDK {
     url: String,
     player_id: Option<u64>,
     player_key: Option<String>,
+    game_config: Option<serde_json::Value>,
+}
+
+impl std::fmt::Debug for SimeisSDK {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SimeisSDK").finish()
+    }
 }
 
 impl SimeisSDK {
@@ -107,10 +121,13 @@ impl SimeisSDK {
             url,
             player_id: None,
             player_key: None,
+            game_config: None,
         };
         assert!(sdk.ping(), "Unable to connect to server, ping failed");
         sdk.setup_player(username, false)
             .expect("Unable to setup player");
+        let config = sdk.get_game_config().unwrap();
+        sdk.game_config = Some(config);
         sdk
     }
 
@@ -240,18 +257,16 @@ impl SimeisSDK {
         self.get(format!("/station/{station_id}"))
     }
 
-    pub fn shop_list_modules(&self, station_id: u64) -> Result<Vec<Value>, Value> {
-        let mut all = self.get(format!("/station/{station_id}/shop/modules"))?;
-        let allvec = all.as_array_mut().unwrap();
-        allvec.sort_by(|a, b| {
-            let pa = json_get_float("price", a).unwrap();
-            let pb = json_get_float("price", b).unwrap();
-            pa.partial_cmp(&pb).unwrap()
-        });
-        let Value::Array(data) = all else {
+    pub fn shop_list_modules(&self, station_id: u64) -> Result<HashMap<String, Value>, Value> {
+        let all = self.get(format!("/station/{station_id}/shop/modules"))?;
+        let mut result = HashMap::new();
+        let Value::Object(data) = all else {
             unreachable!();
         };
-        Ok(data)
+        for (key, val) in data.into_iter() {
+            result.insert(key, val);
+        }
+        Ok(result)
     }
 
     pub fn shop_list_ship(&self, station_id: u64) -> Result<Vec<Value>, Value> {
@@ -325,7 +340,7 @@ impl SimeisSDK {
     pub fn station_has_trader(&self, station_id: u64) -> Result<bool, Value> {
         let station = self.get_station_status(station_id)?;
         for cm in json_get_list("crew", &station).unwrap() {
-            if json_get_string("member_type", cm).unwrap() == "Trader" {
+            if json_get_string("member_type", cm).unwrap() == "trader" {
                 return Ok(true);
             }
         }
@@ -406,10 +421,10 @@ impl SimeisSDK {
         }
 
         let cargo = self.get_station_resources(station_id)?;
-        let amnt_got = cargo.get("Hull").cloned().unwrap_or(0.0);
+        let amnt_got = cargo.get("hull").cloned().unwrap_or(0.0);
         if amnt_got < req {
             let need = req - amnt_got;
-            Ok(Some(self.buy_resource(station_id, "Hull", need)?))
+            Ok(Some(self.buy_resource(station_id, "hull", need)?))
         } else {
             Ok(None)
         }
@@ -425,7 +440,7 @@ impl SimeisSDK {
         }
 
         let cargo = self.get_station_resources(station_id)?;
-        let amnt_got = cargo.get("Hull").cloned().unwrap_or(0.0);
+        let amnt_got = cargo.get("hull").cloned().unwrap_or(0.0);
 
         if amnt_got > 0.0 {
             Ok(Some(
@@ -452,10 +467,10 @@ impl SimeisSDK {
         }
 
         let cargo = self.get_station_resources(station_id)?;
-        let amnt_got = cargo.get("Fuel").cloned().unwrap_or(0.0);
+        let amnt_got = cargo.get("fuel").cloned().unwrap_or(0.0);
         if amnt_got < req {
             let need = req - amnt_got;
-            Ok(Some(self.buy_resource(station_id, "Fuel", need)?))
+            Ok(Some(self.buy_resource(station_id, "fuel", need)?))
         } else {
             Ok(None)
         }
@@ -472,7 +487,7 @@ impl SimeisSDK {
         }
 
         let cargo = self.get_station_resources(station_id)?;
-        let amnt_got = cargo.get("Fuel").cloned().unwrap_or(0.0);
+        let amnt_got = cargo.get("fuel").cloned().unwrap_or(0.0);
 
         if amnt_got > 0.0 {
             Ok(Some(
@@ -634,13 +649,32 @@ impl SimeisSDK {
         ))
     }
 
+    pub fn buy_ship_expansion(
+        &self,
+        station_id: u64,
+        ship_id: u64,
+        exptype: &str,
+        n: f64,
+    ) -> ApiResult {
+        self.post(format!(
+            "/station/{station_id}/shipyard/upgrade/{ship_id}/expand/{exptype}/{n}"
+        ))
+    }
+
     pub fn compute_mining_rate(
         &self,
         modtype: &str,
         modrank: u8,
         oprank: u8,
         planet: (u64, u64, u64),
+        power_attr: Option<&[(String, u8)]>,
     ) -> Result<HashMap<String, f64>, Value> {
+        let mut pa = HashMap::new();
+        if let Some(power_attr) = power_attr {
+            for (key, val) in power_attr {
+                pa.insert(key, val);
+            }
+        }
         let data = self.post_with_body(
             "/calc/mining_rate",
             json!({
@@ -648,6 +682,33 @@ impl SimeisSDK {
                 "module_rank": modrank,
                 "operator_rank": oprank,
                 "planet_coord": planet,
+                "power_attribution": pa,
+            }),
+        )?;
+        let mut result = HashMap::new();
+        for (res, rate) in data.as_object().unwrap() {
+            result.insert(res.clone(), rate.as_f64().unwrap());
+        }
+        Ok(result)
+    }
+
+    pub fn compute_ship_mining_rate(
+        &self,
+        ship_id: u64,
+        planet: (u64, u64, u64),
+        power_attr: Option<&[(String, u8)]>,
+    ) -> Result<HashMap<String, f64>, Value> {
+        let mut pa = HashMap::new();
+        if let Some(power_attr) = power_attr {
+            for (key, val) in power_attr {
+                pa.insert(key, val);
+            }
+        }
+        let data = self.post_with_body(
+            format!("/calc/mining_rate/{ship_id}"),
+            json!({
+                "planet_coord": planet,
+                "power_attribution": pa,
             }),
         )?;
         let mut result = HashMap::new();
@@ -671,10 +732,10 @@ impl SimeisSDK {
             json!({
                 "pilot_start_rank": start_pilot,
                 "pilot_end_rank": end_pilot,
-                "start_reactor_power": start_reactor,
-                "end_reactor_power": end_reactor,
-                "start_shield_power": start_shield,
-                "end_shield_power": end_shield,
+                "start_reactor_rank": start_reactor,
+                "end_reactor_rank": end_reactor,
+                "start_shield_rank": start_shield,
+                "end_shield_rank": end_shield,
             }),
         )
     }
@@ -795,5 +856,33 @@ impl SimeisSDK {
 
     pub fn unassign_crew(&self, sta: u64, cid: u64) -> ApiResult {
         self.post(format!("/station/{sta}/crew/unassign/{cid}"))
+    }
+
+    pub fn get_game_config(&self) -> ApiResult {
+        self.get("/configuration")
+    }
+
+    pub fn compute_ship_wages(
+        &self,
+        pilot_rank: Option<u8>,
+        opranks: Vec<u8>,
+    ) -> Result<f64, Value> {
+        let got = if let Some(pilotrank) = pilot_rank {
+            self.post_with_body(
+                "/calc/wages/ship",
+                json!({
+                    "pilot_rank": pilotrank,
+                    "operator_ranks": opranks,
+                }),
+            )
+        } else {
+            self.post_with_body(
+                "/calc/wages/ship",
+                json!({
+                    "operator_ranks": opranks,
+                }),
+            )
+        };
+        got.map(|v| json_get_float("total_wages", &v).unwrap())
     }
 }

@@ -23,6 +23,13 @@ class SimeisSDK:
         self.debug = debug
         assert self.api("/ping")["ping"] == "pong"
         self.setup_player(username)
+        self.game_config = self.get_game_config()
+
+    def config(self, key):
+        val = self.game_config
+        for k in key.split("."):
+            val = val[k]
+        return val
 
     def api(self, path, method="GET", timeout=5, body=None, **qry):
         if self.debug:
@@ -109,8 +116,7 @@ class SimeisSDK:
         return self.get(f"/station/{sta}")
 
     def shop_list_modules(self, sta):
-        all = self.get(f"/station/{sta}/shop/modules")
-        return sorted(all, key = lambda mod: mod["price"])
+        return self.get(f"/station/{sta}/shop/modules")
 
     def shop_list_ship(self, sta):
         all = self.get(f"/station/{sta}/shipyard/list")["ships"]
@@ -151,6 +157,7 @@ class SimeisSDK:
         if wait_end:
             time.sleep(costs["duration"])
             self.wait_until_ship_idle(ship_id)
+        return costs
 
     def stop_travel(self, ship_id):
         return self.post(f"/ship/{ship_id}/navigation/stop")
@@ -169,11 +176,11 @@ class SimeisSDK:
             return None
 
         cargo = self.get(f"/station/{sta}")["cargo"]
-        if "Hull" not in cargo["resources"]:
-            cargo["resources"]["Hull"] = 0
+        if "hull" not in cargo["resources"]:
+            cargo["resources"]["hull"] = 0
 
-        if cargo["resources"]["Hull"] < req:
-            need = req - cargo["resources"]["Hull"]
+        if cargo["resources"]["hull"] < req:
+            need = req - cargo["resources"]["hull"]
             return self.post(f"/market/{sta}/buy/hull/{need}")
         return None
 
@@ -186,10 +193,10 @@ class SimeisSDK:
             return None
 
         cargo = self.get(f"/station/{sta}")["cargo"]
-        if "Hull" not in cargo["resources"]:
-            cargo["resources"]["Hull"] = 0
+        if "hull" not in cargo["resources"]:
+            cargo["resources"]["hull"] = 0
 
-        if cargo["resources"]["Hull"] > 0:
+        if cargo["resources"]["hull"] > 0:
             return self.post(f"/station/{sta}/repair/{ship_id}")
 
         return None
@@ -203,11 +210,11 @@ class SimeisSDK:
             return
 
         cargo = self.get(f"/station/{sta}")["cargo"]
-        if "Fuel" not in cargo["resources"]:
-            cargo["resources"]["Fuel"] = 0
+        if "fuel" not in cargo["resources"]:
+            cargo["resources"]["fuel"] = 0
 
-        if cargo["resources"]["Fuel"] < req:
-            need = req - cargo["resources"]["Fuel"]
+        if cargo["resources"]["fuel"] < req:
+            need = req - cargo["resources"]["fuel"]
             return self.post(f"/market/{sta}/buy/fuel/{need}")
         return None
 
@@ -220,10 +227,10 @@ class SimeisSDK:
             return
 
         cargo = self.get(f"/station/{sta}")["cargo"]
-        if "Fuel" not in cargo["resources"]:
-            cargo["resources"]["Fuel"] = 0        
+        if "fuel" not in cargo["resources"]:
+            cargo["resources"]["fuel"] = 0        
 
-        if cargo["resources"]["Fuel"] > 0:
+        if cargo["resources"]["fuel"] > 0:
             return self.post(f"/station/{sta}/refuel/{ship_id}")
         return None
 
@@ -249,9 +256,11 @@ class SimeisSDK:
     def return_station_and_unload_all(self, sta, ship_id):
         ship = self.get(f"/ship/{ship_id}")
         station = self.get(f"/station/{sta}")
+        result = {}
         if ship["position"] != station["position"]:
-            self.travel(ship["id"], station["position"])
-        return self.unload_all(sta, ship_id)
+            result["travel"] = self.travel(ship["id"], station["position"])
+        result["unload"] = self.unload_all(sta, ship_id)
+        return result
 
     def get_station_resources(self, sta):
         return self.get(f"/station/{sta}")["cargo"]["resources"]
@@ -301,8 +310,20 @@ class SimeisSDK:
     def buy_ship_upgrade(self, sta, ship_id, upgtype):
         return self.post(f"/station/{sta}/shipyard/upgrade/{ship_id}/{upgtype}")
 
+    def buy_ship_expansion(self, sta, ship_id, exptype, n):
+        return self.post(f"/station/{sta}/shipyard/upgrade/{ship_id}/expand/{exptype}/{n}")
+
     def compute_mining_rate(self, modtype, modrank, oprank, planet, power_attr={}):
         return  self.post("/calc/mining_rate", body={
+            "module_type": modtype,
+            "module_rank": modrank,
+            "operator_rank": oprank,
+            "planet_coord": planet,
+            "power_attribution": power_attr,
+        })
+
+    def compute_ship_mining_rate(self, ship_id, planet, power_attr={}):
+        return  self.post(f"/calc/mining_rate/{ship_id}", body={
             "module_type": modtype,
             "module_rank": modrank,
             "operator_rank": oprank,
@@ -318,10 +339,10 @@ class SimeisSDK:
         if end_pilot is None:
             end_pilot = start_pilot
         return self.post("/calc/upgrade/ship", body={
-            "start_reactor_power": start_reactor,
-            "end_reactor_power": end_reactor,
-            "start_shield_power": start_shield,
-            "end_shield_power": end_shield,
+            "start_reactor_rank": start_reactor,
+            "end_reactor_rank": end_reactor,
+            "start_shield_rank": start_shield,
+            "end_shield_rank": end_shield,
             "pilot_start_rank": start_pilot,
             "pilot_end_rank": end_pilot,
         })
@@ -386,3 +407,15 @@ class SimeisSDK:
 
     def unassign_crew(self, sta, id):
         return self.post(f"/station/{sta}/crew/unassign/{id}")
+
+    def get_game_config(self):
+        return self.get("/configuration")
+
+    def compute_ship_wages(self, opranks, pilot_rank=None):
+        if pilot_rank is None:
+            return self.post("/calc/wages/ship", body={"operator_ranks": opranks})
+        else:
+            return self.post("/calc/wages/ship", body={
+                "operator_ranks": opranks,
+                "pilot_rank": pilot_rank,
+            })

@@ -153,7 +153,7 @@ impl Resource {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct ExtractionInfo {
     pub mining_rate: BTreeMap<Resource, f64>,
     pub time_fill_cargo: f64,

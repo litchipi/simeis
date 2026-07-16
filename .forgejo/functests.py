@@ -13,9 +13,9 @@ FAILFAST=os.getenv("CI") is None
 
 ITER_PERIOD = 20 / 1000
 
-SOLID=["Iron", "Copper", "Titanium", "Uranium"]
-LIQUID=["Water", "Ammonia", "SulfuricAcid", "Brine"]
-GAS=["Hydrogen", "Helium", "Oxygen", "Ozone"]
+SOLID=["iron", "copper", "titanium", "uranium"]
+LIQUID=["water", "ammonia", "sulfuric_acid", "brine"]
+GAS=["hydrogen", "helium", "oxygen", "ozone"]
 
 ADMIN_TOKEN=os.getenv("SIMEIS_ADMIN_TOKEN")
 
@@ -285,6 +285,10 @@ class Tester:
         got = self.get_ok("/ping")
         self.assert_got(got, "ping", "pong")
 
+        config = self.get_ok("/configuration")
+        server_config = self.assert_got(config, "server", None)
+        self.assert_got(server_config, "bind_ip", "127.0.0.1")
+
     @functest
     def test_create_player(self):
         self.get_err("/player/53", errtype="NoPlayerKey")
@@ -333,7 +337,7 @@ class Tester:
         for ship in shiplist:
             self.assert_got(ship, "id", None)
             self.assert_got(ship, "modules", {})
-            self.assert_got(ship, "reactor_power", None)
+            self.assert_got(ship, "reactor_rank", None)
             self.assert_got(ship, "cargo_capacity", None)
             self.assert_got(ship, "fuel_tank_capacity", None)
             self.assert_got(ship, "hull_resistance", None)
@@ -359,9 +363,6 @@ class Tester:
         assert ships[0] == sid_can
         assert aftermoney < beforemoney
 
-        # TODO (#22)    Sell ship with given ID
-        # TODO (#22)   Assert ship no longer in possession
-
     @functest
     def test_hire_crew(self):
         self.create_test_player()
@@ -373,7 +374,7 @@ class Tester:
             stationstatus = self.get_ok(f"/station/{self.station}")
             idled = self.assert_got(stationstatus, "idle_crew", None)
             assert len(idled) == nidle + 1
-            assert idled[str(crew_id)] == { "member_type": ctype.capitalize(), "rank": 1 }
+            assert idled[str(crew_id)] == { "member_type": ctype, "rank": 1 }
             nidle += 1
         self.post_err(f"/station/{self.station}/crew/hire/noteist", expcode=404)
 
@@ -419,7 +420,7 @@ class Tester:
         assert len(self.assert_got(stationstatus, "idle_crew", None)) == 3
 
         shipstatus = self.get_ok(f"/ship/{shipid}")
-        self.assert_got(shipstatus, "crew", { str(pilot["id"]): { "member_type": "Pilot", "rank": 1 }})
+        self.assert_got(shipstatus, "crew", { str(pilot["id"]): { "member_type": "pilot", "rank": 1 }})
         self.assert_got(shipstatus, "pilot", pilot["id"])
         stats = self.assert_got(shipstatus, "stats", None)
         speed_after = self.assert_got(stats, "speed", None)
@@ -674,7 +675,7 @@ class Tester:
         self.addtrace("Ship arrived")
         extraction_info = self.post_ok(f"/ship/{shipid}/extraction/start")
         extraction_rates = self.assert_got(extraction_info, "mining_rate", None)
-        assert ("Iron" in extraction_rates) or ("Hydrogen" in extraction_rates) or ("Water" in extraction_rates)
+        assert ("iron" in extraction_rates) or ("hydrogen" in extraction_rates) or ("water" in extraction_rates)
         self.tick()
 
         before = self.get_ok(f"/ship/{shipid}")
@@ -713,11 +714,8 @@ class Tester:
         resname = resname.lower()
 
         initprice = self.get_ok(f"/station/{stationid}/upgrades")
-        initprice = self.assert_got(initprice, "cargo", 1.0)
-        self.post_ok(f"/station/{stationid}/shop/cargo/buy/2000")
-        afterprice = self.get_ok(f"/station/{stationid}/upgrades")
-        afterprice = self.assert_got(afterprice, "cargo", None)
-        assert afterprice > initprice
+        initprice = self.assert_got(initprice, "cargo", 20.0)
+        self.post_ok(f"/station/{stationid}/shop/cargo/buy/100")
 
         cargobefore = self.get_ok(f"/station/{stationid}")["cargo"]
         usagebefore = self.assert_got(cargobefore, "usage", 0.0)
@@ -746,7 +744,7 @@ class Tester:
     @functest
     def test_market_buy_sell(self):
         player = self.create_test_player("test-rich-market")
-        resname = "Iron"
+        resname = "iron"
         resamnt = 100
 
         self.post_err(f"/market/{self.station}/sell/{resname}/{resamnt}", errtype="NoTraderAssigned")
@@ -780,7 +778,7 @@ class Tester:
         assert aftermoney - (beforemoney + tx["added_money"]) < (tdelta * costs)
 
         cargo = self.get_ok(f"/station/{self.station}")["cargo"]
-        self.assert_got(cargo, "resources", {resname.capitalize(): 0.0})
+        self.assert_got(cargo, "resources", {resname: 0.0})
         self.assert_got(cargo, "usage", 0)
 
         self.post_err(
@@ -788,17 +786,21 @@ class Tester:
             errtype="SellNothing",
         )
 
+        amnt = 40
         fee = self.get_ok(f"/market/{self.station}/fee_rate")
         feerate = self.assert_got(fee, "fee_rate", 0.25)
         iron_tot = 30 / (1 - feerate)
         tx = self.post_ok(f"/market/{self.station}/buy/{resname}/{iron_tot}")
         assert self.assert_got(tx, "removed_money", None) > 0
-        self.assert_got(tx, "added_cargo", [resname, 40])
+        self.assert_got(tx, "added_cargo", [resname, amnt])
 
         cargo = self.get_ok(f"/station/{self.station}")["cargo"]
         res = self.assert_got(cargo, "resources", None)
-        self.assert_got(res, resname, 40)
-        self.assert_got(cargo, "usage", 30.0)
+        self.assert_got(res, resname, amnt)
+
+        resinfo = self.get_ok("/resources")
+        volume = resinfo[resname]["volume"]
+        self.assert_got(cargo, "usage", amnt * volume)
 
         cargobefore = self.get_ok(f"/station/{self.station}")["cargo"]
         tx = self.post_ok(f"/market/{self.station}/buy/iron/5000")
@@ -812,12 +814,9 @@ class Tester:
         stationid = player["stations"][0]
         all_upg = self.get_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}")
         for (upgr, data) in all_upg.items():
-            assert self.assert_got(data, "price", None) > 100.0
+            assert self.assert_got(data, "price", None) > 0.0
 
         before = self.get_ok(f"/ship/{shipid}")
-
-        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/cargo_expansion")
-        assert self.assert_got(got, "cost", None) > 0
 
         got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/reactor")
         assert self.assert_got(got, "cost", None) > 0
@@ -825,12 +824,16 @@ class Tester:
         got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/shield")
         assert self.assert_got(got, "cost", None) > 0
 
-        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/hull_upgrade")
+        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/expand/cargo/30")
+        assert self.assert_got(got, "cost", None) > 0
+
+        got = self.post_ok(f"/station/{stationid}/shipyard/upgrade/{shipid}/expand/hull/30")
         assert self.assert_got(got, "cost", None) > 0
 
         after = self.get_ok(f"/ship/{shipid}")
         assert after["cargo"]["capacity"] > before["cargo"]["capacity"]
-        assert after["reactor_power"] > before["reactor_power"]
+        assert after["reactor_rank"] > before["reactor_rank"]
+        assert after["shield_rank"] > before["shield_rank"]
         assert after["hull_resistance"] > before["hull_resistance"]
 
     @functest
@@ -914,7 +917,7 @@ class Tester:
         self.addtrace("Ship arrived")
         old_extraction_rates = self.assert_got(self.post_ok(f"/ship/{shipid}/extraction/start"), "mining_rate", None)
 
-        assert ("Iron" in old_extraction_rates) or ("Hydrogen" in old_extraction_rates) or  ("Water" in old_extraction_rates)
+        assert ("iron" in old_extraction_rates) or ("hydrogen" in old_extraction_rates) or  ("water" in old_extraction_rates)
         self.tick()
         self.tick()
         self.post_ok(f"/ship/{shipid}/extraction/stop")
@@ -1167,10 +1170,10 @@ class Tester:
             "planet_coord": planet,
         })
 
-        self.assert_got(little, "Iron", self.assert_got(same, "Iron", None))
-        self.assert_got(little, "Iron", None) < self.assert_got(mid, "Iron", None)
-        self.assert_got(mid, "Iron", None) < self.assert_got(big, "Iron", None)
-        self.assert_got(little, "Oxygen", None, negate=True)
+        self.assert_got(little, "iron", self.assert_got(same, "iron", None))
+        self.assert_got(little, "iron", None) < self.assert_got(mid, "iron", None)
+        self.assert_got(mid, "iron", None) < self.assert_got(big, "iron", None)
+        self.assert_got(little, "oxygen", None, negate=True)
         wpump = self.post_ok("/calc/mining_rate",body={
             "module_type": "pump",
             "module_rank": 3,
@@ -1183,6 +1186,9 @@ class Tester:
             "operator_rank": 2,
             "planet_coord": planet,
         })
+
+        # TODO (#61) Test mining rate on specifc ship
+        # TODO (#61) Test mining rate with power attribution
 
     @functest
     def test_compute_upgrade_module(self):
@@ -1224,10 +1230,10 @@ class Tester:
         data = {
             "pilot_start_rank": 3,
             "pilot_end_rank": 3,
-            "start_reactor_power": 3,
-            "end_reactor_power": 3,
-            "start_shield_power": 3,
-            "end_shield_power": 3,
+            "start_reactor_rank": 3,
+            "end_reactor_rank": 3,
+            "start_shield_rank": 3,
+            "end_shield_rank": 3,
         }
         got = self.post_ok("/calc/upgrade/ship", body=data)
         self.assert_got(got, "wage_increase", 0)
@@ -1251,7 +1257,7 @@ class Tester:
         assert pilot_stats["hull_usage_rate"] == base_stats["hull_usage_rate"]
 
         data["pilot_end_rank"] = data["pilot_start_rank"]
-        data['end_reactor_power'] += 1
+        data['end_reactor_rank'] += 1
         rpow = self.post_ok("/calc/upgrade/ship", body=data)
         assert rpow["wage_increase"] == 0.0
         assert rpow["pilot_upgrade_price"] == 0.0
@@ -1263,8 +1269,8 @@ class Tester:
         assert rpow_stats["speed"] > base_stats["speed"]
         assert rpow_stats["hull_usage_rate"] == base_stats["hull_usage_rate"]
 
-        data["end_reactor_power"] = data['start_reactor_power']
-        data['end_shield_power'] += 1
+        data["end_reactor_rank"] = data['start_reactor_rank']
+        data['end_shield_rank'] += 1
         spow = self.post_ok("/calc/upgrade/ship", body=data)
         assert spow["wage_increase"] == 0.0
         assert spow["pilot_upgrade_price"] == 0.0

@@ -465,11 +465,12 @@ class ApiChecker:
         fship = allships["ships"][0]["id"]
         ship = self.prepare_post("/station/{station_id}/shipyard/buy/{ship_id}", ship_id=fship)
         self.prepare_post("/station/{station_id}/shipyard/upgrade/{ship_id}/{upgrade_type}", upgrade_type="reactor")
+        self.prepare_post("/station/{station_id}/shipyard/upgrade/{ship_id}/expand/{exp_type}/{n}", exp_type="cargo", n=93.5)
         self.prepare_post("/station/{station_id}/shop/cargo/buy/{amount}", amount=1)
         pilot = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="pilot")
         self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/pilot", crew_id=pilot["id"])
         mod_type = "Miner"
-        resource = "Iron"
+        resource = "iron"
         module = self.prepare_post("/station/{station_id}/shop/modules/{ship_id}/buy/{modtype}", modtype=mod_type)
         operator = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="operator")
         self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/{mod_id}", crew_id=operator["id"], mod_id=module["id"])
@@ -502,12 +503,18 @@ class ApiChecker:
 
         pl = self.prepare_post("/player/new/{name}", name="xX_GigaProf_Xx")
         self.prepare_get("/player/{player_id}", player_id=pl["playerId"])
+        player = self.prepare_get("/player/{player_id}", player_id=pid)
 
         self.prepare_post("/calc/mining_rate", body={
             "module_type": "Miner",
             "module_rank": 5,
             "operator_rank": 2,
             "planet_coord": target,
+            "power_attr": { "iron": 100, "Coppyer": 150, "titanium": 200 },
+        })
+        self.prepare_post("/calc/mining_rate/{ship_id}", body={
+            "planet_coord": target,
+            "power_attr": { "iron": 200, "Coppyer": 150, "titanium": 100 },
         })
 
         self.prepare_post("/calc/upgrade/module", body={
@@ -519,10 +526,10 @@ class ApiChecker:
         })
 
         self.prepare_post("/calc/upgrade/ship", body={
-            "start_reactor_power": 5,
-            "end_reactor_power": 6,
-            "start_shield_power": 5,
-            "end_shield_power": 6,
+            "start_reactor_rank": 5,
+            "end_reactor_rank": 6,
+            "start_shield_rank": 5,
+            "end_shield_rank": 6,
             "pilot_start_rank": 4,
             "pilot_end_rank": 5,
         })
@@ -530,6 +537,10 @@ class ApiChecker:
         self.prepare_post("/calc/upgrade/trader", body={
             "trader_start_rank": 1,
             "trader_end_rank": 3,
+        })
+        self.prepare_post("/calc/wages/ship", body={
+            "pilot_rank": 3,
+            "operator_ranks": [1, 2, 3],
         })
         self.prepare_post("/ship/{ship_id}/extraction/power_attribution/{resource}/{pow}", pow=50)
 

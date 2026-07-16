@@ -1,14 +1,15 @@
 use std::collections::BTreeMap;
 
 use ntex::router::IntoPattern;
-use ntex::web::types::Json;
-use ntex::web::{self, scope, ServiceConfig};
+use ntex::web::types::{Json, Path};
+use ntex::web::{self, scope, HttpRequest, ServiceConfig};
 use simeis_data::crew::{CrewMember, CrewMemberType};
 use simeis_data::errors::Errcode;
 use simeis_data::market::fee_rate;
 use simeis_data::ship::module::{calc_extraction_rate, ShipModule, ShipModuleType};
 use simeis_data::ship::resources::{apply_power_attribution, Resource};
 use simeis_data::ship::upgrade::ShipUpgrade;
+use simeis_data::ship::ShipId;
 use strum::IntoEnumIterator;
 
 use crate::api::build_response;
@@ -38,6 +39,79 @@ async fn compute_travel_costs(body: Json<NavigationComputation>) -> impl web::Re
     let travel = Travel::new(dest);
     let cost = travel.compute_from_stats(&origin, &ship_stats);
     build_response(cost.map(|v| json!({"costs": v})))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ShipMiningRateComputation {
+    planet_coord: SpaceCoord,
+    #[serde(default)]
+    power_attribution: BTreeMap<Resource, u8>,
+}
+
+// @summary Compute how much resources a given ship can be extract from a given planet
+// @returns The mining rate for each resources
+#[web::post("/mining_rate/{ship_id}")]
+async fn compute_ship_mining_rate(
+    srv: GameState,
+    req: HttpRequest,
+    ship_id: Path<ShipId>,
+    body: Json<ShipMiningRateComputation>,
+) -> impl web::Responder {
+    let pkey = get_player_key!(req);
+    let ShipMiningRateComputation {
+        planet_coord,
+        power_attribution,
+    } = body.0;
+
+    let ship_data = srv
+        .map_ship(&pkey, &ship_id, |_, ship| {
+            Box::pin(async move {
+                let mut result = vec![];
+                for (_, m) in ship.modules.iter() {
+                    let Some(ref opid) = m.operator else {
+                        continue;
+                    };
+                    let Some(cm) = ship.crew.0.get(opid) else {
+                        continue;
+                    };
+                    result.push((m.modtype, m.rank, cm.rank));
+                }
+                Ok(result)
+            })
+        })
+        .await;
+
+    if let Err(e) = ship_data {
+        return build_response(Err(e));
+    }
+    let ship_data = ship_data.unwrap();
+    let data = srv
+        .map_galaxy_coord(&planet_coord, |spaceobj, galaxy| {
+            Box::pin(async move {
+                let SpaceObject::Planet(planet_id) = spaceobj else {
+                    return Err(Errcode::NotAPlanet);
+                };
+                let planet = galaxy.planets.get(planet_id).unwrap();
+                let mut result = BTreeMap::new();
+                for (res, density) in planet.resources_density.iter() {
+                    for (modtype, mod_rank, op_rank) in ship_data.iter() {
+                        if !res.extractable(modtype, *op_rank) {
+                            continue;
+                        }
+                        let rate = calc_extraction_rate(res, *mod_rank, *op_rank, *density);
+                        if let Some(r) = result.get_mut(res) {
+                            *r += rate;
+                        } else {
+                            result.insert(*res, rate);
+                        }
+                    }
+                }
+                apply_power_attribution(&power_attribution, &mut result);
+                Ok(to_value(result).unwrap())
+            })
+        })
+        .await;
+    build_response(data)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -151,11 +225,11 @@ async fn compute_upgrade_module(body: Json<UpgradeModule>) -> impl web::Responde
 
 #[derive(Serialize, Deserialize)]
 pub struct UpgradeShip {
-    start_reactor_power: u16,
-    end_reactor_power: u16,
+    start_reactor_rank: u16,
+    end_reactor_rank: u16,
 
-    start_shield_power: u16,
-    end_shield_power: u16,
+    start_shield_rank: u16,
+    end_shield_rank: u16,
 
     pilot_start_rank: u8,
     pilot_end_rank: u8,
@@ -168,22 +242,22 @@ async fn compute_upgrade_ship(body: Json<UpgradeShip>) -> impl web::Responder {
     let UpgradeShip {
         pilot_start_rank,
         pilot_end_rank,
-        start_reactor_power,
-        end_reactor_power,
-        start_shield_power,
-        end_shield_power,
+        start_reactor_rank,
+        end_reactor_rank,
+        start_shield_rank,
+        end_shield_rank,
     } = body.0;
     let mut pilot = CrewMember::from(CrewMemberType::Pilot);
     pilot.rank = pilot_start_rank;
     let start_wage = pilot.wage();
-    let start_stats = ShipStats::new(start_reactor_power, start_shield_power, Some(&pilot));
+    let start_stats = ShipStats::new(start_reactor_rank, start_shield_rank, Some(&pilot));
 
     let mut rpow_upgrade_price = 0.0;
-    for _ in start_reactor_power..end_reactor_power {
+    for _ in start_reactor_rank..end_reactor_rank {
         rpow_upgrade_price += ShipUpgrade::Reactor.get_price();
     }
     let mut spow_upgrade_price = 0.0;
-    for _ in start_shield_power..end_shield_power {
+    for _ in start_shield_rank..end_shield_rank {
         spow_upgrade_price += ShipUpgrade::Shield.get_price();
     }
 
@@ -194,7 +268,7 @@ async fn compute_upgrade_ship(body: Json<UpgradeShip>) -> impl web::Responder {
     }
     pilot.rank = pilot_end_rank;
     let end_wage = pilot.wage();
-    let end_stats = ShipStats::new(end_reactor_power, end_shield_power, Some(&pilot));
+    let end_stats = ShipStats::new(end_reactor_rank, end_shield_rank, Some(&pilot));
     build_response(Ok(json!({
         "wage_increase": end_wage - start_wage,
         "pilot_upgrade_price": crew_upgrade_price,
@@ -240,6 +314,32 @@ async fn compute_upgrade_trader(body: Json<UpgradeTrader>) -> impl web::Responde
     })))
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ComputeShipWages {
+    pilot_rank: Option<u8>,
+    operator_ranks: Vec<u8>,
+}
+
+// @summary Compute the total wages for a ship with the given crew onboard
+// @returns The total wage for the given crew on a ship
+#[web::post("/wages/ship")]
+async fn compute_ship_wages(body: Json<ComputeShipWages>) -> impl web::Responder {
+    let mut total_wages = 0.0;
+    if let Some(pilotrank) = body.pilot_rank {
+        let mut cm = CrewMember::from(CrewMemberType::Pilot);
+        cm.rank = pilotrank;
+        total_wages += cm.wage();
+    }
+    for oprank in body.operator_ranks.iter() {
+        let mut cm = CrewMember::from(CrewMemberType::Operator);
+        cm.rank = *oprank;
+        total_wages += cm.wage();
+    }
+    build_response(Ok(json!({
+        "total_wages": total_wages,
+    })))
+}
+
 // TODO (#44) Endpoints for all kinds of computations
 // - Prices of the upgrade of an industry + its operator (from source lvl to dst lvl), returns benefits, price, wages, etc...
 // - Resource requirements / production of an industry at a certain level
@@ -248,6 +348,8 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
     srv.service(
         scope(base)
             .service(compute_travel_costs)
+            .service(compute_ship_wages)
+            .service(compute_ship_mining_rate)
             .service(compute_mining_rate)
             .service(compute_upgrade_ship)
             .service(compute_upgrade_trader)

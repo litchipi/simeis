@@ -4,41 +4,61 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# TODO (#62) Create a CD:
+# When label "release" on the PR, and PR is merged
+# Create a debian package, then publish it as an artifact
+
 jobs:
-  tests:
+  code-check:
     runs-on: nix
     steps:
       - uses: actions/checkout@v4
 
-      - name: Calculate version
-        id: simeis-version
-        run: echo "simeis_version=$(cat simeis-server/Cargo.toml|grep version)" >> $GITHUB_OUTPUT
-      - uses: https://code.forgejo.org/actions/cache@v5
-        name: Common dependencies caching
-        id: cache-base
-        with:
-          path: |
-            .cargohome/registry/index/
-            .cargohome/registry/cache/
-            .cargohome/git/db/
-            target/
-            supply-chain/
-          key: ${{ runner.os }}-${{ steps.simeis-version.outputs.simeis_version }}
-
       - name: Calculate lockfile hash
-        id: cargo-lock-hash
-        run: echo "hash=$(md5sum Cargo.lock)" >> $GITHUB_OUTPUT
-      - uses: https://code.forgejo.org/actions/cache@v5
+        id: cachekey
+        run: |
+          function hash_all() {
+            id=$1; shift 1
+            echo -n "$id=" >> cachekeys
+            md5sum $@ | md5sum | cut -d ' ' -f 1 >> cachekeys
+          }
+
+          RSHASH=$(find simeis-server simeis-data -name "*.rs" -exec md5sum {} \; | md5sum | cut -d ' ' -f 1)
+          echo "rshash=$RSHASH" >> cachekeys
+          hash_all cargohash Cargo.lock Cargo.toml
+          hash_all tests Cargo.lock .forgejo/scripts.nix .forgejo/functests.py
+          hash_all api-check .forgejo/scripts.nix Cargo.lock sdk/python.py sdk/rust/src/lib.rs
+          hash_all runswell-py Cargo.lock .forgejo/scripts.nix sdk/python.py example/python/client.py
+          hash_all runswell-rs Cargo.lock .forgejo/scripts.nix sdk/rust/src/lib.rs example/rust/src/main.rs
+          nix run .#disp_version >> cachekeys
+          cat cachekeys | tee -a "$GITHUB_OUTPUT"
+
+      - uses: https://code.forgejo.org/actions/cache/restore@v6
         name: Cache dependencies
         id: cache-rust
         with:
           path: |
-            .cargohome/registry/index/
-            .cargohome/registry/cache/
-            .cargohome/git/db/
             target/
-            supply-chain/
-          key: ${{ runner.os }}-tests-${{ steps.cargo-lock-hash.outputs.hash }}
+            .cargohome/registry
+          key: ${{ runner.os }}-${{ steps.cachekey.outputs.simeis-version }}-${{ steps.cachekey.outputs.cargohash }}-${{ steps.cachekey.outputs.rshash }}-code-check
+
+      - name: "Check the sanity of the Rust code"
+        run: nix run .#check_rust_code
+
+      - name: "Build the simeis server"
+        run: nix run .#build
+
+      - name: Upload artifacts
+        uses: ./.forgejo/save-artifacts
+
+  tests:
+    runs-on: nix
+    needs: code-check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/load-cache
+        with:
+          id: tests
 
       - name: "Unit tests"
         run: nix run .#unit_tests --show-trace -L
@@ -48,50 +68,17 @@ jobs:
 
   api-check:
     runs-on: nix
+    needs: code-check
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.forgejo/load-cache
+        with:
+          id: api-check
+
       - name: "Check if SDKs are in sync"
         run: nix run .#check_sdk_sync --show-trace -L
       - name: "Check if swagger and SDKs are in sync with API"
         run: nix run .#api_sanity --show-trace -L
-
-  code-check:
-    runs-on: nix
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Calculate version
-        id: simeis-version
-        run: echo "simeis_version=$(cat simeis-server/Cargo.toml|grep version)" >> $GITHUB_OUTPUT
-      - uses: https://code.forgejo.org/actions/cache@v5
-        name: Common dependencies caching
-        id: cache-base
-        with:
-          path: |
-            .cargohome/registry/index/
-            .cargohome/registry/cache/
-            .cargohome/git/db/
-            target/
-            supply-chain/
-          key: ${{ runner.os }}-${{ steps.simeis-version.outputs.simeis_version }}
-
-      - name: Calculate lockfile hash
-        id: cargo-lock-hash
-        run: echo "hash=$(md5sum Cargo.lock)" >> $GITHUB_OUTPUT
-      - uses: https://code.forgejo.org/actions/cache@v5
-        name: Cache dependencies
-        id: cache-rust
-        with:
-          path: |
-            .cargohome/registry/index/
-            .cargohome/registry/cache/
-            .cargohome/git/db/
-            target/
-            supply-chain/
-          key: ${{ runner.os }}-check-${{ steps.cargo-lock-hash.outputs.hash }}
-
-      - name: "Check the sanity of the Rust code"
-        run: nix run .#check_rust_code
 
   todo-check:
     runs-on: nix
@@ -100,40 +87,61 @@ jobs:
       - name: "Check for unadressed TODOs"
         run: nix run .#check_todos
 
-  check-runs-well:
+  check-runs-well-py:
     runs-on: nix
+    needs: code-check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/load-cache
+        with:
+          id: runswell-py
+
+      - name: "Check if Python base client runs well"
+        run: nix run .#client_run_well_py
+
+  check-runs-well-rs:
+    runs-on: nix
+    needs: code-check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/load-cache
+        with:
+          id: runswell-rs
+
+      - name: "Check if Rust base client runs well"
+        run: nix run .#client_run_well_rs
+
+  upload-to-cache:
+    runs-on: nix
+    needs: code-check
     steps:
       - uses: actions/checkout@v4
 
-      - name: Calculate version
-        id: simeis-version
-        run: echo "simeis_version=$(cat simeis-server/Cargo.toml|grep version)" >> $GITHUB_OUTPUT
-      - uses: https://code.forgejo.org/actions/cache@v5
-        name: Common dependencies caching
-        id: cache-base
-        with:
-          path: |
-            .cargohome/registry/index/
-            .cargohome/registry/cache/
-            .cargohome/git/db/
-            target/
-            supply-chain/
-          key: ${{ runner.os }}-${{ steps.simeis-version.outputs.simeis_version }}
+      - uses: ./.forgejo/load-cache
+      - name: Get cache keys
+        id: cachekey
+        run: cat cachekeys | tee -a "$GITHUB_OUTPUT"
 
-      - name: Calculate lockfile hash
-        id: cargo-lock-hash
-        run: echo "hash=$(md5sum Cargo.lock)" >> $GITHUB_OUTPUT
-      - uses: https://code.forgejo.org/actions/cache@v5
+      - uses: https://code.forgejo.org/actions/cache/save@v6
         name: Cache dependencies
-        id: cache-rust
         with:
           path: |
-            .cargohome/registry/index/
-            .cargohome/registry/cache/
-            .cargohome/git/db/
             target/
-          key: ${{ runner.os }}-clientrun-${{ steps.cargo-lock-hash.outputs.hash }}
-      - name: "Check if Python base client runs well"
-        run: nix run .#client_run_well_py
-      - name: "Check if Rust base client runs well"
-        run: nix run .#client_run_well_rs
+            .cargohome/registry
+          key: ${{ runner.os }}-${{ steps.cachekey.outputs.simeis-version }}-${{ steps.cachekey.outputs.cargohash }}-${{ steps.cachekey.outputs.rshash }}-code-check
+
+      - uses: https://code.forgejo.org/actions/cache/save@v6
+        name: Cache dependencies
+        with:
+          path: |
+            target/
+            .cargohome/registry
+          key: ${{ runner.os }}-${{ steps.cachekey.outputs.simeis-version }}-${{ steps.cachekey.outputs.cargohash }}
+
+      - uses: https://code.forgejo.org/actions/cache/save@v6
+        name: Cache dependencies
+        with:
+          path: |
+            target/
+            .cargohome/registry
+          key: ${{ runner.os }}-${{ steps.cachekey.outputs.simeis-version }}

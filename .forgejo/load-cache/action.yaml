@@ -1,0 +1,38 @@
+inputs:
+  id:
+    description: "Identifier for this job"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download all artifacts
+      uses: https://data.forgejo.org/forgejo/download-artifact@v4
+
+    - name: Organize artifacts
+      run: |
+        DST=$PWD
+        cd ${{ steps.dl.outputs.download-path }}
+        mv cachekeys-${{ forgejo.run_id }}/* $DST/
+        mv target-dir-${{ forgejo.run_id }}/target.tar $DST/
+        mv cargo-home-${{ forgejo.run_id }}/cargohome.tar $DST/
+        cd $DST
+        time tar --lzop -xf $DST/target.tar && rm $DST/target.tar && echo "Target decompressed"
+        time tar --lzop -xf $DST/cargohome.tar && rm $DST/cargohome.tar && echo "Cargo home decompressed"
+
+    - name: Get cache keys
+      if: inputs.id != ''
+      id: cachekey
+      run: cat cachekeys | tee -a "$GITHUB_OUTPUT"
+
+    - name: Get specific cache key
+      if: inputs.id != ''
+      id: specifickey
+      run: cat cachekeys | grep "${{ inputs.id }}" | cut -d '=' -f 2 | xargs printf 'hash=%s\n' | tee -a "$GITHUB_OUTPUT"
+
+    - uses: https://code.forgejo.org/actions/cache@v6
+      name: Cache dependencies
+      if: inputs.id != ''
+      id: cache-rust
+      with:
+        path: target/
+        key: ${{ runner.os }}-${{ steps.cachekey.outputs.simeis-version }}-${{ inputs.id }}-${{ steps.specifickey.outputs.hash }}
