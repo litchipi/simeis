@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simeis — Observatory</title>
+<style>
+  :root {
+    color-scheme: dark;
+    /* Chrome & ink */
+    --page:           #0d0d0d;
+    --surface-1:      #1a1a19;
+    --surface-2:      #232322;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255, 255, 255, 0.10);
+    /* Categorical series (fixed order, dark-surface steps) */
+    --series-1: #3987e5;
+    --series-2: #008300;
+    --series-3: #d55181;
+    --series-4: #c98500;
+    --series-5: #199e70;
+    --series-6: #d95926;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+    /* Status (reserved) */
+    --status-good:     #0ca30c;
+    --status-warning:  #fab219;
+    --status-critical: #d03b3b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 13px;
+    overflow: hidden;
+  }
+  #app {
+    display: grid;
+    grid-template-rows: 44px 1fr;
+    grid-template-columns: 290px 1fr 300px;
+    grid-template-areas: "head head head" "left map right";
+    height: 100%;
+  }
+
+  /* ---------------- Header ---------------- */
+  header {
+    grid-area: head;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 14px;
+    background: var(--surface-1);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    font-size: 14px;
+    font-weight: 650;
+    letter-spacing: 0.22em;
+    color: var(--text-primary);
+  }
+  header h1 span { color: var(--text-muted); font-weight: 400; }
+  .hstat {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    color: var(--text-secondary);
+  }
+  .hstat b { font-variant-numeric: tabular-nums; color: var(--text-primary); font-weight: 600; }
+  .hstat .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+  #conn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+  }
+  #conn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-good); }
+  #conn.offline .dot { background: var(--status-critical); animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: 0.2; } }
+  header button {
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  header button:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+  /* ---------------- Panels ---------------- */
+  aside {
+    background: var(--surface-1);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #left  { grid-area: left;  border-right: 1px solid var(--border); }
+  #right { grid-area: right; border-left: 1px solid var(--border); }
+  .panel-title {
+    padding: 10px 12px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-muted);
+    flex: none;
+  }
+  .scroll { overflow-y: auto; min-height: 0; }
+  .scroll::-webkit-scrollbar { width: 8px; }
+  .scroll::-webkit-scrollbar-thumb { background: var(--baseline); border-radius: 4px; }
+
+  /* ---------------- Standings ---------------- */
+  #standings { flex: 1; }
+  .prow {
+    padding: 7px 12px 8px;
+    border-bottom: 1px solid var(--gridline);
+    cursor: pointer;
+  }
+  .prow:hover { background: var(--surface-2); }
+  .prow.followed { background: var(--surface-2); box-shadow: inset 2px 0 0 var(--text-primary); }
+  .prow.lost { opacity: 0.45; }
+  .prow .top { display: flex; align-items: baseline; gap: 7px; }
+  .prow .rank { color: var(--text-muted); font-variant-numeric: tabular-nums; width: 16px; flex: none; }
+  .prow .chip { width: 9px; height: 9px; border-radius: 2px; flex: none; align-self: center; }
+  .prow .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prow .move { font-size: 10px; width: 12px; flex: none; }
+  .prow .move.up { color: var(--status-good); }
+  .prow .move.down { color: var(--status-critical); }
+  .prow .scoreval { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .prow .bar {
+    display: flex;
+    gap: 2px; /* spacer between score and potential segments */
+    height: 4px;
+    margin: 5px 0 4px 23px;
+    border-radius: 4px;
+  }
+  .prow .bar i { display: block; height: 100%; border-radius: 4px; min-width: 0; }
+  .prow .bar .pot { opacity: 0.35; }
+  .prow .sub {
+    display: flex;
+    gap: 10px;
+    margin-left: 23px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .prow .sub .warn { color: var(--status-warning); }
+  .prow .sub .crit { color: var(--status-critical); font-weight: 600; }
+  #standings .empty, #market .empty { padding: 8px 12px; color: var(--text-muted); }
+
+  /* ---------------- Map ---------------- */
+  #mapwrap { grid-area: map; position: relative; min-width: 0; min-height: 0; }
+  canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
+  canvas#map.drag { cursor: grabbing; }
+  #tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    max-width: 260px;
+    display: none;
+    z-index: 5;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  }
+  #tooltip h3 { font-size: 12px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+  #tooltip h3 .chip { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+  #tooltip .row { display: flex; justify-content: space-between; gap: 14px; color: var(--text-secondary); }
+  #tooltip .row b { font-variant-numeric: tabular-nums; font-weight: 500; color: var(--text-primary); }
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    color: var(--text-secondary);
+    background: rgba(13, 13, 13, 0.55);
+    z-index: 4;
+  }
+  #overlay.hidden { display: none; }
+  #overlay .big { font-size: 17px; letter-spacing: 0.12em; color: var(--text-primary); }
+  #overlay code {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  #maphelp {
+    position: absolute;
+    left: 10px;
+    bottom: 8px;
+    font-size: 10px;
+    color: var(--text-muted);
+    z-index: 3;
+    letter-spacing: 0.04em;
+  }
+
+  /* ---------------- Market ---------------- */
+  #market { flex: 1.2; }
+  .mrow {
+    display: grid;
+    grid-template-columns: 1fr 92px;
+    grid-template-areas: "name spark" "price spark";
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--gridline);
+    column-gap: 10px;
+  }
+  .mrow .name { grid-area: name; color: var(--text-secondary); }
+  .mrow .price {
+    grid-area: price;
+    font-variant-numeric: tabular-nums;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .mrow .price b { font-weight: 600; }
+  .mrow .delta { font-size: 11px; }
+  .mrow .delta.up { color: var(--status-good); }
+  .mrow .delta.down { color: var(--series-8); }
+  .mrow canvas { grid-area: spark; width: 92px; height: 30px; align-self: center; }
+
+  /* ---------------- Events ---------------- */
+  #events { flex: 1; border-top: 1px solid var(--border); }
+  .ev {
+    padding: 5px 12px;
+    border-bottom: 1px solid var(--gridline);
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .ev .t { color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: 10px; margin-right: 6px; }
+  .ev .pname { font-weight: 600; }
+  .ev.bad { color: var(--status-critical); }
+  .ev.warn { color: var(--status-warning); }
+  .ev.good { color: var(--status-good); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>SIMEIS <span>/ OBSERVATORY</span></h1>
+    <div class="hstat"><span class="lbl">Game time</span><b id="h-clock">—</b></div>
+    <div class="hstat"><span class="lbl">Players</span><b id="h-players">0</b></div>
+    <div class="hstat"><span class="lbl">Ships</span><b id="h-ships">0</b></div>
+    <button id="btn-fit" title="Fit view to the whole known galaxy [F]">Fit view</button>
+    <button id="btn-follow" title="Stop following [Esc]" style="display:none">Following: <b id="follow-name"></b> ✕</button>
+    <div id="conn"><span class="dot"></span><span id="conn-txt">LIVE</span></div>
+  </header>
+
+  <aside id="left">
+    <div class="panel-title">Standings</div>
+    <div id="standings" class="scroll"><div class="empty">No players yet</div></div>
+  </aside>
+
+  <div id="mapwrap">
+    <canvas id="map"></canvas>
+    <div id="tooltip"></div>
+    <div id="overlay">
+      <div class="big">AWAITING FIRST CONTACT</div>
+      <div>No player in the game yet. Join with:</div>
+      <code id="join-hint">GET /player/new/&lt;username&gt;</code>
+    </div>
+    <div id="maphelp">drag: pan · wheel: zoom · hover: inspect · click player: follow · F: fit</div>
+  </div>
+
+  <aside id="right">
+    <div class="panel-title">Market</div>
+    <div id="market" class="scroll"><div class="empty">Waiting for data…</div></div>
+    <div class="panel-title" style="border-top:none">Events</div>
+    <div id="events" class="scroll"></div>
+  </aside>
+</div>
+
+<script>
+"use strict";
+/* Simeis Observatory — a zero-dependency live spectator dashboard.
+ * Polls /spectate/data and renders the whole game: galaxy map, standings,
+ * market history and a synthesized event feed (derived from state diffs,
+ * so the server does not need to persist anything for spectators). */
+
+const POLL_MS = 1000;
+
+const SERIES = getComputedStyle(document.documentElement);
+const PLAYER_COLORS = [1, 2, 3, 4, 5, 6, 7, 8].map(i => SERIES.getPropertyValue(`--series-${i}`).trim());
+
+/* The eight validated categorical hues cover most games. Past eight players
+ * (a big classroom), fall back to hues spread on the golden angle so no two
+ * students share a colour — distinctness matters more than CVD-safety here. */
+function colorFor(i) {
+  if (i < PLAYER_COLORS.length) return PLAYER_COLORS[i];
+  const hue = ((i - PLAYER_COLORS.length) * 137.508) % 360;
+  return `hsl(${hue.toFixed(0)}, 62%, 58%)`;
+}
+
+const $ = id => document.getElementById(id);
+const fmt = n => {
+  const a = Math.abs(n);
+  if (a >= 1e9) return (n / 1e9).toFixed(2) + "B";
+  if (a >= 1e6) return (n / 1e6).toFixed(2) + "M";
+  if (a >= 1e4) return (n / 1e3).toFixed(1) + "k";
+  return a >= 100 ? n.toFixed(0) : n.toFixed(1);
+};
+const fmtDur = s => {
+  if (!isFinite(s)) return "∞";
+  s = Math.max(0, Math.floor(s));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const pad = n => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`;
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* ------------------------------------------------------------------ */
+/* State                                                              */
+/* ------------------------------------------------------------------ */
+const S = {
+  connected: false,
+  tstart: null,
+  players: new Map(),   // pid -> {name, score, potential, money, costs, lost, age, nships, color, rank, prevRank}
+  ships: new Map(),     // sid -> server fields + {t0, dist0, trail: [], theta}
+  stations: new Map(),  // id -> {position}
+  planets: [],
+  sectors: [],
+  market: new Map(),    // res -> {price, hist: [], base}
+  basePrices: {},
+  events: [],
+  follow: null,         // pid or null
+  colorNext: 0,
+};
+
+const cam = { x: 0, y: 0, scale: 1e-4, fitted: false };
+const canvas = $("map"), ctx = canvas.getContext("2d");
+let mouse = { x: -1, y: -1, over: false };
+
+/* ------------------------------------------------------------------ */
+/* Polling & diffing                                                  */
+/* ------------------------------------------------------------------ */
+async function fetchJson(path) {
+  const r = await fetch(path);
+  const d = await r.json();
+  if (d.error !== "ok") throw new Error(d.error);
+  return d;
+}
+
+async function loadBasePrices() {
+  try {
+    const d = await fetchJson("/resources");
+    delete d.error;
+    S.basePrices = d;
+  } catch (e) { /* non-fatal: deltas fall back to session start */ }
+}
+
+function pushEvent(kind, html) {
+  const t = S.tstart ? (Date.now() / 1000 - S.tstart) : 0;
+  S.events.unshift({ t, kind, html });
+  if (S.events.length > 120) S.events.pop();
+  renderEvents();
+}
+const pname = pid => {
+  const p = S.players.get(pid);
+  return p ? `<span class="pname" style="color:${p.color}">${esc(p.name)}</span>` : "someone";
+};
+
+function ingest(d) {
+  const now = performance.now();
+
+  /* A changed tstart means the server restarted a fresh game — drop all
+   * accumulated state so stale players/ships don't linger and we don't emit
+   * a burst of bogus "joined"/"destroyed" events for the transition. */
+  if (S.tstart !== null && d.tstart !== S.tstart) {
+    S.players.clear(); S.ships.clear(); S.market.clear();
+    S.stations.clear(); S.events.length = 0; S.colorNext = 0;
+    S.follow = null; cam.fitted = false;
+    $("btn-follow").style.display = "none";
+  }
+  S.tstart = d.tstart;
+
+  /* --- players --- */
+  const seenP = new Set();
+  for (const [pid, pd] of Object.entries(d.players)) {
+    seenP.add(pid);
+    let p = S.players.get(pid);
+    if (!p) {
+      p = { color: colorFor(S.colorNext++), rank: 0, prevRank: 0, lowFunds: false };
+      S.players.set(pid, p);
+      Object.assign(p, pd);
+      pushEvent("good", `${pname(pid)} joined the game`);
+    } else {
+      if (!p.lost && pd.lost) pushEvent("bad", `${pname(pid)} went bankrupt — game over ☠`);
+      const dscore = pd.score - p.score;
+      if (dscore > 0.5) pushEvent("", `${pname(pid)} banked <b>+${fmt(dscore)}</b> credits`);
+      const runway = pd.costs > 0 ? pd.money / pd.costs : Infinity;
+      if (!pd.lost && runway < 60 && !p.lowFunds) {
+        pushEvent("warn", `${pname(pid)} is running out of funds (${fmtDur(runway)} left)`);
+        p.lowFunds = true;
+      } else if (runway >= 120) p.lowFunds = false;
+      Object.assign(p, pd);
+    }
+  }
+  for (const pid of S.players.keys()) if (!seenP.has(pid)) S.players.delete(pid);
+
+  /* --- ships --- */
+  /* Keyed by owner+id: the shipyard's starter ships are cloned for every
+   * player, so a bare ShipId is not unique across the whole game. */
+  const seenS = new Set();
+  for (const sd of d.ships) {
+    const key = sd.owner + ":" + sd.id;
+    seenS.add(key);
+    let s = S.ships.get(key);
+    if (!s) {
+      s = { trail: [], theta: Math.random() * Math.PI * 2, orb: 9 + Math.random() * 8 };
+      S.ships.set(key, s);
+      if (S.players.get(sd.owner)?.age > 5) {
+        pushEvent("", `${pname(sd.owner)} commissioned a new ship`);
+      }
+    } else {
+      if (s.state !== "flight" && sd.state === "flight") {
+        const eta = sd.speed > 0 ? (sd.flight.dist_tot - sd.flight.dist_done) / sd.speed : Infinity;
+        pushEvent("", `${pname(sd.owner)} ship departed — ETA ${fmtDur(eta)}`);
+        s.trail = [];
+      }
+      if (s.state === "flight" && sd.state === "idle") pushEvent("", `${pname(sd.owner)} ship arrived at destination`);
+      if (s.state !== "extraction" && sd.state === "extraction") {
+        const res = (sd.extraction || []).join(", ");
+        pushEvent("", `${pname(sd.owner)} started extracting <b>${esc(res)}</b>`);
+      }
+      if (s.state === "extraction" && sd.state !== "extraction") pushEvent("", `${pname(sd.owner)} stopped extraction`);
+    }
+    Object.assign(s, sd);
+    s.t0 = now;
+    s.dist0 = sd.state === "flight" ? sd.flight.dist_done : 0;
+  }
+  for (const [key, s] of S.ships) {
+    if (!seenS.has(key)) {
+      pushEvent("bad", `${pname(s.owner)} ship was destroyed 💥`);
+      S.ships.delete(key);
+    }
+  }
+
+  /* --- static-ish world --- */
+  for (const [id, st] of Object.entries(d.stations)) S.stations.set(id, st);
+  S.planets = d.planets;
+  S.sectors = d.sectors;
+
+  /* --- market --- */
+  for (const [res, price] of Object.entries(d.market)) {
+    let m = S.market.get(res);
+    if (!m) { m = { hist: [] }; S.market.set(res, m); }
+    else {
+      const prev = m.price;
+      if (prev > 0) {
+        const chg = (price - prev) / prev;
+        if (Math.abs(chg) >= 0.05) {
+          pushEvent(chg > 0 ? "good" : "bad",
+            `Market: <b>${esc(res)}</b> ${chg > 0 ? "+" : ""}${(chg * 100).toFixed(1)}%`);
+        }
+      }
+    }
+    m.price = price;
+    m.hist.push(price);
+    if (m.hist.length > 180) m.hist.shift();
+  }
+
+  /* --- ranks --- */
+  const ranked = [...S.players.entries()]
+    .sort((a, b) => (b[1].score + b[1].potential) - (a[1].score + a[1].potential));
+  ranked.forEach(([pid, p], i) => { p.prevRank = p.rank || i + 1; p.rank = i + 1; });
+
+  renderStandings();
+  renderMarket();
+  renderHeader();
+  $("overlay").classList.toggle("hidden", S.players.size > 0);
+
+  if (!cam.fitted && (S.stations.size || S.planets.length)) {
+    fitView();
+    cam.fitted = true;
+    /* deep-link: /spectate?follow=<player name> centers the view on a fleet */
+    const want = new URLSearchParams(location.search).get("follow");
+    if (want) {
+      for (const [pid, p] of S.players) if (p.name === want) toggleFollow(pid);
+    }
+  }
+}
+
+async function pollLoop() {
+  while (true) {
+    try {
+      const d = await fetchJson("/spectate/data");
+      setConnected(true);
+      ingest(d);
+      await new Promise(r => setTimeout(r, POLL_MS));
+    } catch (e) {
+      setConnected(false);
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+}
+function setConnected(ok) {
+  if (S.connected === ok) return;
+  S.connected = ok;
+  $("conn").classList.toggle("offline", !ok);
+  $("conn-txt").textContent = ok ? "LIVE" : "OFFLINE";
+}
+
+/* ------------------------------------------------------------------ */
+/* Panels                                                             */
+/* ------------------------------------------------------------------ */
+function renderHeader() {
+  $("h-players").textContent = [...S.players.values()].filter(p => !p.lost).length;
+  $("h-ships").textContent = S.ships.size;
+}
+setInterval(() => {
+  if (S.tstart) $("h-clock").textContent = fmtDur(Date.now() / 1000 - S.tstart);
+}, 500);
+
+function renderStandings() {
+  const el = $("standings");
+  const ranked = [...S.players.entries()].sort((a, b) => a[1].rank - b[1].rank);
+  if (!ranked.length) { el.innerHTML = '<div class="empty">No players yet</div>'; return; }
+  const max = Math.max(...ranked.map(([, p]) => Math.max(0, p.score) + p.potential), 1e-9);
+  el.innerHTML = ranked.map(([pid, p]) => {
+    const total = Math.max(0, p.score) + p.potential;
+    const ws = Math.max(0, p.score) / max * 100, wp = p.potential / max * 100;
+    const move = p.rank < p.prevRank ? '<span class="move up">▲</span>'
+               : p.rank > p.prevRank ? '<span class="move down">▼</span>' : '<span class="move"></span>';
+    const runway = p.costs > 0 ? p.money / p.costs : Infinity;
+    const runCls = runway < 60 ? "crit" : runway < 300 ? "warn" : "";
+    const sub = p.lost
+      ? `<span class="crit">BANKRUPT</span>`
+      : `<span>💰 ${fmt(p.money)}</span>` +
+        `<span>burn ${fmt(p.costs)}/s</span>` +
+        `<span class="${runCls}">runway ${fmtDur(runway)}</span>`;
+    return `<div class="prow ${p.lost ? "lost" : ""} ${S.follow === pid ? "followed" : ""}" data-pid="${pid}">
+      <div class="top">
+        <span class="rank">${p.rank}</span>${move}
+        <span class="chip" style="background:${p.color}"></span>
+        <span class="name">${esc(p.name)}</span>
+        <span class="scoreval">${fmt(total)}</span>
+      </div>
+      <div class="bar">
+        <i style="width:${ws}%;background:${p.color}"></i>
+        <i class="pot" style="width:${wp}%;background:${p.color}"></i>
+      </div>
+      <div class="sub">${sub}</div>
+    </div>`;
+  }).join("");
+  el.querySelectorAll(".prow").forEach(row => {
+    row.onclick = () => toggleFollow(row.dataset.pid);
+  });
+}
+
+function renderMarket() {
+  const el = $("market");
+  if (!S.market.size) return;
+  if (!el.dataset.built) {
+    el.innerHTML = [...S.market.keys()].map(res => `
+      <div class="mrow" data-res="${esc(res)}">
+        <span class="name">${esc(res)}</span>
+        <span class="price"><b></b><span class="delta"></span></span>
+        <canvas width="184" height="60"></canvas>
+      </div>`).join("");
+    el.dataset.built = "1";
+  }
+  for (const row of el.querySelectorAll(".mrow")) {
+    const m = S.market.get(row.dataset.res);
+    if (!m) continue;
+    row.querySelector("b").textContent = m.price.toFixed(2);
+    const base = S.basePrices[row.dataset.res]?.["base-price"] ?? m.hist[0];
+    const chg = (m.price - base) / base * 100;
+    const dEl = row.querySelector(".delta");
+    dEl.textContent = `${chg >= 0 ? "▲" : "▼"} ${Math.abs(chg).toFixed(1)}%`;
+    dEl.className = "delta " + (chg >= 0 ? "up" : "down");
+    drawSpark(row.querySelector("canvas"), m.hist, base);
+  }
+}
+
+function drawSpark(cv, hist, base) {
+  const c = cv.getContext("2d");
+  const W = cv.width, H = cv.height, pad = 4;
+  c.clearRect(0, 0, W, H);
+  if (hist.length < 2) return;
+  let lo = Math.min(...hist, base), hi = Math.max(...hist, base);
+  if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+  const x = i => pad + i / (hist.length - 1) * (W - 2 * pad);
+  const y = v => pad + (1 - (v - lo) / (hi - lo)) * (H - 2 * pad);
+  /* base-price reference line */
+  c.strokeStyle = "#383835";
+  c.setLineDash([3, 3]);
+  c.beginPath(); c.moveTo(pad, y(base)); c.lineTo(W - pad, y(base)); c.stroke();
+  c.setLineDash([]);
+  /* price line + soft area fill */
+  c.beginPath();
+  hist.forEach((v, i) => i ? c.lineTo(x(i), y(v)) : c.moveTo(x(i), y(v)));
+  c.strokeStyle = "#3987e5";
+  c.lineWidth = 2;
+  c.lineJoin = "round";
+  c.stroke();
+  c.lineTo(x(hist.length - 1), H - pad); c.lineTo(x(0), H - pad); c.closePath();
+  const g = c.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "rgba(57,135,229,0.25)"); g.addColorStop(1, "rgba(57,135,229,0)");
+  c.fillStyle = g;
+  c.fill();
+}
+
+function renderEvents() {
+  $("events").innerHTML = S.events.map(e =>
+    `<div class="ev ${e.kind}"><span class="t">${fmtDur(e.t)}</span>${e.html}</div>`
+  ).join("");
+}
+
+/* ------------------------------------------------------------------ */
+/* Map: camera & input                                                */
+/* ------------------------------------------------------------------ */
+const worldToScreen = (wx, wy) => [(wx - cam.x) * cam.scale + canvas.width / 2, (wy - cam.y) * cam.scale + canvas.height / 2];
+const screenToWorld = (sx, sy) => [(sx - canvas.width / 2) / cam.scale + cam.x, (sy - canvas.height / 2) / cam.scale + cam.y];
+
+function shipWorldPos(s) {
+  if (s.state !== "flight") return [s.position[0], s.position[1], s.position[2]];
+  const f = s.flight;
+  const d = Math.min(s.dist0 + s.speed * (performance.now() - s.t0) / 1000, f.dist_tot);
+  return [f.start[0] + f.direction[0] * d, f.start[1] + f.direction[1] * d, f.start[2] + f.direction[2] * d];
+}
+
+function worldBounds(pid) {
+  let xs = [], ys = [];
+  const add = p => { xs.push(p[0]); ys.push(p[1]); };
+  for (const [, st] of S.stations) add(st.position);
+  if (!pid) for (const p of S.planets) add(p.position);
+  for (const [, s] of S.ships) {
+    if (pid && s.owner !== pid) continue;
+    add(shipWorldPos(s));
+    if (s.state === "flight") add(s.flight.destination);
+  }
+  if (!xs.length) return null;
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+
+function fitBounds(b, lerp = 1) {
+  const [x0, y0, x1, y1] = b;
+  const w = Math.max(x1 - x0, 1000), h = Math.max(y1 - y0, 1000);
+  const scale = Math.min(canvas.width / w, canvas.height / h) * 0.7;
+  const tx = (x0 + x1) / 2, ty = (y0 + y1) / 2;
+  cam.x += (tx - cam.x) * lerp;
+  cam.y += (ty - cam.y) * lerp;
+  cam.scale += (scale - cam.scale) * lerp;
+}
+function fitView() {
+  const b = worldBounds(null);
+  if (b) fitBounds(b);
+}
+function toggleFollow(pid) {
+  S.follow = (S.follow === pid) ? null : pid;
+  $("btn-follow").style.display = S.follow ? "" : "none";
+  if (S.follow) $("follow-name").textContent = S.players.get(S.follow)?.name ?? "?";
+  renderStandings();
+}
+$("btn-fit").onclick = () => { S.follow = null; $("btn-follow").style.display = "none"; fitView(); renderStandings(); };
+$("btn-follow").onclick = () => toggleFollow(S.follow);
+window.addEventListener("keydown", e => {
+  if (e.key === "f" || e.key === "F") $("btn-fit").click();
+  if (e.key === "Escape" && S.follow) toggleFollow(S.follow);
+});
+
+let drag = null;
+canvas.addEventListener("mousedown", e => { drag = { x: e.clientX, y: e.clientY }; canvas.classList.add("drag"); });
+window.addEventListener("mouseup", () => { drag = null; canvas.classList.remove("drag"); });
+window.addEventListener("mousemove", e => {
+  const r = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
+  mouse.over = mouse.x >= 0 && mouse.y >= 0 && mouse.x < r.width && mouse.y < r.height;
+  if (drag) {
+    S.follow = null; $("btn-follow").style.display = "none";
+    cam.x -= (e.clientX - drag.x) / cam.scale;
+    cam.y -= (e.clientY - drag.y) / cam.scale;
+    drag = { x: e.clientX, y: e.clientY };
+  }
+});
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const factor = Math.pow(1.0015, -e.deltaY);
+  const [wx, wy] = screenToWorld(mouse.x, mouse.y);
+  cam.scale = Math.min(Math.max(cam.scale * factor, 1e-7), 10);
+  const [nx, ny] = screenToWorld(mouse.x, mouse.y);
+  cam.x += wx - nx; cam.y += wy - ny;
+}, { passive: false });
+
+/* ------------------------------------------------------------------ */
+/* Map: rendering                                                     */
+/* ------------------------------------------------------------------ */
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const STARS = (() => {
+  const rnd = mulberry32(1337), out = [];
+  for (let i = 0; i < 420; i++) {
+    out.push({ x: rnd(), y: rnd(), p: 0.05 + rnd() * 0.25, r: rnd() < 0.85 ? 1 : 1.6, a: 0.25 + rnd() * 0.55 });
+  }
+  return out;
+})();
+
+function planetColor(temp) {
+  const t = temp / 65535; /* cold → hot */
+  return `hsl(${210 - t * 190}, 65%, ${45 + t * 12}%)`;
+}
+
+function resize() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(r.width * dpr);
+  canvas.height = Math.round(r.height * dpr);
+  canvas.style.width = r.width + "px";
+  canvas.style.height = r.height + "px";
+}
+window.addEventListener("resize", resize);
+
+function draw() {
+  requestAnimationFrame(draw);
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.width, H = canvas.height;
+  const now = performance.now();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  if (S.follow) {
+    const b = worldBounds(S.follow);
+    if (b) fitBounds(b, 0.08);
+  }
+
+  /* Starfield with parallax */
+  for (const st of STARS) {
+    const px = ((st.x * W - cam.x * cam.scale * st.p) % W + W) % W;
+    const py = ((st.y * H - cam.y * cam.scale * st.p) % H + H) % H;
+    ctx.globalAlpha = st.a;
+    ctx.fillStyle = "#c3c2b7";
+    ctx.fillRect(px, py, st.r * dpr, st.r * dpr);
+  }
+  ctx.globalAlpha = 1;
+
+  /* Discovered sectors */
+  const sectorSeen = new Set();
+  ctx.strokeStyle = "rgba(57,135,229,0.35)";
+  ctx.fillStyle = "rgba(57,135,229,0.05)";
+  ctx.lineWidth = 1;
+  for (const sec of S.sectors) {
+    const key = sec[0][0] + ":" + sec[1][0];
+    if (sectorSeen.has(key)) continue;
+    sectorSeen.add(key);
+    const [sx, sy] = worldToScreen(sec[0][0], sec[1][0]);
+    const [ex, ey] = worldToScreen(sec[0][1], sec[1][1]);
+    ctx.fillRect(sx, sy, ex - sx, ey - sy);
+    ctx.strokeRect(sx, sy, ex - sx, ey - sy);
+  }
+
+  const hover = { d: 14 * dpr, item: null };
+  const testHover = (sx, sy, item) => {
+    const d = Math.hypot(mouse.x * dpr - sx, mouse.y * dpr - sy);
+    if (d < hover.d) { hover.d = d; hover.item = item; }
+  };
+
+  /* Label placement with collision avoidance: synchronized fleets pile onto
+   * the same station/planet, so labels are queued with a priority (station >
+   * followed player > others) and drawn highest-first — each one that would
+   * overlap an already-placed label is dropped instead of stacking into a
+   * blur. Priority ordering (not a force flag) is what keeps the followed
+   * player's name from ever overprinting a neighbour. */
+  const labelQueue = [];
+  const queueLabel = (sx, sy, text, pri, color = "#c3c2b7") => labelQueue.push({ sx, sy, text, pri, color });
+  const flushLabels = () => {
+    ctx.font = `${10 * dpr}px system-ui`;
+    ctx.textAlign = "center";
+    const placed = [];
+    for (const l of labelQueue.sort((a, b) => b.pri - a.pri)) {
+      const w = ctx.measureText(l.text).width, h = 12 * dpr;
+      const box = [l.sx - w / 2, l.sy - h, l.sx + w / 2, l.sy];
+      if (placed.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+      placed.push(box);
+      ctx.fillStyle = l.color;
+      ctx.fillText(l.text, l.sx, l.sy - 2 * dpr);
+    }
+  };
+
+  /* Planets */
+  for (const p of S.planets) {
+    const [sx, sy] = worldToScreen(p.position[0], p.position[1]);
+    if (sx < -50 || sy < -50 || sx > W + 50 || sy > H + 50) continue;
+    const r = 5 * dpr;
+    const col = planetColor(p.temperature);
+    const g = ctx.createRadialGradient(sx - r / 3, sy - r / 3, r / 4, sx, sy, r);
+    g.addColorStop(0, col);
+    g.addColorStop(1, "rgba(13,13,13,0.9)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(sx, sy, r, 0, 7); ctx.fill();
+    if (!p.solid) { /* gas giants get a ring */
+      ctx.strokeStyle = col;
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath(); ctx.ellipse(sx, sy, r * 1.8, r * 0.55, -0.5, 0, 7); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    testHover(sx, sy, { kind: "planet", p });
+  }
+
+  /* Stations */
+  for (const [id, st] of S.stations) {
+    const [sx, sy] = worldToScreen(st.position[0], st.position[1]);
+    if (sx < -60 || sy < -60 || sx > W + 60 || sy > H + 60) continue;
+    const r = 6 * dpr;
+    const pulse = 0.5 + 0.5 * Math.sin(now / 900);
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = "#c3c2b7";
+    ctx.shadowColor = "rgba(195,194,183,0.9)";
+    ctx.shadowBlur = (6 + 6 * pulse) * dpr;
+    ctx.fillRect(-r / 2, -r / 2, r, r);
+    ctx.restore();
+    queueLabel(sx, sy + r + 13 * dpr, `ST-${id}`, 3, "#898781");
+    testHover(sx, sy, { kind: "station", id, st });
+  }
+
+  /* Ships */
+  for (const [sid, s] of S.ships) {
+    const owner = S.players.get(s.owner);
+    const color = owner?.color ?? "#898781";
+    const [wx, wy, wz] = shipWorldPos(s);
+    let [sx, sy] = worldToScreen(wx, wy);
+    let angle = -Math.PI / 2;
+
+    if (s.state === "flight") {
+      const f = s.flight;
+      angle = Math.atan2(f.direction[1], f.direction[0]);
+      /* dashed route to destination + marker */
+      const [dx, dy] = worldToScreen(f.destination[0], f.destination[1]);
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.3;
+      ctx.setLineDash([4 * dpr, 6 * dpr]);
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(dx, dy); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(dx, dy, 3 * dpr, 0, 7); ctx.stroke();
+      ctx.globalAlpha = 1;
+      /* engine trail */
+      s.trail.push([wx, wy]);
+      if (s.trail.length > 40) s.trail.shift();
+      for (let i = 1; i < s.trail.length; i++) {
+        const [ax, ay] = worldToScreen(s.trail[i - 1][0], s.trail[i - 1][1]);
+        const [bx, by] = worldToScreen(s.trail[i][0], s.trail[i][1]);
+        ctx.globalAlpha = (i / s.trail.length) * 0.5;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 * dpr * (i / s.trail.length);
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 1;
+    } else {
+      /* docked/idle ships orbit their spot slightly so fleets don't overlap */
+      s.theta += 0.003;
+      sx += Math.cos(s.theta) * s.orb * dpr;
+      sy += Math.sin(s.theta) * s.orb * dpr;
+      angle = s.theta + Math.PI / 2;
+    }
+
+    if (s.state === "extraction") {
+      const phase = (now % 1600) / 1600;
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = (1 - phase) * 0.6;
+      ctx.beginPath(); ctx.arc(sx, sy, (6 + phase * 16) * dpr, 0, 7); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    if (sx > -30 && sy > -30 && sx < W + 30 && sy < H + 30) {
+      const sz = 6 * dpr;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(angle + Math.PI / 2);
+      ctx.fillStyle = color;
+      ctx.strokeStyle = "#0d0d0d"; /* 2px surface ring so overlapping ships stay separable */
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -sz);
+      ctx.lineTo(sz * 0.7, sz);
+      ctx.lineTo(0, sz * 0.55);
+      ctx.lineTo(-sz * 0.7, sz);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
+      /* Every player starts at the same station and fleets pile onto shared
+       * spots, so labels are collision-avoided (see flushLabels). The followed
+       * player gets a higher priority so its name wins the spot in a cluster. */
+      if (owner && cam.scale > 4e-4) {
+        queueLabel(sx, sy - 9 * dpr, owner.name, S.follow === s.owner ? 2 : 1);
+      }
+      testHover(sx, sy, { kind: "ship", sid, s, wz });
+    }
+  }
+
+  flushLabels();
+  drawTooltip(hover.item, dpr);
+}
+
+function drawTooltip(item, dpr) {
+  const tip = $("tooltip");
+  if (!item || !mouse.over || drag) { tip.style.display = "none"; return; }
+  let html = "";
+  const row = (k, v) => `<div class="row"><span>${k}</span><b>${v}</b></div>`;
+  if (item.kind === "station") {
+    const p = item.st.position;
+    html = `<h3>◈ Station ST-${item.id}</h3>` + row("Position", `(${p[0]}, ${p[1]}, ${p[2]})`);
+  } else if (item.kind === "planet") {
+    const p = item.p;
+    html = `<h3>● ${p.solid ? "Solid planet" : "Gas planet"}</h3>`
+      + row("Position", `(${p.position[0]}, ${p.position[1]}, ${p.position[2]})`)
+      + row("Temperature", `${p.temperature} K`);
+  } else if (item.kind === "ship") {
+    const s = item.s;
+    const o = S.players.get(s.owner);
+    html = `<h3><span class="chip" style="background:${o?.color}"></span>${esc(o?.name ?? "?")} — ship</h3>`;
+    html += row("State", s.state);
+    if (s.state === "flight") {
+      const left = (s.flight.dist_tot - Math.min(s.dist0 + s.speed * (performance.now() - s.t0) / 1000, s.flight.dist_tot));
+      html += row("ETA", fmtDur(s.speed > 0 ? left / s.speed : Infinity));
+      html += row("Speed", fmt(s.speed) + " u/s");
+    }
+    if (s.state === "extraction") html += row("Extracting", (s.extraction || []).join(", "));
+    html += row("Fuel", `${(s.fuel[0] / s.fuel[1] * 100).toFixed(0)}%`);
+    html += row("Hull", `${((1 - s.hull[0] / s.hull[1]) * 100).toFixed(0)}%`);
+    html += row("Cargo", `${fmt(s.cargo[0])} / ${fmt(s.cargo[1])}`);
+  }
+  tip.innerHTML = html;
+  tip.style.display = "block";
+  const r = canvas.getBoundingClientRect();
+  tip.style.left = Math.min(mouse.x + 16, r.width - tip.offsetWidth - 8) + "px";
+  tip.style.top = Math.min(mouse.y + 16, r.height - tip.offsetHeight - 8) + "px";
+}
+
+/* ------------------------------------------------------------------ */
+$("join-hint").textContent = `GET ${location.origin}/player/new/<username>`;
+resize();
+draw();
+/* Load base prices before the first poll so market deltas reference the true
+ * base price, not the first sampled value. loadBasePrices never rejects. */
+loadBasePrices().then(pollLoop);
+</script>
+</body>
+</html>
