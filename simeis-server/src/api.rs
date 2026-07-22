@@ -62,6 +62,7 @@ fn build_response(res: ApiResult) -> HttpResponse {
 mod market;
 mod player;
 mod ship;
+mod spectate;
 mod station;
 mod system;
 
@@ -84,6 +85,7 @@ mod station_shop;
 
 pub fn configure(srv: &mut ServiceConfig) {
     system::configure(srv);
+    spectate::configure(srv);
     market::configure("/market", srv);
     player::configure("/player", srv);
     ship::configure("/ship/{ship_id}", srv);

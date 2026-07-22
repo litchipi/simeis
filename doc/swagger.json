@@ -1994,6 +1994,148 @@
         ],
         "summary": "Stop an industry unit"
       }
+    },
+    "/spectate/data": {
+      "get": {
+        "summary": "Get a live snapshot of the whole game, for spectators",
+        "description": "All players (score, money, wages), their fleets, the known stations, the discovered planets & sectors, and the current market prices.\nMeant to be polled by the spectator dashboard on `/spectate`, but any client is free to use it (it only exposes what a spectator screen would show anyway).\nNote: `u64` identifiers are serialized as strings, as they exceed the safe integer range of JSON numbers in most parsers.",
+        "responses": {
+          "200": {
+            "description": "The spectator snapshot of the game",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "ok",
+                  "market": {
+                    "Alcohol": 14.15083652600328,
+                    "Carbon": 2.9722231398216965,
+                    "Copper": 43.73995730412328,
+                    "Fuel": 1.5495199176144334,
+                    "Gold": 61.03812889545542,
+                    "Helium": 42.094208555339165,
+                    "Hull": 2.0018844795773574,
+                    "Hydrogen": 4.139532433311513,
+                    "Iron": 14.110370141501878,
+                    "Oil": 40.70592416687104,
+                    "Oxygen": 16.71122433887574,
+                    "Ozone": 55.53437096549034,
+                    "SulfuricAcid": 52.723784743621266,
+                    "Water": 3.5662787049856317
+                  },
+                  "planets": [
+                    {
+                      "position": [
+                        2389576419,
+                        4204150024,
+                        3435076603
+                      ],
+                      "solid": false,
+                      "temperature": 32589
+                    },
+                    {
+                      "position": [
+                        2389577521,
+                        4204153603,
+                        3435077947
+                      ],
+                      "solid": false,
+                      "temperature": 54439
+                    }
+                  ],
+                  "players": {
+                    "12011534240326400186": {
+                      "age": 113.519631908,
+                      "costs": 10.5,
+                      "lost": false,
+                      "money": 3783.791305850501,
+                      "name": "orion",
+                      "nships": 1,
+                      "potential": 0.0,
+                      "score": 2465.6863058507065
+                    }
+                  },
+                  "sectors": [
+                    [
+                      [
+                        2389575000,
+                        2389580000
+                      ],
+                      [
+                        4204150000,
+                        4204155000
+                      ],
+                      [
+                        3435075000,
+                        3435080000
+                      ]
+                    ]
+                  ],
+                  "ships": [
+                    {
+                      "cargo": [
+                        0.0,
+                        200.0
+                      ],
+                      "extraction": null,
+                      "flight": {
+                        "destination": [
+                          2389576419,
+                          4204150024,
+                          3435076603
+                        ],
+                        "direction": [
+                          -0.49396542363047646,
+                          -0.5019648636892696,
+                          0.7099503052178913
+                        ],
+                        "dist_done": 92.0,
+                        "dist_tot": 500.03499877508574,
+                        "start": [
+                          2389576666,
+                          4204150275,
+                          3435076248
+                        ]
+                      },
+                      "fuel": [
+                        999.5416160275227,
+                        1000.0
+                      ],
+                      "hull": [
+                        4.613999510031475,
+                        3000.0
+                      ],
+                      "id": "17555947973669786749",
+                      "owner": "3490440288176010873",
+                      "position": [
+                        2389576620,
+                        4204150228,
+                        3435076313
+                      ],
+                      "speed": 50.0,
+                      "state": "flight"
+                    }
+                  ],
+                  "stations": {
+                    "64774": {
+                      "id": 64774,
+                      "position": [
+                        2389576666,
+                        4204150275,
+                        3435076248
+                      ]
+                    }
+                  },
+                  "tstart": 1784760368.98309
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "spectate"
+        ],
+        "parameters": []
+      }
     }
   }
 }

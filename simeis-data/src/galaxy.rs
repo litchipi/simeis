@@ -16,7 +16,7 @@ use crate::galaxy::station::Station;
 
 pub type SpaceUnit = u32;
 pub type SpaceCoord = (SpaceUnit, SpaceUnit, SpaceUnit);
-type GalaxySector = (
+pub type GalaxySector = (
     (SpaceUnit, SpaceUnit),
     (SpaceUnit, SpaceUnit),
     (SpaceUnit, SpaceUnit),
@@ -92,6 +92,14 @@ impl Galaxy {
 
     pub fn get<'a>(&'a self, coord: &SpaceCoord) -> Option<&'a SpaceObject> {
         self.objects.get(coord)
+    }
+
+    pub fn iter_objects(&self) -> impl Iterator<Item = (&SpaceCoord, &SpaceObject)> {
+        self.objects.iter()
+    }
+
+    pub fn sectors(&self) -> &[GalaxySector] {
+        &self.discovered
     }
 
     pub fn insert(&mut self, coord: &SpaceCoord, obj: SpaceObject) -> Option<()> {
