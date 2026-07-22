@@ -137,15 +137,15 @@ async fn resources_info() -> impl web::Responder {
 async fn gamestats(srv: GameState) -> impl web::Responder {
     let mut data = BTreeMap::new();
     let all_players = srv.players.get_all_keys().await;
-    let mut all_stations = BTreeMap::new();
     for pid in all_players {
         let player = srv.players.clone_val(&pid).await.unwrap();
         let player = player.read().await;
+        let mut stations = BTreeMap::new();
         let potential = {
             let mut s = 0.0;
             for (sid, station) in player.stations.iter() {
                 let sjson = station.to_json(&pid).await;
-                all_stations.insert(*sid, sjson);
+                stations.insert(*sid, sjson);
                 s += station.get_cargo_potential_price(&pid).await;
             }
             s
@@ -161,7 +161,7 @@ async fn gamestats(srv: GameState) -> impl web::Responder {
                 "age": age,
                 "lost": player.lost,
                 "money": player.money,
-                "stations": all_stations,
+                "stations": stations,
             }),
         );
     }
