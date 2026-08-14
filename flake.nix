@@ -3,6 +3,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay.url = "github:oxalica/rust-overlay";
+    cicd.url = "git+https://codeberg.org/litchipi/cicd-templates";
   };
 
   outputs = inputs: with inputs; flake-utils.lib.eachDefaultSystem (system: let
@@ -11,7 +12,8 @@
       overlays = [ rust-overlay.overlays.default ];
     };
 
-    rustpkg = pkgs.rust-bin.stable."1.93.0".default.override {
+    rust_version = "1.93.0";
+    rustpkg = pkgs.rust-bin.stable.${rust_version}.default.override {
       extensions = [ "rust-src" ];
     };
 
@@ -28,8 +30,7 @@
 
     mkScript = script: { type = "app"; program = builtins.toString script; };
     scripts = import ./.forgejo/scripts.nix { inherit pkgs deps; };
-  in {
-    packages.default = pkgs.stdenv.mkDerivation {
+    simeis = pkgs.stdenv.mkDerivation {
       pname = "simeis-manual";
       version = "0.1.0";
       src = ./doc;
@@ -41,6 +42,23 @@
         mkdir -p $out
         typst compile --root "$PWD" "./manual.typ" "$out/manual.pdf"
       '';
+    };
+    cicd = inputs.cicd.packages;
+  in {
+    packages = {
+      default = simeis;
+      ci = {
+        propagate = cicd.fjPropagate pkgs {};
+        automerge = cicd.fjAutomerge pkgs {
+          labels = [ "dependabot" "propagation" ];
+        };
+        dependabot = cicd.fjDependabot pkgs {
+          rust = {
+            enable = true;
+            version = rust_version;
+          };
+        };
+      };
     };
 
     apps = builtins.mapAttrs (name: val: mkScript val) scripts;

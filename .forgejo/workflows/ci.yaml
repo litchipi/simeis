@@ -9,139 +9,24 @@ on:
 # Create a debian package, then publish it as an artifact
 
 jobs:
-  code-check:
+  ci-check:
     runs-on: nix
     steps:
       - uses: actions/checkout@v4
 
-      - name: Calculate lockfile hash
-        id: cachekey
-        run: |
-          function hash_all() {
-            id=$1; shift 1
-            echo -n "$id=" >> cachekeys
-            md5sum $@ | md5sum | cut -d ' ' -f 1 >> cachekeys
-          }
-
-          RSHASH=$(find simeis-server simeis-data -name "*.rs" -exec md5sum {} \; | md5sum | cut -d ' ' -f 1)
-          echo "rshash=$RSHASH" >> cachekeys
-          hash_all cargohash Cargo.lock Cargo.toml
-          hash_all tests Cargo.lock .forgejo/scripts.nix .forgejo/functests.py
-          hash_all api-check .forgejo/scripts.nix Cargo.lock sdk/python.py sdk/rust/src/lib.rs
-          hash_all runswell-py Cargo.lock .forgejo/scripts.nix sdk/python.py example/python/client.py
-          hash_all runswell-rs Cargo.lock .forgejo/scripts.nix sdk/rust/src/lib.rs example/rust/src/main.rs
-          nix run .#disp_version >> cachekeys
-          cat cachekeys | tee -a "$GITHUB_OUTPUT"
-
-      - uses: https://code.forgejo.org/actions/cache/restore@v6
-        name: Cache dependencies
-        id: cache-rust
+      - uses: ./.forgejo/actions/rust-cache
         with:
-          path: |
-            target/
-            .cargohome/registry
-          key: ${{ runner.os }}-${{ steps.cachekey.outputs.simeis-version }}-${{ steps.cachekey.outputs.cargohash }}-${{ steps.cachekey.outputs.rshash }}-code-check
+          key: ci-check
+          srcdir: simeis-data simeis-server
 
       - name: "Check the sanity of the Rust code"
         run: nix run .#check_rust_code
 
-      - name: "Build the simeis server"
-        run: nix run .#build
-
-      - name: Upload artifacts
-        uses: ./.forgejo/save-artifacts
-
-  tests:
-    runs-on: nix
-    needs: code-check
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.forgejo/load-cache
-        with:
-          id: tests
-
-      - name: "Unit tests"
-        run: nix run .#unit_tests --show-trace -L
-
-      - name: "Functional tests"
-        run: nix run .#functional_tests --show-trace -L
-
-  api-check:
-    runs-on: nix
-    needs: code-check
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.forgejo/load-cache
-        with:
-          id: api-check
-
-      - name: "Check if SDKs are in sync"
-        run: nix run .#check_sdk_sync --show-trace -L
-      - name: "Check if swagger and SDKs are in sync with API"
-        run: nix run .#api_sanity --show-trace -L
-
-  todo-check:
+  quick-sanity-check:
     runs-on: nix
     steps:
       - uses: actions/checkout@v4
       - name: "Check for unadressed TODOs"
         run: nix run .#check_todos
-
-  check-runs-well-py:
-    runs-on: nix
-    needs: code-check
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.forgejo/load-cache
-        with:
-          id: runswell-py
-
-      - name: "Check if Python base client runs well"
-        run: nix run .#client_run_well_py
-
-  check-runs-well-rs:
-    runs-on: nix
-    needs: code-check
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.forgejo/load-cache
-        with:
-          id: runswell-rs
-
-      - name: "Check if Rust base client runs well"
-        run: nix run .#client_run_well_rs
-
-  upload-to-cache:
-    runs-on: nix
-    needs: code-check
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.forgejo/load-cache
-      - name: Get cache keys
-        id: cachekey
-        run: cat cachekeys | tee -a "$GITHUB_OUTPUT"
-
-      - uses: https://code.forgejo.org/actions/cache/save@v6
-        name: Cache dependencies
-        with:
-          path: |
-            target/
-            .cargohome/registry
-          key: ${{ runner.os }}-${{ steps.cachekey.outputs.simeis-version }}-${{ steps.cachekey.outputs.cargohash }}-${{ steps.cachekey.outputs.rshash }}-code-check
-
-      - uses: https://code.forgejo.org/actions/cache/save@v6
-        name: Cache dependencies
-        with:
-          path: |
-            target/
-            .cargohome/registry
-          key: ${{ runner.os }}-${{ steps.cachekey.outputs.simeis-version }}-${{ steps.cachekey.outputs.cargohash }}
-
-      - uses: https://code.forgejo.org/actions/cache/save@v6
-        name: Cache dependencies
-        with:
-          path: |
-            target/
-            .cargohome/registry
-          key: ${{ runner.os }}-${{ steps.cachekey.outputs.simeis-version }}
+      - name: "Check if SDKs are in sync"
+        run: nix run .#check_sdk_sync --show-trace -L

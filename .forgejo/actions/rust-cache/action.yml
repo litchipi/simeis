@@ -1,0 +1,75 @@
+name: "Rust Cache"
+
+inputs:
+  key:
+    description: "Fixed cache key for this cache"
+    required: true
+    type: string
+  srcdir:
+    default: "src/"
+    description: "Space-separated liste of all the source directories to include in the computation of the hash key"
+    type: string
+  cargohome:
+    default: "$FORGEJO_WORKSPACE/.cargo"
+    description: "Place where the $CARGO_HOME directory is located"
+    type: string
+  upload-artifact:
+    default: false
+    type: boolean
+    description: "Wether to upload the cache keys to artifacts for later usage"
+  fail-on-cache-miss:
+    default: false
+    type: boolean
+    description: "Fail if we missed the cache"
+
+outputs:
+  cache-hit:
+    value: ${{ steps.cache.outputs.cache-hit }}
+  artifact-id:
+    value: ${{ steps.upload.outputs.artifact-id }}
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+    - name: Calculate lockfile hash
+      id: cachekey
+      run: |
+        echo "cargohome=${{ inputs.cargohome }}" >> $FORGEJO_OUTPUT
+        echo "CARGO_HOME=${{ inputs.cargohome }}" >> "$FORGEJO_ENV"
+        CARGOHASH=$(md5sum Cargo.lock | cut -d ' ' -f 1)
+        echo "cargohash=$CARGOHASH" >> cachekeys
+
+        RSHASH=$(find ${{ inputs.srcdir }} -name "*.rs" -exec md5sum {} \; | md5sum | cut -d ' ' -f 1)
+        echo "rshash=$RSHASH" >> cachekeys
+
+        cat cachekeys | tee -a "$GITHUB_OUTPUT"
+
+    - uses: https://code.forgejo.org/actions/cache@v6
+      name: Cache dependencies
+      id: cache
+      with:
+        path: |
+          target/
+          ${{ steps.cachekey.outputs.cargohome }}/registry
+          ${{ steps.cachekey.outputs.cargohome }}/git
+          ${{ steps.cachekey.outputs.cargohome }}/bin
+          ${{ steps.cachekey.outputs.cargohome }}/advisory-db
+        key: ${{ runner.os }}-${{ steps.cachekey.outputs.cargohash }}-${{ inputs.key }}-${{ steps.cachekey.outputs.rshash }}
+        restore-keys: |
+          ${{ runner.os }}-${{ steps.cachekey.outputs.cargohash }}-${{ inputs.key }}
+          ${{ runner.os }}-${{ steps.cachekey.outputs.cargohash }}
+          ${{ runner.os }}
+        fail-on-cache-miss: ${{ inputs.fail-on-cache-miss }}
+
+    - name: Upload cachekeys to CI artifacts
+      id: upload
+      if: ${{ inputs.upload-artifact == true }}
+      uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+      with:
+        name: cachekeys-${{ inputs.key }}-${{ forgejo.run_id }}
+        path: cachekeys
+        if-no-files-found: error
+        compression-level: 9
+        retention-days: 1
+        overwrite: true

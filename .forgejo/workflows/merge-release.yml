@@ -1,0 +1,69 @@
+name: Check merged changed on main
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'class/*'
+    tags:
+      - 'v*'
+
+jobs:
+  code-check:
+    runs-on: nix
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/rust-cache
+        with:
+          key: code-check
+          srcdir: simeis-data simeis-server
+
+      - name: "Check the sanity of the Rust code"
+        run: nix run .#check_rust_code
+
+      - name: "Check if SDKs are in sync"
+        run: nix run .#check_sdk_sync --show-trace -L
+
+      - name: "Build the simeis server"
+        run: nix run .#build
+
+  tests:
+    runs-on: nix
+    needs: code-check
+    steps:
+      - name: "Unit tests"
+        run: nix run .#unit_tests --show-trace -L
+
+      - name: "Functional tests"
+        run: nix run .#functional_tests --show-trace -L
+
+      - name: "Check if swagger and SDKs are in sync with API"
+        run: nix run .#api_sanity --show-trace -L
+
+  check-runs-well-py:
+    runs-on: nix
+    needs: code-check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/rust-cache
+        with:
+          key: runswell-py
+          srcdir: simeis-data simeis-server
+          fail-on-cache-miss: true
+
+      - name: "Check if Python base client runs well"
+        run: nix run .#client_run_well_py
+
+  check-runs-well-rs:
+    runs-on: nix
+    needs: code-check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/rust-cache
+        with:
+          key: runswell-rs
+          srcdir: simeis-data simeis-server
+          fail-on-cache-miss: true
+
+      - name: "Check if Rust base client runs well"
+        run: nix run .#client_run_well_rs

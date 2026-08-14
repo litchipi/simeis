@@ -1,0 +1,16 @@
+on:
+  pull_request:
+    types: [labeled]
+
+enable-openid-connect: true
+
+jobs:
+  auto-merge:
+    runs-on: nix
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Auto-merge PR"
+        env:
+          AUD: u:1:a35b144d-c0f6-4fa6-9323-4bd122c0a51b
+          PR_NUMBER: ${{ forgejo.event.number }}
+        run: nix run -L .#ci.automerge

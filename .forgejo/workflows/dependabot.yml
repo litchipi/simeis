@@ -1,0 +1,15 @@
+on:
+  schedule:
+    - cron: '35 5,13,19 * * *'
+
+enable-openid-connect: true
+
+jobs:
+  dependabot:
+    runs-on: nix
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Update dependencies"
+        env:
+          AUD: u:1:a35b144d-c0f6-4fa6-9323-4bd122c0a51b
+        run: nix run -L .#ci.dependabot

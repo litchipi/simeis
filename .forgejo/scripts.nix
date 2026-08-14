@@ -25,7 +25,6 @@
   in ''
     #!/bin/bash
     export SIMEIS_ADMIN_TOKEN="testingadmintoken${key}"
-    export CARGO_HOME=$PWD/.cargohome
     export RUST_BACKTRACE=full
     export RUST_LOG=debug
     mkdir -p target/
@@ -116,7 +115,6 @@ in {
       name = "unit-tests";
       runtimeInputs = deps;
       text = ''
-        export CARGO_HOME=$PWD/.cargohome
         cargo test
       '';
     };
@@ -141,7 +139,6 @@ in {
       runtimeInputs=deps;
       text = ''
         set -e
-        export CARGO_HOME=$PWD/.cargohome
         echo "[*] Building the server"
         cargo build
       '';
@@ -153,18 +150,19 @@ in {
       "RUSTSEC-2025-0047"
       "RUSTSEC-2026-0097"
       "RUSTSEC-2024-0436"  # To look, paste is required by compio, but would be nice to upgrade
+      "RUSTSEC-2026-0221"
     ];
     allIgnored = builtins.concatStringsSep " " (builtins.map (s: "--ignore ${s}") allIgnoredCVE);
     app = pkgs.writeShellApplication {
       name = "rust-check-code";
       runtimeInputs = deps ++ [ pkgs.gcc ];
-
       text = ''
         set -e
-        export CARGO_HOME=$PWD/.cargohome
+
+        echo "$CARGO_HOME"
         echo "[*] Basic checks on the project"
         cargo check
-        cargo check --features testing,extraspeed,tokio --no-default-features
+        cargo check --target-dir ./target/wfeat --features testing,extraspeed,tokio --no-default-features
         cargo clippy --no-deps --frozen -- -D warnings
         cargo fmt --check
 
@@ -178,7 +176,7 @@ in {
         cd -
 
         echo "[*] Security audit on the project"
-        cargo audit ${allIgnored}
+        cargo audit -D warnings ${allIgnored}
         if ! [ -d supply-chain ]; then
           cargo vet init
         fi

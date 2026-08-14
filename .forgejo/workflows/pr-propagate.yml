@@ -1,0 +1,17 @@
+on:
+  pull_request:
+    types: [closed]
+
+enable-openid-connect: true
+
+jobs:
+  pr-propagation:
+    runs-on: nix
+    if: forgejo.event.pull_request.merged == true
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Propagate PR"
+        env:
+          AUD: u:1:a35b144d-c0f6-4fa6-9323-4bd122c0a51b
+          PR_NUMBER: ${{ forgejo.event.number }}
+        run: nix run -L .#ci.propagate
