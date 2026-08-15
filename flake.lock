@@ -1,5 +1,20 @@
 {
   "nodes": {
+    "cicd": {
+      "locked": {
+        "lastModified": 1786784056,
+        "narHash": "sha256-/2H8npAkmJa4NFUPf6qDR9p2+NneFoVdJsOANK/44BE=",
+        "ref": "refs/heads/main",
+        "rev": "7893eb9eca211b99e3b283b1dc0250fb4a918759",
+        "revCount": 18,
+        "type": "git",
+        "url": "https://codeberg.org/litchipi/cicd-templates"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://codeberg.org/litchipi/cicd-templates"
+      }
+    },
     "flake-utils": {
       "inputs": {
         "systems": "systems"
@@ -52,6 +67,7 @@
     },
     "root": {
       "inputs": {
+        "cicd": "cicd",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay"
