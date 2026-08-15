@@ -5,6 +5,7 @@ on:
     branches:
       - 'main'
       - 'class/*'
+      - 'debug-merge-release-workflow'
     tags:
       - 'v*'
 
@@ -31,6 +32,12 @@ jobs:
     runs-on: nix
     needs: code-check
     steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/rust-cache
+        with:
+          key: tests
+          srcdir: simeis-data simeis-server
+          fail-on-cache-miss: true
       - name: "Unit tests"
         run: nix run .#unit_tests --show-trace -L
 
@@ -47,7 +54,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/rust-cache
         with:
-          key: runswell-py
+          key: runswell
           srcdir: simeis-data simeis-server
           fail-on-cache-miss: true
 
@@ -61,7 +68,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/rust-cache
         with:
-          key: runswell-rs
+          key: runswell
           srcdir: simeis-data simeis-server
           fail-on-cache-miss: true
 
