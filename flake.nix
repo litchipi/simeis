@@ -50,7 +50,7 @@
       ci = {
         propagate = cicd.fjPropagate pkgs {};
         automerge = cicd.fjAutomerge pkgs {
-          labels = [ "dependabot" "propagation" ];
+          labels = [ "propagation" ];
         };
         dependabot = cicd.fjDependabot pkgs {
           rust = {
