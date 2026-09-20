@@ -1,11 +1,8 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - bot/*
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, labeled, reopened]
 
 # TODO (#62) Create a CD:
 # When label "release" on the PR, and PR is merged
