@@ -89,6 +89,8 @@ async fn main() -> std::io::Result<()> {
 
     let admin_token =
         std::env::var("SIMEIS_ADMIN_TOKEN").unwrap_or_else(|_| generate_random_token(32));
+
+    std::fs::write(config.server.token_file.clone(), &admin_token)?;
     println!("SIMEIS_ADMIN_TOKEN={admin_token}");
 
     let res = web::HttpServer::new(async move || {

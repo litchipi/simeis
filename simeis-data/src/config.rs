@@ -119,6 +119,7 @@ config_fields!(SimeisServerConfig;
     workers: usize => "SIMEIS_WORKERS" => 64,
     bind_ip: String => "" => "0.0.0.0".to_string(),
     logger_env_name: String => "" => "SIMEIS_LOG".to_string(),
+    token_file: String => "SIMEIS_TOKEN_FILE" => ".simeis-admin-token".to_string(),
 );
 
 config_fields!(SimeisGameConfig;
