@@ -2,11 +2,11 @@
   "nodes": {
     "cicd": {
       "locked": {
-        "lastModified": 1789903370,
-        "narHash": "sha256-sq2jTd5agXpT9OwYyGAoFaq/YrMjDfqGHIyd/ydi5W0=",
+        "lastModified": 1789978334,
+        "narHash": "sha256-nWbuFn8MthSadcw3G3qlZl8BR1UfGIZu0pdLuAk1i50=",
         "ref": "refs/heads/main",
-        "rev": "5afe868f27842561f23f497ab834b6184c89443b",
-        "revCount": 31,
+        "rev": "a82da1a22a86af19897ae609ef5545c6343fb0f8",
+        "revCount": 32,
         "type": "git",
         "url": "https://codeberg.org/litchipi/cicd-templates"
       },
@@ -78,11 +78,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1789889921,
-        "narHash": "sha256-aL/ogiN7qZCGeNovS1f9hX73jwYIKb4Pcq6AZm57WtY=",
+        "lastModified": 1789977098,
+        "narHash": "sha256-fKY4BedarKx4aR0+UOHk65hhDW8pxFytFkaUi0VYDYk=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "1fb104a12a8667045559b2575d6d448ae2fbd99b",
+        "rev": "2776e42828203ec89511699c8dcdedec69ab98e1",
         "type": "github"
       },
       "original": {
