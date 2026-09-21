@@ -12,6 +12,12 @@ use simeis_data::syslog::SyslogEvent;
 use crate::api::build_response;
 use crate::{AdminToken, GameState};
 
+#[web::get("")]
+async fn is_admin(req: HttpRequest, tok: AdminToken) -> impl web::Responder {
+    let is_admin = got_admin_token!(req, tok);
+    build_response(Ok(json!({"is_admin": is_admin})))
+}
+
 // @summary Get the informations about a planet from its ID
 // @returns Planet informations
 // @noswagger
@@ -101,6 +107,7 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
             .service(get_planet)
             .service(remove_player)
             .service(reset_game)
+            .service(is_admin)
             .service(reset_game_cooldown),
     );
 }
