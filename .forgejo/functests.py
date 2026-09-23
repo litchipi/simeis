@@ -80,6 +80,7 @@ class Tester:
         elif "Simeis-Admin-Token" in headers:
             self.addtrace("TOKEN IN HEADERS EVEN IF NOT ADMIN")
             headers.pop("Simeis-Admin-Token")
+        endpoint = endpoint.removeprefix("/")
         url = f"http://{self.host}:{self.port}/{endpoint}"
         qry = urllib.parse.urlencode(kwargs)
         if len(qry) > 0:
