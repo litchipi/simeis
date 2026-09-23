@@ -599,6 +599,29 @@ impl Station {
         })
     }
 
+    pub async fn to_json_all_players(&self) -> serde_json::Value {
+        let mut players_data = BTreeMap::new();
+        let all_players = self.player_data.get_all_keys().await;
+        for pid in all_players {
+            let pd = self.player_data.clone_val(&pid).await.unwrap();
+            let pd = pd.read().await;
+            players_data.insert(
+                pid,
+                serde_json::json!({
+                    "crew": pd.crew,
+                    "cargo": pd.cargo,
+                    "idle_crew": pd.idle_crew,
+                    "trader": pd.trader,
+                }),
+            );
+        }
+        serde_json::json!({
+            "id": self.id,
+            "position": self.position,
+            "players_data": players_data,
+        })
+    }
+
     pub async fn update_crafting(&self, syslog: &SyslogRecv, tdelta: f64, id: &PlayerId) {
         let Some(pd) = self.player_data.clone_val(id).await else {
             return;

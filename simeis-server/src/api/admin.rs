@@ -6,6 +6,7 @@ use ntex::web::{self, scope, HttpRequest, ServiceConfig};
 use serde_json::json;
 use simeis_data::errors::Errcode;
 use simeis_data::galaxy::planet::{PlanetId, PlanetInfo};
+use simeis_data::galaxy::station::StationId;
 use simeis_data::player::PlayerId;
 use simeis_data::syslog::SyslogEvent;
 
@@ -35,6 +36,28 @@ async fn get_planet(
             })
             .await;
         build_response(data)
+    } else {
+        build_response(Err(Errcode::NotAnAdmin))
+    }
+}
+
+// @summary Get the informations about a station and all its player data
+// @returns Station informations
+// @noswagger
+#[web::get("/station/{id}")]
+async fn get_station_admin(
+    srv: GameState,
+    id: Path<StationId>,
+    req: HttpRequest,
+    tok: AdminToken,
+) -> impl web::Responder {
+    if got_admin_token!(req, tok) {
+        let all_stations = srv.stations.read().await;
+        let id = *id;
+        let Some(station) = all_stations.get(&id) else {
+            return build_response(Err(Errcode::NoSuchStation(id)));
+        };
+        build_response(Ok(station.to_json_all_players().await))
     } else {
         build_response(Err(Errcode::NotAnAdmin))
     }
@@ -106,6 +129,7 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
         scope(base)
             .service(get_planet)
             .service(remove_player)
+            .service(get_station_admin)
             .service(reset_game)
             .service(is_admin)
             .service(reset_game_cooldown),

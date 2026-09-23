@@ -61,6 +61,7 @@ pub struct Game {
     pub taken_names: Arc<ShardedLockedData<String, PlayerId>>,
     pub galaxy: Arc<RwLock<Galaxy>>,
 
+    pub stations: Arc<RwLock<BTreeMap<StationId, Arc<Station>>>>,
     pub init_station: Arc<RwLock<(StationId, Arc<Station>)>>,
     pub market: Arc<Market>,
     pub syslog: SyslogSend,
@@ -78,7 +79,10 @@ impl Game {
         fifo_events: SyslogFifo,
     ) -> Game {
         let mut galaxy = Galaxy::init();
-        let init_station = Arc::new(RwLock::new(galaxy.init_new_station().await));
+        let init_station = galaxy.init_new_station().await;
+        let mut stations = BTreeMap::new();
+        stations.insert(init_station.0, init_station.1.clone());
+        let init_station = Arc::new(RwLock::new(init_station));
         let cfg = get_config();
         Game {
             send_sig: send_stop,
@@ -89,6 +93,7 @@ impl Game {
             player_index: Arc::new(ShardedLockedData::new(cfg.game.shards)),
             syslog,
             fifo_events,
+            stations: Arc::new(RwLock::new(stations)),
             init_station,
             ship_owners: Arc::new(RwLock::new(BTreeMap::new())),
         }
