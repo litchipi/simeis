@@ -218,6 +218,7 @@ class ApiChecker:
         assert self.get("/ping")["error"] == "ok"
 
     def get(self, path, timeout=5):
+        path = path.removeprefix("/")
         if self.check_paths_only:
             return {"error": "ok"}
         headers = {}
@@ -231,6 +232,7 @@ class ApiChecker:
         return json.loads(got.text)
 
     def post(self, path, timeout=5, body=None):
+        path = path.removeprefix("/")
         if self.check_paths_only:
             return {"error": "ok"}
         headers = {}
