@@ -596,6 +596,7 @@ impl Station {
             "cargo": data.cargo,
             "idle_crew": data.idle_crew,
             "trader": data.trader,
+            "industry": data.industry,
         })
     }
 
@@ -612,6 +613,7 @@ impl Station {
                     "cargo": pd.cargo,
                     "idle_crew": pd.idle_crew,
                     "trader": pd.trader,
+                    "industry": pd.industry,
                 }),
             );
         }
