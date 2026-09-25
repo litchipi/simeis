@@ -205,20 +205,16 @@ impl IndustryUnit {
             return None;
         }
         self.operator?;
-        let mut max_ratio: f64 = 0.0;
+        let mut max_ratio: f64 = 1.0;
         for (res, amnt) in self.resources_required.iter() {
             if let Some(incargo) = resources.get(res) {
                 let max = amnt * tdelta;
-                if incargo >= &max {
-                    max_ratio = 1.0;
-                } else {
-                    let ratio = incargo / max;
-                    max_ratio = max_ratio.max(ratio);
-                }
+                max_ratio = max_ratio.min((incargo / max).min(1.0));
             } else {
                 return None;
             }
         }
+        log::warn!("Max ratio: {max_ratio:?}");
         Some(max_ratio)
     }
 
@@ -228,11 +224,13 @@ impl IndustryUnit {
         for (res, amnt) in self.resources_required.iter() {
             let n = resources.get_mut(res).unwrap();
             *n -= amnt * tdelta;
+            debug_assert!(*n >= 0.0);
             log::warn!("Used {} of {res:?}, got {n} left", amnt * tdelta);
         }
 
         for (res, amnt) in self.resources_created.iter() {
             if !resources.contains_key(res) {
+                log::warn!("Doesn't have {res} yet in cargo: init to 0.0");
                 resources.insert(*res, 0.0);
             }
 

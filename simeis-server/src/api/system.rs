@@ -87,9 +87,15 @@ async fn get_version() -> impl web::Responder {
 // Make the server tick a single time
 #[web::post("/tick")]
 async fn tick_server(srv: GameState) -> impl web::Responder {
-    let Ok(_) = srv.send_sig.send(simeis_data::game::GameSignal::Tick).await else {
+    let f = std::sync::Arc::new(mea::latch::Latch::new(1));
+    let Ok(_) = srv
+        .send_sig
+        .send(simeis_data::game::GameSignal::TestTick(f.clone()))
+        .await
+    else {
         return build_response(Err(Errcode::GameSignalSend));
     };
+    f.wait().await;
     build_response(Ok(json!({})))
 }
 
@@ -100,9 +106,15 @@ async fn tick_server(srv: GameState) -> impl web::Responder {
 async fn tick_server_n(srv: GameState, n: ntex::web::types::Path<usize>) -> impl web::Responder {
     let n = n.as_ref().clone();
     for _ in 0..n {
-        let Ok(_) = srv.send_sig.send(simeis_data::game::GameSignal::Tick).await else {
+        let f = std::sync::Arc::new(mea::latch::Latch::new(1));
+        let Ok(_) = srv
+            .send_sig
+            .send(simeis_data::game::GameSignal::TestTick(f.clone()))
+            .await
+        else {
             return build_response(Err(Errcode::GameSignalSend));
         };
+        f.wait().await;
     }
     build_response(Ok(json!({})))
 }

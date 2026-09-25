@@ -25,5 +25,5 @@ testing = ["simeis-data/testing"]
 extraspeed = ["simeis-data/extraspeed"]
 
 # Async runtimes
-compio = [ "ntex/compio", "dep:compio" ]
+# compio = [ "ntex/compio", "dep:compio" ]
 tokio = [ "ntex/tokio", "dep:tokio" ]

@@ -48,6 +48,9 @@ const ITER_PERIOD: Duration = Duration::from_micros(20);
 pub enum GameSignal {
     Stop,
     Tick,
+
+    #[cfg(feature = "testing")]
+    TestTick(Arc<mea::latch::Latch>),
 }
 
 #[derive(Clone)]
@@ -137,14 +140,17 @@ impl Game {
                 Ok(GameSignal::Tick) => {
                     self.threadloop(&mut rng, &mut market_last_tick, &syslog)
                         .await;
+                    let took = Instant::now() - last_iter;
+                    let t = sleepmin_iter.saturating_sub(took);
+                    slp(t).await;
+                    last_iter = Instant::now();
+                }
 
-                    #[cfg(not(feature = "testing"))]
-                    {
-                        let took = Instant::now() - last_iter;
-                        let t = sleepmin_iter.saturating_sub(took);
-                        slp(t).await;
-                        last_iter = Instant::now();
-                    }
+                #[cfg(feature = "testing")]
+                Ok(GameSignal::TestTick(b)) => {
+                    self.threadloop(&mut rng, &mut market_last_tick, &syslog)
+                        .await;
+                    b.count_down();
                 }
 
                 Ok(GameSignal::Stop) => break 'main,

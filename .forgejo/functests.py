@@ -1025,7 +1025,8 @@ class Tester:
 
     @functest
     def test_industry(self):
-        player = self.create_test_player("test-rich-industry")
+        t = int(time.time()*1000.0)
+        player = self.create_test_player(f"test-rich-industry-{t}")
         money = self.get_ok(f"/player/{self.id}")["money"]
         sta = self.station
 
@@ -1035,6 +1036,7 @@ class Tester:
 
         list_industry = self.get_ok(f"/station/{sta}/industry/buy")
         self.post_err(f"/station/{sta}/industry/buy/toto", expcode=404)
+
         got = self.post_ok(f"/station/{sta}/industry/buy/simple_fuel_refinery")
         new_money = self.get_ok(f"/player/{self.id}")["money"]
         assert new_money == (money - got["cost"])
@@ -1046,6 +1048,7 @@ class Tester:
 
         info = self.get_ok(f"/station/{sta}/industry/production/{iid}")
 
+        # We have a simple fuel refinery, a trader and an operator
         for input in self.assert_got(info, "inputs", None):
             res = input[0]
             amnt = round(input[1], 5)
@@ -1056,34 +1059,46 @@ class Tester:
         for input in self.assert_got(info, "inputs", None):
             self.assert_cmpf(cargo[input[0]], input[1])
 
+        # We have just enough resources for 1 sec of production
+        # We didn't start the production: Nothing is done
         self.tick_dur(5)
 
         station = self.get_ok(f"/station/{self.station}")
         cargo = station["cargo"]["resources"]
         for input in self.assert_got(info, "inputs", None):
             self.assert_cmpf(cargo[input[0]], input[1])
+        # Nothing is done
 
         self.post_err(f"/station/{sta}/industry/start/1", errtype="NoSuchIndustryUnit")
+
+        # Starting the industry unit
         self.post_ok(f"/station/{sta}/industry/start/{iid}")
 
         stop = False
         while not stop:
             last = cargo
             self.tick()
+            self.addtrace("Ticking industry")
             station = self.get_ok(f"/station/{self.station}")
             cargo = station["cargo"]["resources"]
-            min = 100
+
+            # For each input of the industry production
             for input in self.assert_got(info, "inputs", None):
-                self.addtrace(input[0], cargo[input[0]], input[1])
+                # We should have less than what we need for 1 sec
                 assert cargo[input[0]] < input[1]
+
+                # If we have the same amount than last loop, that means industry stopped
+                self.addtrace(input[0], cargo[input[0]], last[input[0]])
                 if cargo[input[0]] == last[input[0]]:
                     stop = True
-                    break
+        self.addtrace("Stopped industry")
 
         station = self.get_ok(f"/station/{self.station}")
         cargo = station["cargo"]["resources"]
         for input in self.assert_got(info, "inputs", None):
+            self.addtrace("Asserting our cargo for resource", input[0], "is empty")
             self.assert_cmpf(cargo[input[0]], 0.0)
+
         for output in self.assert_got(info, "outputs", None):
             self.assert_cmpf(cargo[output[0]], output[1])
 
@@ -1427,6 +1442,7 @@ def compute_distance(a, b):
 
 if __name__ == "__main__":
     t = Tester(sys.argv[1], sys.argv[2])
+
     alltests = TESTS
     if len(sys.argv) >= 4:
         alltests = sys.argv[3:]
