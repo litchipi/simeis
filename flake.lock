@@ -2,11 +2,11 @@
   "nodes": {
     "cicd": {
       "locked": {
-        "lastModified": 1790338891,
-        "narHash": "sha256-nwjWHBuMxC4uzbkv/27wLR/rTWQOtSaY7QTeDS3O1fg=",
+        "lastModified": 1791186843,
+        "narHash": "sha256-g658psvk3AomPTZ5SEZA0nMHsy3Z83eODhQ3FkM4qCs=",
         "ref": "refs/heads/main",
-        "rev": "32ae934a5796efdde083d7a1670089f567d6bc5b",
-        "revCount": 34,
+        "rev": "dbec555aa23b3d4e3ee6f18f5fcb408426baf85b",
+        "revCount": 35,
         "type": "git",
         "url": "https://codeberg.org/litchipi/cicd-templates"
       },
