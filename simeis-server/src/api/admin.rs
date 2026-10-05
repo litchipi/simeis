@@ -41,6 +41,24 @@ async fn get_planet(
     }
 }
 
+// @summary Get the list of all stations created on the server
+// @returns List of station IDs
+// @noswagger
+#[web::get("/station/list")]
+async fn get_station_list(
+    srv: GameState,
+    req: HttpRequest,
+    tok: AdminToken,
+) -> impl web::Responder {
+    if got_admin_token!(req, tok) {
+        let all_stations = srv.stations.read().await;
+        let all_ids = all_stations.keys().cloned().collect::<Vec<StationId>>();
+        build_response(Ok(json!({ "stations": all_ids })))
+    } else {
+        build_response(Err(Errcode::NotAnAdmin))
+    }
+}
+
 // @summary Get the informations about a station and all its player data
 // @returns Station informations
 // @noswagger
@@ -58,6 +76,30 @@ async fn get_station_admin(
             return build_response(Err(Errcode::NoSuchStation(id)));
         };
         build_response(Ok(station.to_json_all_players().await))
+    } else {
+        build_response(Err(Errcode::NotAnAdmin))
+    }
+}
+
+// @summary Get all the space objects in the sector of a specific station
+// @returns Space objects
+// @noswagger
+#[web::get("/station/{id}/around")]
+async fn get_space_objects_around_station(
+    srv: GameState,
+    id: Path<StationId>,
+    req: HttpRequest,
+    tok: AdminToken,
+) -> impl web::Responder {
+    if got_admin_token!(req, tok) {
+        let all_stations = srv.stations.read().await;
+        let id = *id;
+        let Some(station) = all_stations.get(&id) else {
+            return build_response(Err(Errcode::NoSuchStation(id)));
+        };
+        let galaxy = srv.galaxy.read().await;
+        let objects = station.scan(&galaxy);
+        build_response(Ok(serde_json::to_value(objects).unwrap()))
     } else {
         build_response(Err(Errcode::NotAnAdmin))
     }
@@ -129,7 +171,9 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
         scope(base)
             .service(get_planet)
             .service(remove_player)
+            .service(get_station_list)
             .service(get_station_admin)
+            .service(get_space_objects_around_station)
             .service(reset_game)
             .service(is_admin)
             .service(reset_game_cooldown),

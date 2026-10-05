@@ -2,6 +2,7 @@
 // - Taken names
 // - Player index
 // - Player list
+// - Station index
 // - Ship owners
 // - Player
 // - Station
