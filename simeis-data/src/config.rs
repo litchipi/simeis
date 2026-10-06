@@ -161,23 +161,23 @@ config_fields!(SimeisStationConfig;
     init_cargo: f64 => "" => 2000.0,
 );
 config_fields!(SimeisCrewConfig;
-    wage_rank_powf: f64 => "" => 0.85,
-    wage_next_rank_powf: f64 => "" => 1.4,
-    wage_next_rank_mult: f64 => "" => 1500.0,
+    wage_rank_powf: f64 => "" => 2.2,
+    wage_next_rank_powf: f64 => "" => 0.9,
+    wage_next_rank_mult: f64 => "" => 1100.0,
 
-    base_op_wage: f64 => "" => 0.75,
+    base_op_wage: f64 => "" => 1.0,
     pilot_wage_mult: f64 => "" => 3.5,
     trader_wage_mult: f64 => "" => 5.0,
     solider_wage_mult: f64 => "" => 2.5,
 );
 
 config_fields!(SimeisMarketConfig;
-    max_avg_ampl: f64 => "" => 3.2 / 100.0,
-    std_div: f64 => "" => 1.08,
-    change_sec: f64 => "" => 10.0,
-    base_fee_rate: f64 => "" => 25.0 / 100.0,
-    fee_rate_dev_powf: f64 => "" => 0.95,
-    upd_price_proba: f64 => "" => 0.30,
+    max_avg_ampl: f64 => "" => 7.5 / 100.0,
+    std_div: f64 => "" => 1.25,
+    change_sec: f64 => "" => 3.0,
+    base_fee_rate: f64 => "" => 30.0 / 100.0,
+    fee_rate_dev_powf: f64 => "" => 0.93,
+    upd_price_proba: f64 => "" => 0.15,
 );
 
 config_fields!(SimeisIndustryConfig;
