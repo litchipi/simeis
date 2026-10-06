@@ -157,7 +157,7 @@ impl Player {
         self.money -= price;
         self.ships.insert(ship_id, ship);
         self.add_history(PlayerHistoryEvent::BuyShip {
-            id: ship_id,
+            ship: ship_id,
             station: station.id,
             price,
         });
@@ -186,7 +186,7 @@ impl Player {
         let ship_id = ship.id;
         self.add_history(PlayerHistoryEvent::BuyShipModule {
             ship: ship_id,
-            id,
+            module: id,
             modtype,
             price,
             station: *station_id,
@@ -280,7 +280,7 @@ impl Player {
         self.add_history(PlayerHistoryEvent::UpgradeModule {
             ship: *ship_id,
             station: *station_id,
-            id: *mod_id,
+            module: *mod_id,
             newrank,
             price,
         });
@@ -314,7 +314,7 @@ impl Player {
         };
         ship.update_perf_stats();
         self.add_history(PlayerHistoryEvent::UpgradeCrew {
-            id: *crew_id,
+            crew: *crew_id,
             price: res.0,
             newrank: res.1,
             station: *station_id,

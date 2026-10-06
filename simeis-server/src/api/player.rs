@@ -15,6 +15,7 @@ use simeis_data::errors::Errcode;
 
 use crate::api::build_response;
 use crate::api::GameState;
+use crate::utils::get_query_string_element;
 use crate::AdminToken;
 
 // @summary Creates a new player in the game
@@ -102,15 +103,16 @@ async fn get_all_wages(srv: GameState, req: HttpRequest) -> impl web::Responder 
 // @summary Get the history of the last 100 actions performed by the player
 // @returns List of the actions, with associated timestamps
 #[web::get("/history")]
-async fn get_history(
-    srv: GameState,
-    tok: AdminToken,
-    id: Path<PlayerId>,
-    req: HttpRequest,
-) -> impl web::Responder {
-    let id = id.as_ref();
+async fn get_history(srv: GameState, tok: AdminToken, req: HttpRequest) -> impl web::Responder {
     let data = if got_admin_token!(req, tok) {
-        srv.map_player_by_id(id, |player| {
+        let qry = req.query_string();
+        let Some(player_id) = get_query_string_element(qry, "player") else {
+            return build_response(Err(Errcode::MissingQueryArgument("player")));
+        };
+        let Ok(player_id) = player_id.parse() else {
+            return build_response(Err(Errcode::InvalidArgument("player_id")));
+        };
+        srv.map_player_by_id(&player_id, |player| {
             Box::pin(async move {
                 let hist = export_history(&player.history);
                 Ok(json!({ "history": hist }))

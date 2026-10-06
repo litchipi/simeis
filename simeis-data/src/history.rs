@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Instant};
 
 use serde::Serialize;
 use serde_json::Value;
@@ -16,20 +16,20 @@ use crate::{
     },
 };
 
-pub type PlayerHistory = VecDeque<PlayerHistoryEvent>;
+pub type PlayerHistory = VecDeque<(Instant, PlayerHistoryEvent)>;
 
-#[derive(strum::IntoStaticStr, Serialize, Debug, Clone, Copy)]
+#[derive(strum::IntoStaticStr, Debug, Clone, Copy, Serialize)]
 #[strum(serialize_all = "snake_case")]
 pub enum PlayerHistoryEvent {
     // Ship
     BuyShip {
-        id: ShipId,
+        ship: ShipId,
         station: StationId,
         price: f64,
     },
     BuyShipModule {
         ship: ShipId,
-        id: ShipModuleId,
+        module: ShipModuleId,
         modtype: ShipModuleType,
         price: f64,
         station: StationId,
@@ -37,7 +37,7 @@ pub enum PlayerHistoryEvent {
     UpgradeModule {
         ship: ShipId,
         station: StationId,
-        id: ShipModuleId,
+        module: ShipModuleId,
         newrank: u8,
         price: f64,
     },
@@ -64,22 +64,22 @@ pub enum PlayerHistoryEvent {
     // Crew
     HireCrew {
         crewtype: CrewMemberType,
-        id: CrewId,
+        crew: CrewId,
         station: StationId,
     },
     FireCrew {
-        id: CrewId,
+        crew: CrewId,
     },
     AssignCrew {
-        id: CrewId,
+        crew: CrewId,
         ship: ShipId,
     },
     UnassignCrew {
-        id: CrewId,
+        crew: CrewId,
         ship: ShipId,
     },
     UpgradeCrew {
-        id: CrewId,
+        crew: CrewId,
         price: f64,
         newrank: u8,
         station: StationId,
@@ -88,14 +88,14 @@ pub enum PlayerHistoryEvent {
     // Industry
     BuyIndustryUnit {
         station: StationId,
-        unit: IndustryUnitType,
-        id: IndustryUnitId,
+        unittype: IndustryUnitType,
+        unit: IndustryUnitId,
     },
     StartIndustry {
-        id: IndustryUnitId,
+        unit: IndustryUnitId,
     },
     StopIndustry {
-        id: IndustryUnitId,
+        unit: IndustryUnitId,
     },
 
     // Market
@@ -118,15 +118,21 @@ pub enum PlayerHistoryEvent {
 #[inline]
 pub fn export_history(h: &PlayerHistory) -> Vec<Value> {
     let mut res = Vec::with_capacity(h.len());
-    for el in h.iter() {
+    for (t, el) in h.iter().rev() {
         let Value::Object(mut obj) = serde_json::to_value(el).unwrap() else {
             unreachable!();
         };
-        let key: &'static str = el.into();
-        let Value::Object(mut data) = obj.remove(key).unwrap() else {
+        debug_assert_eq!(obj.len(), 1);
+        let mapkey = obj.keys().next().unwrap().clone();
+        let Value::Object(mut data) = obj.remove(&mapkey).unwrap() else {
             unreachable!();
         };
+        let key: &'static str = el.into();
         data.insert("action".to_string(), Value::String(key.to_string()));
+        data.insert(
+            "elapsed".to_string(),
+            Value::Number(serde_json::Number::from_f64(t.elapsed().as_secs_f64()).unwrap()),
+        );
         res.push(Value::Object(data));
     }
     res
@@ -135,7 +141,7 @@ pub fn export_history(h: &PlayerHistory) -> Vec<Value> {
 impl Player {
     pub fn add_history(&mut self, event: PlayerHistoryEvent) {
         debug_assert!(self.history.len() <= PLAYER_ACTION_HISTORY_LEN);
-        self.history.push_back(event);
+        self.history.push_back((Instant::now(), event));
         while self.history.len() > PLAYER_ACTION_HISTORY_LEN {
             self.history.pop_front();
         }
