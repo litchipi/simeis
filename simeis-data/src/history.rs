@@ -3,18 +3,15 @@ use std::{collections::VecDeque, time::Instant};
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::{
-    crew::{CrewId, CrewMemberType},
-    galaxy::station::StationId,
-    industry::{IndustryUnitId, IndustryUnitType},
-    player::{Player, PLAYER_ACTION_HISTORY_LEN},
-    ship::{
-        module::{ShipModuleId, ShipModuleType},
-        resources::Resource,
-        upgrade::{ShipExpandUpgrade, ShipUpgrade},
-        ShipId,
-    },
-};
+use crate::crew::{CrewId, CrewMemberType};
+use crate::galaxy::station::StationId;
+use crate::industry::{IndustryUnitId, IndustryUnitType};
+use crate::player::{Player, PLAYER_ACTION_HISTORY_LEN};
+
+use crate::ship::module::{ShipModuleId, ShipModuleType};
+use crate::ship::resources::Resource;
+use crate::ship::upgrade::{ShipExpandUpgrade, ShipUpgrade};
+use crate::ship::ShipId;
 
 pub type PlayerHistory = VecDeque<(Instant, PlayerHistoryEvent)>;
 

@@ -20,7 +20,7 @@ use crate::syslog::{SyslogEvent, SyslogRecv};
 pub type PlayerId = u64;
 pub type PlayerKey = [u8; 128];
 
-pub const PLAYER_ACTION_HISTORY_LEN: usize = 100;
+pub const PLAYER_ACTION_HISTORY_LEN: usize = 20;
 
 // Game state for a single player
 pub struct Player {
