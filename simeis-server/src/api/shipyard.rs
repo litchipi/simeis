@@ -103,7 +103,7 @@ async fn shipyard_list_upgrades(
                     );
                 }
                 for exp in ShipExpandUpgrade::iter() {
-                    let mut exp = exp.clone();
+                    let mut exp = exp;
                     exp.set_amount(1.0);
                     let price = exp.get_price() * station.get_inflation_ratio();
                     res.insert(exp.to_string(), json!({ "price": price, }));

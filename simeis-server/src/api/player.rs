@@ -8,6 +8,7 @@ use ntex::web::HttpRequest;
 use ntex::web::ServiceConfig;
 
 use serde_json::json;
+use simeis_data::history::export_history;
 use simeis_data::player::PlayerId;
 
 use simeis_data::errors::Errcode;
@@ -98,9 +99,41 @@ async fn get_all_wages(srv: GameState, req: HttpRequest) -> impl web::Responder 
     build_response(data)
 }
 
+// @summary Get the history of the last 100 actions performed by the player
+// @returns List of the actions, with associated timestamps
+#[web::get("/history")]
+async fn get_history(
+    srv: GameState,
+    tok: AdminToken,
+    id: Path<PlayerId>,
+    req: HttpRequest,
+) -> impl web::Responder {
+    let id = id.as_ref();
+    let data = if got_admin_token!(req, tok) {
+        srv.map_player_by_id(id, |player| {
+            Box::pin(async move {
+                let hist = export_history(&player.history);
+                Ok(json!({ "history": hist }))
+            })
+        })
+        .await
+    } else {
+        let pkey = get_player_key!(req);
+        srv.map_player(&pkey, |player| {
+            Box::pin(async move {
+                let hist = export_history(&player.history);
+                Ok(json!({ "history": hist }))
+            })
+        })
+        .await
+    };
+    build_response(data)
+}
+
 pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
     srv.service(
         scope(base)
+            .service(get_history)
             .service(get_all_wages)
             .service(new_player)
             .service(get_player),

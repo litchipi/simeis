@@ -10,6 +10,7 @@ use crate::config::get_config;
 use crate::crew::CrewId;
 use crate::errors::Errcode;
 use crate::galaxy::station::{Station, StationId};
+use crate::history::{PlayerHistory, PlayerHistoryEvent};
 use crate::ship::cargo::ShipCargo;
 use crate::ship::module::{ShipModuleId, ShipModuleType};
 use crate::ship::upgrade::{ShipExpandUpgrade, ShipUpgrade};
@@ -18,6 +19,8 @@ use crate::syslog::{SyslogEvent, SyslogRecv};
 
 pub type PlayerId = u64;
 pub type PlayerKey = [u8; 128];
+
+pub const PLAYER_ACTION_HISTORY_LEN: usize = 100;
 
 // Game state for a single player
 pub struct Player {
@@ -33,6 +36,7 @@ pub struct Player {
 
     pub stations: BTreeMap<StationId, Arc<Station>>,
     pub ships: BTreeMap<ShipId, Ship>,
+    pub history: PlayerHistory,
 }
 
 impl Player {
@@ -66,6 +70,7 @@ impl Player {
             name,
             stations,
             ships: BTreeMap::new(),
+            history: PlayerHistory::with_capacity(PLAYER_ACTION_HISTORY_LEN + 1),
         }
     }
 
@@ -151,6 +156,11 @@ impl Player {
         ship.owner = self.id;
         self.money -= price;
         self.ships.insert(ship_id, ship);
+        self.add_history(PlayerHistoryEvent::BuyShip {
+            id: ship_id,
+            station: station.id,
+            price,
+        });
         Ok(ship_id)
     }
 
@@ -172,6 +182,15 @@ impl Player {
         self.money -= price;
         let id = (ship.modules.len() + 1) as ShipModuleId;
         ship.modules.insert(id, modtype.new_module());
+
+        let ship_id = ship.id;
+        self.add_history(PlayerHistoryEvent::BuyShipModule {
+            ship: ship_id,
+            id,
+            modtype,
+            price,
+            station: *station_id,
+        });
         Ok(id)
     }
 
@@ -196,6 +215,12 @@ impl Player {
 
         self.money -= price;
         upgrade.install(ship);
+        self.add_history(PlayerHistoryEvent::UpgradeShip {
+            station: station.id,
+            ship: *ship_id,
+            upgrade: *upgrade,
+            price,
+        });
         Ok(price)
     }
 
@@ -220,6 +245,12 @@ impl Player {
 
         self.money -= price;
         expansion.install(ship);
+        self.add_history(PlayerHistoryEvent::ExpandShip {
+            station: station.id,
+            ship: *ship_id,
+            price,
+            expansion: *expansion,
+        });
         Ok(price)
     }
 
@@ -245,7 +276,15 @@ impl Player {
         self.money -= price;
         module.rank += 1;
 
-        Ok((price, module.rank))
+        let newrank = module.rank;
+        self.add_history(PlayerHistoryEvent::UpgradeModule {
+            ship: *ship_id,
+            station: *station_id,
+            id: *mod_id,
+            newrank,
+            price,
+        });
+        Ok((price, newrank))
     }
 
     pub async fn upgrade_ship_crew(
@@ -274,9 +313,16 @@ impl Player {
             (price, cm.rank)
         };
         ship.update_perf_stats();
+        self.add_history(PlayerHistoryEvent::UpgradeCrew {
+            id: *crew_id,
+            price: res.0,
+            newrank: res.1,
+            station: *station_id,
+        });
         Ok(res)
     }
 
+    // TODO NEXT    Continue adding history events everywhere
     pub async fn upgrade_station_crew(
         &mut self,
         station_id: &StationId,

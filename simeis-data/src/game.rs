@@ -112,7 +112,7 @@ impl Game {
         (thread, data)
     }
 
-    #[allow(unused_mut, unused_variables)]
+    #[allow(unused_mut)]
     pub async fn start<F, Fut>(
         &self,
         mut stop: BoundedReceiver<GameSignal>,
