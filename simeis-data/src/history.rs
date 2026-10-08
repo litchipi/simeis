@@ -66,6 +66,7 @@ pub enum PlayerHistoryEvent {
     },
     FireCrew {
         crew: CrewId,
+        station: StationId,
     },
     AssignCrew {
         crew: CrewId,
@@ -73,7 +74,7 @@ pub enum PlayerHistoryEvent {
     },
     UnassignCrew {
         crew: CrewId,
-        ship: ShipId,
+        station: StationId,
     },
     UpgradeCrew {
         crew: CrewId,

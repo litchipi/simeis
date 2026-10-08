@@ -322,7 +322,6 @@ impl Player {
         Ok(res)
     }
 
-    // TODO NEXT    Continue adding history events everywhere
     pub async fn upgrade_station_crew(
         &mut self,
         station_id: &StationId,
@@ -335,9 +334,10 @@ impl Player {
             .upgrade_station_crew(&self.id, &mut self.money, crew_id)
             .await;
         match res {
-            Ok(v) => {
+            Ok((price, newrank)) => {
                 self.update_costs().await;
-                Ok(v)
+                self.add_history(PlayerHistoryEvent::UpgradeCrew { crew: *crew_id, price, newrank, station: *station_id });
+                Ok((price, newrank))
             }
             Err(e) => Err(e),
         }
@@ -356,7 +356,9 @@ impl Player {
             return Err(Errcode::NotEnoughMoney(self.money, cost));
         }
         self.money -= cost;
-        Ok(station.add_cargo_cap(&self.id, amnt).await)
+        let newcargo = station.add_cargo_cap(&self.id, amnt).await;
+        self.add_history(PlayerHistoryEvent::BuyStationCargo { station: *station_id, amnt, total_price: cost });
+        Ok(newcargo)
     }
 
     pub async fn unassign_crew(
@@ -397,6 +399,7 @@ impl Player {
                     _ => unreachable!(),
                 }
                 pd.idle_crew.0.insert(crew_id, c);
+                self.add_history(PlayerHistoryEvent::UnassignCrew { crew: crew_id, station: station_id });
                 return Ok(());
             }
         }
