@@ -14,6 +14,8 @@ use simeis_data::crew::CrewId;
 use simeis_data::crew::CrewMemberType;
 use simeis_data::errors::Errcode;
 use simeis_data::galaxy::station::StationId;
+use simeis_data::history::AssignedCrew;
+use simeis_data::history::PlayerHistoryEvent;
 use simeis_data::industry::IndustryUnitId;
 use simeis_data::ship::module::ShipModuleId;
 use simeis_data::ship::ShipId;
@@ -33,21 +35,29 @@ async fn hire_crew(
 
     let pkey = get_player_key!(req);
     let data = srv
-        .map_station(&pkey, &station_id, |pid, station| {
+        .map_station(&pkey, &station_id, |pid, hist, station| {
             Box::pin(async move {
-                let id = station.hire_crew(pid, crewtype).await;
-                Ok(json!({ "id": id}))
+                let id = station.hire_crew(&pid, crewtype).await;
+                hist.add(simeis_data::history::PlayerHistoryEvent::HireCrew {
+                    crewtype,
+                    crew: id,
+                    station: station_id,
+                })
+                .await;
+                Ok(json!({"id": id}))
             })
         })
         .await;
-    let _ = srv
-        .map_player_mut(&pkey, |player| {
-            Box::pin(async {
-                player.update_costs().await;
-                Ok(())
+    if data.is_ok() {
+        let _ = srv
+            .map_player_mut(&pkey, |player| {
+                Box::pin(async {
+                    player.update_costs().await;
+                    Ok(())
+                })
             })
-        })
-        .await;
+            .await;
+    }
     build_response(data)
 }
 
@@ -62,9 +72,15 @@ async fn fire_crew(
     let (station_id, crewid) = *args;
     let pkey = get_player_key!(req);
     let data = srv
-        .map_station(&pkey, &station_id, |pid, station| {
+        .map_station(&pkey, &station_id, |pid, history, station| {
             Box::pin(async move {
-                let cm = station.fire_crew(pid, &crewid).await?;
+                let cm = station.fire_crew(&pid, &crewid).await?;
+                history
+                    .add(simeis_data::history::PlayerHistoryEvent::FireCrew {
+                        crew: crewid,
+                        station: station_id,
+                    })
+                    .await;
                 Ok(to_value(cm).unwrap())
             })
         })
@@ -184,9 +200,16 @@ async fn assign_trader(
     let pkey = get_player_key!(req);
 
     let data = srv
-        .map_station(&pkey, &station_id, |pid, station| {
+        .map_station(&pkey, &station_id, |pid, hist, station| {
             Box::pin(async move {
-                station.assign_trader(pid, crew_id).await?;
+                station.assign_trader(&pid, crew_id).await?;
+                hist.add(PlayerHistoryEvent::AssignCrew {
+                    crew: crew_id,
+                    assignation: AssignedCrew::Trader {
+                        station: station_id,
+                    },
+                })
+                .await;
                 Ok(json!({}))
             })
         })
@@ -207,15 +230,18 @@ async fn assign_pilot(
     let pkey = get_player_key!(req);
 
     let data = srv
-        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, station, ship| {
+        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, hist, station, ship| {
             Box::pin(async move {
                 if ship.pilot.is_some() {
                     return Err(Errcode::CrewNotNeeded);
                 }
-                station
-                    .onboard_pilot(ship, &crew_id)
-                    .await
-                    .map(|_| json!({}))
+                station.onboard_pilot(ship, &crew_id).await?;
+                hist.add(PlayerHistoryEvent::AssignCrew {
+                    crew: crew_id,
+                    assignation: AssignedCrew::Pilot { ship: ship.id },
+                })
+                .await;
+                Ok(json!({}))
             })
         })
         .await;
@@ -235,12 +261,18 @@ async fn assign_operator_to_ship(
     let pkey = get_player_key!(req);
 
     let data = srv
-        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, station, ship| {
+        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, hist, station, ship| {
             Box::pin(async move {
-                station
-                    .onboard_operator(ship, &crew_id, &mod_id)
-                    .await
-                    .map(|_| json!({}))
+                station.onboard_operator(ship, &crew_id, &mod_id).await?;
+                hist.add(PlayerHistoryEvent::AssignCrew {
+                    crew: crew_id,
+                    assignation: AssignedCrew::ShipModule {
+                        ship: ship_id,
+                        module: mod_id,
+                    },
+                })
+                .await;
+                Ok(json!({}))
             })
         })
         .await;
@@ -287,12 +319,20 @@ async fn assign_operator_to_industry(
     let pkey = get_player_key!(req);
 
     let data = srv
-        .map_station(&pkey, &station_id, |pid, station| {
+        .map_station(&pkey, &station_id, |pid, hist, station| {
             Box::pin(async move {
                 station
-                    .assign_crew_to_industry(pid, &crew_id, &industry_id)
-                    .await
-                    .map(|_| json!({}))
+                    .assign_crew_to_industry(&pid, &crew_id, &industry_id)
+                    .await?;
+                hist.add(PlayerHistoryEvent::AssignCrew {
+                    crew: crew_id,
+                    assignation: AssignedCrew::IndustryUnit {
+                        station: station_id,
+                        unit: industry_id,
+                    },
+                })
+                .await;
+                Ok(json!({}))
             })
         })
         .await;

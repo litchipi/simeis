@@ -24,19 +24,19 @@ pub fn generate_random_token(len: usize) -> String {
         .collect()
 }
 
-#[cfg(feature = "compio")]
-fn start_game_thread(
-    stop: BoundedReceiver<GameSignal>,
-    sysrecv: SyslogRecv,
-    data: Game,
-) -> JoinHandle<()> {
-    log::debug!("Starting the game thread on compio runtime");
-    std::thread::spawn(move || {
-        let rt = compio::runtime::Runtime::new().unwrap();
-        rt.block_on(data.start(stop, sysrecv, compio::runtime::time::sleep));
-        rt.run();
-    })
-}
+// #[cfg(feature = "compio")]
+// fn start_game_thread(
+//     stop: BoundedReceiver<GameSignal>,
+//     sysrecv: SyslogRecv,
+//     data: Game,
+// ) -> JoinHandle<()> {
+//     log::debug!("Starting the game thread on compio runtime");
+//     std::thread::spawn(move || {
+//         let rt = compio::runtime::Runtime::new().unwrap();
+//         rt.block_on(data.start(stop, sysrecv, compio::runtime::time::sleep));
+//         rt.run();
+//     })
+// }
 
 #[cfg(feature = "tokio")]
 fn start_game_thread(
@@ -74,7 +74,7 @@ async fn main() -> std::io::Result<()> {
         .filter_module("ntex_rt", log::LevelFilter::Warn)
         .filter_module("ntex_service::cfg", log::LevelFilter::Warn)
         .filter_module("ntex::http::h1", log::LevelFilter::Warn)
-        .filter_module("ntex_net::compio", log::LevelFilter::Warn)
+        // .filter_module("ntex_net::compio", log::LevelFilter::Warn)
         .filter_module("ntex_net::tokio", log::LevelFilter::Warn)
         .init();
 

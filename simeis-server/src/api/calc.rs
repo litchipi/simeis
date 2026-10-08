@@ -64,7 +64,7 @@ async fn compute_ship_mining_rate(
     } = body.0;
 
     let ship_data = srv
-        .map_ship(&pkey, &ship_id, |_, ship| {
+        .map_ship(&pkey, &ship_id, |_, _, ship| {
             Box::pin(async move {
                 let mut result = vec![];
                 for (_, m) in ship.modules.iter() {

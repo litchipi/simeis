@@ -8,7 +8,6 @@ use ntex::web::HttpRequest;
 use ntex::web::ServiceConfig;
 
 use serde_json::json;
-use simeis_data::history::export_history;
 use simeis_data::player::PlayerId;
 
 use simeis_data::errors::Errcode;
@@ -114,7 +113,7 @@ async fn get_history(srv: GameState, tok: AdminToken, req: HttpRequest) -> impl 
         };
         srv.map_player_by_id(&player_id, |player| {
             Box::pin(async move {
-                let hist = export_history(&player.history);
+                let hist = player.history.export().await;
                 Ok(json!({ "history": hist }))
             })
         })
@@ -123,7 +122,7 @@ async fn get_history(srv: GameState, tok: AdminToken, req: HttpRequest) -> impl 
         let pkey = get_player_key!(req);
         srv.map_player(&pkey, |player| {
             Box::pin(async move {
-                let hist = export_history(&player.history);
+                let hist = player.history.export().await;
                 Ok(json!({ "history": hist }))
             })
         })

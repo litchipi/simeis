@@ -56,7 +56,7 @@ impl Travel {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct TravelCost {
     pub direction: (f64, f64, f64),
     pub distance: f64,

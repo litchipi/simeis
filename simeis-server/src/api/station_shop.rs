@@ -32,7 +32,7 @@ async fn get_prices_ship_module(
     let station_id = *id;
     // We need to ensure the station exist, even if we don't use it here
     let data = srv
-        .map_station(&pkey, &station_id, |_, _| {
+        .map_station(&pkey, &station_id, |_, _, _| {
             Box::pin(async move {
                 let mut res: BTreeMap<ShipModuleType, f64> = BTreeMap::new();
                 for smod in ShipModuleType::iter() {
@@ -83,7 +83,7 @@ async fn get_ship_module_upgrade_prices(
     let (station_id, ship_id) = *args;
 
     let data = srv
-        .map_ship_in_station(&pkey, &station_id, &ship_id, |_, _, ship| {
+        .map_ship_in_station(&pkey, &station_id, &ship_id, |_, _, _, ship| {
             Box::pin(async move {
                 let mut res = BTreeMap::new();
                 for (id, module) in ship.modules.iter() {

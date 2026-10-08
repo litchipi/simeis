@@ -10,7 +10,7 @@ use crate::config::get_config;
 use crate::crew::CrewId;
 use crate::errors::Errcode;
 use crate::galaxy::station::{Station, StationId};
-use crate::history::{PlayerHistory, PlayerHistoryEvent};
+use crate::history::{AssignedCrew, PlayerHistory, PlayerHistoryEvent};
 use crate::ship::cargo::ShipCargo;
 use crate::ship::module::{ShipModuleId, ShipModuleType};
 use crate::ship::upgrade::{ShipExpandUpgrade, ShipUpgrade};
@@ -19,8 +19,6 @@ use crate::syslog::{SyslogEvent, SyslogRecv};
 
 pub type PlayerId = u64;
 pub type PlayerKey = [u8; 128];
-
-pub const PLAYER_ACTION_HISTORY_LEN: usize = 20;
 
 // Game state for a single player
 pub struct Player {
@@ -70,7 +68,7 @@ impl Player {
             name,
             stations,
             ships: BTreeMap::new(),
-            history: PlayerHistory::with_capacity(PLAYER_ACTION_HISTORY_LEN + 1),
+            history: PlayerHistory::empty(),
         }
     }
 
@@ -156,11 +154,13 @@ impl Player {
         ship.owner = self.id;
         self.money -= price;
         self.ships.insert(ship_id, ship);
-        self.add_history(PlayerHistoryEvent::BuyShip {
-            ship: ship_id,
-            station: station.id,
-            price,
-        });
+        self.history
+            .add(PlayerHistoryEvent::BuyShip {
+                ship: ship_id,
+                station: station.id,
+                price,
+            })
+            .await;
         Ok(ship_id)
     }
 
@@ -184,13 +184,15 @@ impl Player {
         ship.modules.insert(id, modtype.new_module());
 
         let ship_id = ship.id;
-        self.add_history(PlayerHistoryEvent::BuyShipModule {
-            ship: ship_id,
-            module: id,
-            modtype,
-            price,
-            station: *station_id,
-        });
+        self.history
+            .add(PlayerHistoryEvent::BuyShipModule {
+                ship: ship_id,
+                module: id,
+                modtype,
+                price,
+                station: *station_id,
+            })
+            .await;
         Ok(id)
     }
 
@@ -215,12 +217,14 @@ impl Player {
 
         self.money -= price;
         upgrade.install(ship);
-        self.add_history(PlayerHistoryEvent::UpgradeShip {
-            station: station.id,
-            ship: *ship_id,
-            upgrade: *upgrade,
-            price,
-        });
+        self.history
+            .add(PlayerHistoryEvent::UpgradeShip {
+                station: station.id,
+                ship: *ship_id,
+                upgrade: *upgrade,
+                price,
+            })
+            .await;
         Ok(price)
     }
 
@@ -245,12 +249,14 @@ impl Player {
 
         self.money -= price;
         expansion.install(ship);
-        self.add_history(PlayerHistoryEvent::ExpandShip {
-            station: station.id,
-            ship: *ship_id,
-            price,
-            expansion: *expansion,
-        });
+        self.history
+            .add(PlayerHistoryEvent::ExpandShip {
+                station: station.id,
+                ship: *ship_id,
+                price,
+                expansion: *expansion,
+            })
+            .await;
         Ok(price)
     }
 
@@ -277,13 +283,15 @@ impl Player {
         module.rank += 1;
 
         let newrank = module.rank;
-        self.add_history(PlayerHistoryEvent::UpgradeModule {
-            ship: *ship_id,
-            station: *station_id,
-            module: *mod_id,
-            newrank,
-            price,
-        });
+        self.history
+            .add(PlayerHistoryEvent::UpgradeModule {
+                ship: *ship_id,
+                station: *station_id,
+                module: *mod_id,
+                newrank,
+                price,
+            })
+            .await;
         Ok((price, newrank))
     }
 
@@ -313,12 +321,14 @@ impl Player {
             (price, cm.rank)
         };
         ship.update_perf_stats();
-        self.add_history(PlayerHistoryEvent::UpgradeCrew {
-            crew: *crew_id,
-            price: res.0,
-            newrank: res.1,
-            station: *station_id,
-        });
+        self.history
+            .add(PlayerHistoryEvent::UpgradeCrew {
+                crew: *crew_id,
+                price: res.0,
+                newrank: res.1,
+                station: *station_id,
+            })
+            .await;
         Ok(res)
     }
 
@@ -336,7 +346,14 @@ impl Player {
         match res {
             Ok((price, newrank)) => {
                 self.update_costs().await;
-                self.add_history(PlayerHistoryEvent::UpgradeCrew { crew: *crew_id, price, newrank, station: *station_id });
+                self.history
+                    .add(PlayerHistoryEvent::UpgradeCrew {
+                        crew: *crew_id,
+                        price,
+                        newrank,
+                        station: *station_id,
+                    })
+                    .await;
                 Ok((price, newrank))
             }
             Err(e) => Err(e),
@@ -357,7 +374,13 @@ impl Player {
         }
         self.money -= cost;
         let newcargo = station.add_cargo_cap(&self.id, amnt).await;
-        self.add_history(PlayerHistoryEvent::BuyStationCargo { station: *station_id, amnt, total_price: cost });
+        self.history
+            .add(PlayerHistoryEvent::BuyStationCargo {
+                station: *station_id,
+                amnt,
+                total_price: cost,
+            })
+            .await;
         Ok(newcargo)
     }
 
@@ -382,24 +405,38 @@ impl Player {
                 }
 
                 let c = ship.crew.0.remove(&crew_id).unwrap();
-                match c.member_type {
-                    crate::crew::CrewMemberType::Pilot => ship.pilot = None,
+                let old = match c.member_type {
+                    crate::crew::CrewMemberType::Pilot => {
+                        ship.pilot = None;
+                        AssignedCrew::Pilot { ship: ship.id }
+                    }
                     crate::crew::CrewMemberType::Operator => {
-                        let mut found = false;
-                        for (_, module) in ship.modules.iter_mut() {
+                        let mut mod_id = None;
+                        for (mid, module) in ship.modules.iter_mut() {
                             if let Some(id) = module.operator {
                                 if id == crew_id {
                                     module.operator = None;
-                                    found = true;
+                                    mod_id = Some(*mid);
+                                    break;
                                 }
                             }
                         }
-                        assert!(found);
+                        let mod_id = mod_id.unwrap();
+                        AssignedCrew::ShipModule {
+                            ship: ship.id,
+                            module: mod_id,
+                        }
                     }
                     _ => unreachable!(),
-                }
+                };
                 pd.idle_crew.0.insert(crew_id, c);
-                self.add_history(PlayerHistoryEvent::UnassignCrew { crew: crew_id, station: station_id });
+                self.history
+                    .add(PlayerHistoryEvent::UnassignCrew {
+                        old_assignation: old,
+                        crew: crew_id,
+                        station: station_id,
+                    })
+                    .await;
                 return Ok(());
             }
         }

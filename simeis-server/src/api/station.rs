@@ -10,6 +10,7 @@ use serde_json::to_value;
 
 use simeis_data::errors::Errcode;
 use simeis_data::galaxy::station::StationId;
+use simeis_data::history::PlayerHistoryEvent;
 use simeis_data::ship::ShipId;
 
 use crate::api::build_response;
@@ -50,8 +51,8 @@ async fn get_station_status(
     let id = id.as_ref();
     let key = get_player_key!(req);
     let data = srv
-        .map_station(&key, id, |pid, station| {
-            Box::pin(async { Ok(station.to_json(pid).await) })
+        .map_station(&key, id, |pid, _, station| {
+            Box::pin(async move { Ok(station.to_json(&pid).await) })
         })
         .await;
     build_response(data)
@@ -83,10 +84,10 @@ async fn get_station_upgrades(
     let station_id = *args;
 
     let data = srv
-        .map_station(&pkey, &station_id, |pid, station| {
+        .map_station(&pkey, &station_id, |pid, _, station| {
             Box::pin(async move {
-                let cargoprice = station.cargo_price(pid).await;
-                let traderprice = station.upgr_trader_price(pid).await;
+                let cargoprice = station.cargo_price(&pid).await;
+                let traderprice = station.upgr_trader_price(&pid).await;
                 Ok(json!({
                     "cargo": cargoprice,
                     "trader": traderprice,
@@ -109,12 +110,18 @@ async fn refuel_ship(
     let (station_id, ship_id) = *args;
 
     let data = srv
-        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, station, ship| {
+        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, hist, station, ship| {
             Box::pin(async move {
-                station
-                    .refuel_ship(ship)
-                    .await
-                    .map(|v| json!({ "added-fuel": v }))
+                let added = station.refuel_ship(ship).await?;
+                let tank_full = (ship.fuel_tank - ship.fuel_tank_capacity).abs() < 0.0000001;
+                hist.add(PlayerHistoryEvent::RefuelShip {
+                    station: station_id,
+                    ship: ship_id,
+                    amnt: added,
+                    tank_full,
+                })
+                .await;
+                Ok(json!({ "added-fuel": added }))
             })
         })
         .await;
@@ -132,12 +139,18 @@ async fn repair_ship(
     let pkey = get_player_key!(req);
     let (station_id, ship_id) = *args;
     let data = srv
-        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, station, ship| {
+        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, hist, station, ship| {
             Box::pin(async move {
-                station
-                    .repair_ship(ship)
-                    .await
-                    .map(|v| json!({ "added-hull": v }))
+                let added = station.repair_ship(ship).await?;
+                let fully_repaired = ship.hull_decay < 0.0000001;
+                hist.add(PlayerHistoryEvent::RepairedShip {
+                    station: station_id,
+                    ship: ship_id,
+                    amnt: added,
+                    fully_repaired,
+                })
+                .await;
+                Ok(json!({"added-hull": added }))
             })
         })
         .await;

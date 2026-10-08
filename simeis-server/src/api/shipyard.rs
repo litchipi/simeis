@@ -32,7 +32,7 @@ async fn list_shipyard_ships(
     let id = id.as_ref();
     let key = get_player_key!(req);
     let data = srv
-        .map_station(&key, id, |_, station| {
+        .map_station(&key, id, |_, _, station| {
             Box::pin(async {
                 let mut ships = vec![];
                 let shipyard = station.shipyard.read().await;
@@ -90,7 +90,7 @@ async fn shipyard_list_upgrades(
     let pkey = get_player_key!(req);
 
     let data = srv
-        .map_ship_in_station(&pkey, &station_id, &ship_id, |_, station, ship| {
+        .map_ship_in_station(&pkey, &station_id, &ship_id, |_, _, station, ship| {
             Box::pin(async move {
                 let mut res = BTreeMap::new();
                 for upgr in ShipUpgrade::iter() {

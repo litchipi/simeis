@@ -68,9 +68,9 @@ async fn get_fee_rate(
 ) -> impl web::Responder {
     let pkey = get_player_key!(req);
     let data = srv
-        .map_station(&pkey, &station_id, |pid, station| {
+        .map_station(&pkey, &station_id, |pid, _, station| {
             Box::pin(async move {
-                let rate = station.get_fee_rate(pid).await?;
+                let rate = station.get_fee_rate(&pid).await?;
                 Ok(json!({ "fee_rate": rate }))
             })
         })

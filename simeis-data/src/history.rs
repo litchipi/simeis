@@ -1,21 +1,42 @@
+use std::sync::Arc;
 use std::{collections::VecDeque, time::Instant};
 
+use mea::rwlock::RwLock;
 use serde::Serialize;
 use serde_json::Value;
 
 use crate::crew::{CrewId, CrewMemberType};
 use crate::galaxy::station::StationId;
+use crate::galaxy::SpaceCoord;
 use crate::industry::{IndustryUnitId, IndustryUnitType};
-use crate::player::{Player, PLAYER_ACTION_HISTORY_LEN};
 
 use crate::ship::module::{ShipModuleId, ShipModuleType};
 use crate::ship::resources::Resource;
 use crate::ship::upgrade::{ShipExpandUpgrade, ShipUpgrade};
 use crate::ship::ShipId;
 
-pub type PlayerHistory = VecDeque<(Instant, PlayerHistoryEvent)>;
+pub const PLAYER_ACTION_HISTORY_LEN: usize = 20;
 
 #[derive(strum::IntoStaticStr, Debug, Clone, Copy, Serialize)]
+#[strum(serialize_all = "snake_case")]
+pub enum AssignedCrew {
+    Trader {
+        station: StationId,
+    },
+    Pilot {
+        ship: ShipId,
+    },
+    ShipModule {
+        ship: ShipId,
+        module: ShipModuleId,
+    },
+    IndustryUnit {
+        station: StationId,
+        unit: IndustryUnitId,
+    },
+}
+
+#[derive(strum::IntoStaticStr, Debug, Clone, Serialize)]
 #[strum(serialize_all = "snake_case")]
 pub enum PlayerHistoryEvent {
     // Ship
@@ -50,12 +71,42 @@ pub enum PlayerHistoryEvent {
         price: f64,
         station: StationId,
     },
+    ShipNavigate {
+        ship: ShipId,
+        src: SpaceCoord,
+        dest: SpaceCoord,
+        fuel_cost: f64,
+        hull_usage: f64,
+        duration_secs: f64,
+    },
+    StopNavigation {
+        ship: ShipId,
+        position: SpaceCoord,
+    },
+    UnloadShip {
+        ship: ShipId,
+        station: StationId,
+        emptied: bool,
+        resources: Vec<Resource>,
+    },
 
     // Station
     BuyStationCargo {
         station: StationId,
         amnt: usize,
         total_price: f64,
+    },
+    RefuelShip {
+        station: StationId,
+        ship: ShipId,
+        amnt: f64,
+        tank_full: bool,
+    },
+    RepairedShip {
+        station: StationId,
+        ship: ShipId,
+        amnt: f64,
+        fully_repaired: bool,
     },
 
     // Crew
@@ -70,11 +121,12 @@ pub enum PlayerHistoryEvent {
     },
     AssignCrew {
         crew: CrewId,
-        ship: ShipId,
+        assignation: AssignedCrew,
     },
     UnassignCrew {
         crew: CrewId,
         station: StationId,
+        old_assignation: AssignedCrew,
     },
     UpgradeCrew {
         crew: CrewId,
@@ -113,35 +165,50 @@ pub enum PlayerHistoryEvent {
     },
 }
 
-#[inline]
-pub fn export_history(h: &PlayerHistory) -> Vec<Value> {
-    let mut res = Vec::with_capacity(h.len());
-    for (t, el) in h.iter().rev() {
-        let Value::Object(mut obj) = serde_json::to_value(el).unwrap() else {
-            unreachable!();
-        };
-        debug_assert_eq!(obj.len(), 1);
-        let mapkey = obj.keys().next().unwrap().clone();
-        let Value::Object(mut data) = obj.remove(&mapkey).unwrap() else {
-            unreachable!();
-        };
-        let key: &'static str = el.into();
-        data.insert("action".to_string(), Value::String(key.to_string()));
-        data.insert(
-            "elapsed".to_string(),
-            Value::Number(serde_json::Number::from_f64(t.elapsed().as_secs_f64()).unwrap()),
-        );
-        res.push(Value::Object(data));
-    }
-    res
+#[derive(Clone)]
+pub struct PlayerHistory {
+    data: Arc<RwLock<VecDeque<(Instant, PlayerHistoryEvent)>>>,
 }
 
-impl Player {
-    pub fn add_history(&mut self, event: PlayerHistoryEvent) {
-        debug_assert!(self.history.len() <= PLAYER_ACTION_HISTORY_LEN);
-        self.history.push_back((Instant::now(), event));
-        while self.history.len() > PLAYER_ACTION_HISTORY_LEN {
-            self.history.pop_front();
+impl PlayerHistory {
+    pub fn empty() -> PlayerHistory {
+        PlayerHistory {
+            data: Arc::new(RwLock::new(VecDeque::with_capacity(
+                PLAYER_ACTION_HISTORY_LEN,
+            ))),
+        }
+    }
+
+    #[inline]
+    pub async fn export(&self) -> Vec<Value> {
+        let h = self.data.read().await;
+        let mut res = Vec::with_capacity(h.len());
+        for (t, el) in h.iter().rev() {
+            let Value::Object(mut obj) = serde_json::to_value(el).unwrap() else {
+                unreachable!();
+            };
+            debug_assert_eq!(obj.len(), 1);
+            let mapkey = obj.keys().next().unwrap().clone();
+            let Value::Object(mut data) = obj.remove(&mapkey).unwrap() else {
+                unreachable!();
+            };
+            let key: &'static str = el.into();
+            data.insert("action".to_string(), Value::String(key.to_string()));
+            data.insert(
+                "elapsed".to_string(),
+                Value::Number(serde_json::Number::from_f64(t.elapsed().as_secs_f64()).unwrap()),
+            );
+            res.push(Value::Object(data));
+        }
+        res
+    }
+
+    pub async fn add(&self, event: PlayerHistoryEvent) {
+        let mut history = self.data.write().await;
+        debug_assert!(history.len() <= PLAYER_ACTION_HISTORY_LEN);
+        history.push_back((Instant::now(), event));
+        while history.len() > PLAYER_ACTION_HISTORY_LEN {
+            history.pop_front();
         }
     }
 }

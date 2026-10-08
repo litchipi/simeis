@@ -10,6 +10,7 @@ use serde_json::json;
 use serde_json::to_value;
 use simeis_data::config::get_config;
 use simeis_data::galaxy::SpaceUnit;
+use simeis_data::history::PlayerHistoryEvent;
 use simeis_data::ship::resources::Resource;
 use simeis_data::syslog::SyslogEvent;
 
@@ -36,7 +37,7 @@ async fn get_ship_status(
             return build_response(Err(Errcode::ShipNotFound(*id)));
         };
         let data = srv
-            .sync_map_player_by_id(&owner, |p| {
+            .sync_map_player_by_id(&owner, |p, _| {
                 p.export_ship_json(&id).ok_or(Errcode::ShipNotFound(*id))
             })
             .await;
@@ -46,7 +47,7 @@ async fn get_ship_status(
     let pkey = get_player_key!(req);
     let ship_id = *id;
     let data = srv
-        .map_ship(&pkey, &ship_id, |_, ship| {
+        .map_ship(&pkey, &ship_id, |_, _, ship| {
             Box::pin(async move { Ok(to_value(ship).unwrap()) })
         })
         .await;
@@ -65,7 +66,7 @@ async fn get_wages_cost(
     let pkey = get_player_key!(req);
 
     let data = srv
-        .map_ship(&pkey, &ship_id, |_, ship| {
+        .map_ship(&pkey, &ship_id, |_, _, ship| {
             Box::pin(async move { Ok(json!({ "wages": ship.crew.sum_wages() })) })
         })
         .await;
@@ -92,11 +93,22 @@ async fn ask_navigate(
 ) -> impl web::Responder {
     let pkey = get_player_key!(req);
     let NavigationDestination { x, y, z } = body.0;
+    let id = id.into_inner();
     let data = srv
-        .map_ship_mut(&pkey, &id, |_, ship| {
+        .map_ship_mut(&pkey, &id, |_, hist, ship| {
             Box::pin(async move {
-                ship.set_travel((x, y, z))
-                    .map(|cost| to_value(cost).unwrap())
+                let src = ship.position;
+                let cost = ship.set_travel((x, y, z))?;
+                hist.add(PlayerHistoryEvent::ShipNavigate {
+                    dest: (x, y, z),
+                    fuel_cost: cost.fuel_consumption,
+                    hull_usage: cost.hull_usage,
+                    duration_secs: cost.duration,
+                    ship: id,
+                    src,
+                })
+                .await;
+                Ok(to_value(cost).unwrap())
             })
         })
         .await;
@@ -114,8 +126,16 @@ async fn stop_navigation(
     let pkey = get_player_key!(req);
     let id = *args;
     let data = srv
-        .map_ship_mut(&pkey, &id, |_, ship| {
-            Box::pin(async move { ship.stop_navigation().map(|pos| json!({ "position": pos })) })
+        .map_ship_mut(&pkey, &id, |_, hist, ship| {
+            Box::pin(async move {
+                let pos = ship.stop_navigation()?;
+                hist.add(PlayerHistoryEvent::StopNavigation {
+                    ship: id,
+                    position: pos,
+                })
+                .await;
+                Ok(json!({ "position": pos }))
+            })
         })
         .await;
     build_response(data)
@@ -238,12 +258,20 @@ async fn unload_all_ship_cargo(
     let (ship_id, station_id) = *args;
     let pkey = get_player_key!(req);
     let data = srv
-        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, station, ship| {
+        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, hist, station, ship| {
             Box::pin(async move {
                 let unloaded = ship.unload_all(station).await?;
+                let emptied = ship.cargo.usage < 0.0000001;
+                hist.add(PlayerHistoryEvent::UnloadShip {
+                    ship: ship_id,
+                    station: station_id,
+                    emptied,
+                    resources: unloaded.keys().cloned().collect(),
+                })
+                .await;
                 Ok(json!({
                     "unloaded": unloaded,
-                    "emptied": ship.cargo.usage < 0.000001,
+                    "emptied": emptied,
                 }))
             })
         })
@@ -264,14 +292,25 @@ async fn unload_ship_cargo(
     let pkey = get_player_key!(req);
 
     let data = srv
-        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, station, ship| {
-            Box::pin(async move { ship.unload_cargo(&resource, amnt, station).await })
+        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, hist, station, ship| {
+            Box::pin(async move {
+                let unloaded = ship.unload_cargo(&resource, amnt, station).await?;
+                let emptied = ship.cargo.usage < 0.0000001;
+                hist.add(PlayerHistoryEvent::UnloadShip {
+                    ship: ship_id,
+                    station: station_id,
+                    emptied,
+                    resources: vec![resource],
+                })
+                .await;
+                Ok(unloaded)
+            })
         })
         .await;
 
     if let Ok(0.0) = data {
         let (pid, ev) = srv
-            .map_ship_in_station(&pkey, &station_id, &ship_id, |pid, station, ship| {
+            .map_ship_in_station(&pkey, &station_id, &ship_id, |pid, _, station, ship| {
                 Box::pin(async move {
                     Ok((
                         pid,
