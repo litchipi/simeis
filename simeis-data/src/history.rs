@@ -165,14 +165,16 @@ pub enum PlayerHistoryEvent {
         station: StationId,
         resource: Resource,
         price: f64,
-        amnt: f64,
+        bought: f64,
+        spent: f64,
         fees: f64,
     },
     SellResource {
         station: StationId,
         resource: Resource,
         price: f64,
-        amnt: f64,
+        sold: f64,
+        earned: f64,
         fees: f64,
     },
 }

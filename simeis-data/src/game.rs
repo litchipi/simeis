@@ -339,8 +339,9 @@ impl Game {
                 station: *station_id,
                 resource: *resource,
                 price,
-                amnt,
                 fees: tx.fees,
+                bought: tx.added_cargo.unwrap().1,
+                spent: tx.removed_money.unwrap(),
             })
             .await;
         Ok(tx)
@@ -369,8 +370,9 @@ impl Game {
                 station: *station_id,
                 resource: *resource,
                 price,
-                amnt,
                 fees: tx.fees,
+                sold: tx.removed_cargo.unwrap().1,
+                earned: tx.added_money.unwrap(),
             })
             .await;
         Ok(tx)
