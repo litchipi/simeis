@@ -17,7 +17,7 @@ use crate::ship::resources::Resource;
 use crate::ship::upgrade::{ShipExpandUpgrade, ShipUpgrade};
 use crate::ship::ShipId;
 
-pub const PLAYER_ACTION_HISTORY_LEN: usize = 20;
+pub const PLAYER_ACTION_HISTORY_LEN: usize = 100;
 
 #[derive(strum::IntoStaticStr, Debug, Clone, Copy, Serialize)]
 #[strum(serialize_all = "snake_case")]

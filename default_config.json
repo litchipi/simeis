@@ -3,7 +3,8 @@
     "port": 8080,
     "workers": 64,
     "bind_ip": "0.0.0.0",
-    "logger_env_name": "SIMEIS_LOG"
+    "logger_env_name": "SIMEIS_LOG",
+    "token_file": ".simeis-admin-token"
   },
   "game": {
     "shards": 5,
@@ -75,20 +76,20 @@
     "pilot_rank_speed_powf": 1.2
   },
   "crew": {
-    "wage_rank_powf": 0.85,
-    "wage_next_rank_powf": 1.4,
-    "wage_next_rank_mult": 1500.0,
-    "base_op_wage": 0.75,
+    "wage_rank_powf": 2.2,
+    "wage_next_rank_powf": 0.9,
+    "wage_next_rank_mult": 1100.0,
+    "base_op_wage": 1.0,
     "pilot_wage_mult": 3.5,
     "trader_wage_mult": 5.0,
     "solider_wage_mult": 2.5
   },
   "market": {
-    "max_avg_ampl": 0.032,
-    "std_div": 1.08,
-    "change_sec": 10.0,
-    "base_fee_rate": 0.25,
-    "fee_rate_dev_powf": 0.95,
-    "upd_price_proba": 0.3
+    "max_avg_ampl": 0.075,
+    "std_div": 1.25,
+    "change_sec": 3.0,
+    "base_fee_rate": 0.3,
+    "fee_rate_dev_powf": 0.93,
+    "upd_price_proba": 0.15
   }
 }
