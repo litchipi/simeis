@@ -172,8 +172,16 @@ async fn stop_extraction(
     let data = srv
         .map_player_mut(&pkey, |player| {
             Box::pin(async move {
+                let history = player.history.clone();
                 let ship = player.get_ship_mut(&ship_id)?;
-                ship.stop_extraction().map(|v| to_value(v).unwrap())
+                ship.stop_extraction()?;
+                history
+                    .add(PlayerHistoryEvent::StopExtraction {
+                        ship: ship_id,
+                        cargo_usage_perc: ship.cargo.usage / ship.cargo.capacity,
+                    })
+                    .await;
+                Ok(json!({}))
             })
         })
         .await;

@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::{collections::VecDeque, time::Instant};
 
@@ -6,6 +7,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::crew::{CrewId, CrewMemberType};
+use crate::galaxy::planet::PlanetId;
 use crate::galaxy::station::StationId;
 use crate::galaxy::SpaceCoord;
 use crate::industry::{IndustryUnitId, IndustryUnitType};
@@ -89,6 +91,16 @@ pub enum PlayerHistoryEvent {
         emptied: bool,
         resources: Vec<Resource>,
     },
+    StartExtraction {
+        ship: ShipId,
+        planet: PlanetId,
+        power_attr: BTreeMap<Resource, u8>,
+        secs_before_cargo_full: f64,
+    },
+    StopExtraction {
+        ship: ShipId,
+        cargo_usage_perc: f64,
+    },
 
     // Station
     BuyStationCargo {
@@ -154,14 +166,14 @@ pub enum PlayerHistoryEvent {
         resource: Resource,
         price: f64,
         amnt: f64,
-        fee: f64,
+        fees: f64,
     },
     SellResource {
         station: StationId,
         resource: Resource,
         price: f64,
         amnt: f64,
-        fee: f64,
+        fees: f64,
     },
 }
 

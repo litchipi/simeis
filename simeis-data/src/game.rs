@@ -30,6 +30,7 @@ use crate::errors::Errcode;
 use crate::galaxy::scan::ScanResult;
 use crate::galaxy::station::{Station, StationId};
 use crate::galaxy::Galaxy;
+use crate::history::PlayerHistoryEvent;
 use crate::market::{Market, MarketTx};
 use crate::player::{Player, PlayerId, PlayerKey};
 use crate::ship::resources::{ExtractionInfo, Resource};
@@ -298,12 +299,21 @@ impl Game {
     ) -> Result<ExtractionInfo, Errcode> {
         let (_, player) = self.get_player(pkey).await?;
         let mut player = player.write().await;
+        let hist = player.history.clone();
         let ship = player.get_ship_mut(ship_id)?;
         let galaxy = self.galaxy.read().await;
         let Some(planet) = galaxy.get_planet(&ship.position) else {
             return Err(Errcode::CannotExtractWithoutPlanet);
         };
-        ship.start_extraction(&planet).await
+        let info = ship.start_extraction(&planet).await?;
+        hist.add(PlayerHistoryEvent::StartExtraction {
+            ship: *ship_id,
+            planet: planet.id,
+            power_attr: ship.power_attribution.clone(),
+            secs_before_cargo_full: info.time_fill_cargo,
+        })
+        .await;
+        Ok(info)
     }
 
     pub async fn player_market_buy(
@@ -318,11 +328,21 @@ impl Game {
         let Some(station) = player.stations.get(station_id) else {
             return Err(Errcode::NoSuchStation(*station_id));
         };
-        let tx = station
+        let (tx, price) = station
             .buy_resource(&self.market, &player.id, resource, amnt)
             .await?;
         player.money -= tx.removed_money.unwrap();
         player.score -= tx.removed_money.unwrap();
+        player
+            .history
+            .add(PlayerHistoryEvent::BuyResource {
+                station: *station_id,
+                resource: *resource,
+                price,
+                amnt,
+                fees: tx.fees,
+            })
+            .await;
         Ok(tx)
     }
 
@@ -338,11 +358,21 @@ impl Game {
         let Some(station) = player.stations.get(station_id) else {
             return Err(Errcode::NoSuchStation(*station_id));
         };
-        let tx = station
+        let (tx, price) = station
             .sell_resource(&self.market, &player.id, resource, amnt)
             .await?;
         player.money += tx.added_money.unwrap();
         player.score += tx.added_money.unwrap();
+        player
+            .history
+            .add(PlayerHistoryEvent::SellResource {
+                station: *station_id,
+                resource: *resource,
+                price,
+                amnt,
+                fees: tx.fees,
+            })
+            .await;
         Ok(tx)
     }
 

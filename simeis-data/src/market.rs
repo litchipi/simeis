@@ -78,7 +78,7 @@ impl Market {
         }
     }
 
-    pub async fn buy(&self, trader: &CrewMember, r: &Resource, amnt: f64) -> MarketTx {
+    pub async fn buy(&self, trader: &CrewMember, r: &Resource, amnt: f64) -> (MarketTx, f64) {
         assert!(amnt > 0.0);
         let fee_rate = fee_rate(trader.rank);
 
@@ -95,15 +95,18 @@ impl Market {
         // let inc = rng.random_range(price_inc_min..=price_inc_max);
         // *self.prices.get_mut(r).unwrap() *= 1.0 + inc;
 
-        MarketTx {
-            added_cargo: Some((*r, amnt)),
-            removed_money: Some(cost + fees),
-            fees,
-            ..Default::default()
-        }
+        (
+            MarketTx {
+                added_cargo: Some((*r, amnt)),
+                removed_money: Some(cost + fees),
+                fees,
+                ..Default::default()
+            },
+            *price,
+        )
     }
 
-    pub async fn sell(&self, trader: &CrewMember, r: &Resource, amnt: f64) -> MarketTx {
+    pub async fn sell(&self, trader: &CrewMember, r: &Resource, amnt: f64) -> (MarketTx, f64) {
         assert!(amnt > 0.0);
         let fee_rate = fee_rate(trader.rank);
 
@@ -120,12 +123,15 @@ impl Market {
         // let dec = rng.random_range(price_dec_min..=price_dec_max);
         // *self.prices.get_mut(r).unwrap() *= 1.0 - dec;
 
-        MarketTx {
-            removed_cargo: Some((*r, amnt)),
-            added_money: Some(cost - fees),
-            fees,
-            ..Default::default()
-        }
+        (
+            MarketTx {
+                removed_cargo: Some((*r, amnt)),
+                added_money: Some(cost - fees),
+                fees,
+                ..Default::default()
+            },
+            *price,
+        )
     }
 }
 
