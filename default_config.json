@@ -90,6 +90,12 @@
     "change_sec": 3.0,
     "base_fee_rate": 0.3,
     "fee_rate_dev_powf": 0.93,
-    "upd_price_proba": 0.15
+    "upd_price_proba": 0.15,
+    "buy_influence_param_a": 0.58705952,
+    "buy_influence_param_b": 2.02534317,
+    "buy_influence_param_c": 0.91719239,
+    "sell_influence_param_a": 0.58705814,
+    "sell_influence_param_b": 2.0727834,
+    "sell_influence_param_c": 26.7850901
   }
 }

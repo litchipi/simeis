@@ -27,6 +27,7 @@ pub fn init_config<'a>(fpath: &Path) -> Result<&'a SimeisConfig, Errcode> {
         let cfg: SimeisConfig__deser = serde_json::from_str(&s).map_err(Errcode::LoadConfigJson)?;
         SimeisConfig::from(cfg)
     };
+
     CONFIG.set(cfg).unwrap();
     Ok(CONFIG.get().unwrap())
 }
@@ -178,6 +179,14 @@ config_fields!(SimeisMarketConfig;
     base_fee_rate: f64 => "" => 30.0 / 100.0,
     fee_rate_dev_powf: f64 => "" => 0.93,
     upd_price_proba: f64 => "" => 0.15,
+
+    buy_influence_param_a: f64 => "" => 0.58705952,
+    buy_influence_param_b: f64 => "" => 2.02534317,
+    buy_influence_param_c: f64 => "" => 0.91719239,
+
+    sell_influence_param_a: f64 => "" => 0.58705814,
+    sell_influence_param_b: f64 => "" => 2.07278340,
+    sell_influence_param_c: f64 => "" => 26.7850901,
 );
 
 config_fields!(SimeisIndustryConfig;
@@ -221,7 +230,6 @@ config_fields!(SimeisResourcesConfig;
     tier3_min_rank: u8 => "" => 4,
     tier4_min_rank: u8 => "" => 6,
 );
-
 main_config!(SimeisConfig;
     server: SimeisServerConfig,
     game: SimeisGameConfig,
@@ -233,3 +241,20 @@ main_config!(SimeisConfig;
     crew: SimeisCrewConfig,
     market: SimeisMarketConfig,
 );
+
+impl SimeisMarketConfig {
+    #[inline]
+    pub fn influence_buy(&self, sold_val: f64, rel_price: f64) -> f64 {
+        let resa = sold_val.powf(self.buy_influence_param_a);
+        let resb = rel_price.powf(self.buy_influence_param_b);
+        1.0 + ((self.buy_influence_param_c * resa) / resb)
+    }
+
+    #[inline]
+    pub fn influence_sell(&self, sold_val: f64, rel_price: f64) -> f64 {
+        let resa = sold_val.powf(self.sell_influence_param_a);
+        let resb = rel_price.powf(self.sell_influence_param_b);
+        let resc = 1.0 / (2.0f64.powf(self.sell_influence_param_c));
+        1.0 - (resc * resa * resb)
+    }
+}
