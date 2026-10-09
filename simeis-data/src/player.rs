@@ -7,7 +7,7 @@ use std::time::Instant;
 use rand::Rng;
 
 use crate::config::get_config;
-use crate::crew::CrewId;
+use crate::crew::{CrewId, CrewMemberType};
 use crate::errors::Errcode;
 use crate::galaxy::station::{Station, StationId};
 use crate::history::{AssignedCrew, PlayerHistory, PlayerHistoryEvent};
@@ -306,9 +306,26 @@ impl Player {
         };
         // SAFETY Checked in function above
         let ship = self.ships.get_mut(ship_id).unwrap();
+        let assignation;
         let res = {
             let Some(ref mut cm) = ship.crew.0.get_mut(crew_id) else {
                 return Err(Errcode::CrewMemberNotFound(*crew_id));
+            };
+            assignation = match cm.member_type {
+                CrewMemberType::Pilot => AssignedCrew::Pilot { ship: *ship_id },
+                CrewMemberType::Operator => {
+                    let matchmod = ship
+                        .modules
+                        .iter()
+                        .filter(|(_, m)| m.operator.map(|v| &v == crew_id).unwrap_or(false))
+                        .nth(0)
+                        .unwrap();
+                    AssignedCrew::ShipModule {
+                        ship: *ship_id,
+                        module: *matchmod.0,
+                    }
+                }
+                CrewMemberType::Trader | CrewMemberType::Soldier => unreachable!(),
             };
 
             let price = cm.price_next_rank();
@@ -323,6 +340,7 @@ impl Player {
         ship.update_perf_stats();
         self.history
             .add(PlayerHistoryEvent::UpgradeCrew {
+                assignation,
                 crew: *crew_id,
                 price: res.0,
                 newrank: res.1,
@@ -348,6 +366,9 @@ impl Player {
                 self.update_costs().await;
                 self.history
                     .add(PlayerHistoryEvent::UpgradeCrew {
+                        assignation: AssignedCrew::Trader {
+                            station: *station_id,
+                        },
                         crew: *crew_id,
                         price,
                         newrank,

@@ -141,6 +141,7 @@ pub enum PlayerHistoryEvent {
         old_assignation: AssignedCrew,
     },
     UpgradeCrew {
+        assignation: AssignedCrew,
         crew: CrewId,
         price: f64,
         newrank: u8,
