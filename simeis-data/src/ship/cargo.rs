@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use super::resources::Resource;
 
+const MAX_CARGO_SLOWING_RATIO: f64 = 0.85;
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ShipCargo {
     pub capacity: f64,
@@ -20,10 +22,9 @@ impl ShipCargo {
         }
     }
 
+    #[inline]
     pub fn slowing_ratio(&self) -> f64 {
-        // let usage_ratio = self.usage / self.capacity;
-        // TODO (#11)    Cargo slows down speed of ship
-        0.0
+        calc_slowing_ratio(self.usage / self.capacity)
     }
 
     pub fn add_resource(&mut self, res: &Resource, mut amnt: f64) -> f64 {
@@ -67,6 +68,10 @@ impl ShipCargo {
         let capleft = self.capacity - self.usage;
         capleft / resource.volume()
     }
+}
+
+pub fn calc_slowing_ratio(usage_ratio: f64) -> f64 {
+    usage_ratio.clamp(0.0, MAX_CARGO_SLOWING_RATIO).powf(1.5)
 }
 
 #[test]

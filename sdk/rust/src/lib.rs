@@ -360,6 +360,7 @@ impl SimeisSDK {
         speed: f64,
         fuelcons: f64,
         hullusage: f64,
+        cargo_usage_perc: u8,
     ) -> ApiResult {
         self.post_with_body(
             "/calc/navigation",
@@ -371,6 +372,7 @@ impl SimeisSDK {
                     "fuel_consumption": fuelcons,
                     "hull_usage_rate": hullusage,
                 }),
+                "cargo_usage_perc": cargo_usage_perc,
             }),
         )
     }

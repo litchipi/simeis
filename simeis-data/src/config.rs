@@ -128,7 +128,7 @@ config_fields!(SimeisGameConfig;
     player_init_money: f64 => "SIMEIS_PLAYER_INIT_MONEY" => 72000.0,
     sector_size: u32 => "" => 2000,
     planets_per_sector: usize => "" => 12,
-    station_fplanet_dist: f64 => "" => 300.0,
+    station_fplanet_dist: f64 => "" => 200.0,
 );
 
 config_fields!(SimeisUpgradeConfig;
@@ -151,7 +151,7 @@ config_fields!(SimeisShipConfig;
     module_rank_weight: f64 => "" => 2.0,
 
     hull_usage_rate: f64 => "" => 30.0 / 1000.0,
-    reactor_speed_rate: f64 => "" => 30.0,
+    reactor_speed_rate: f64 => "" => 56.0,
     shield_rank_log: f64 => "" => 4.0,
     pilot_fuel_share: u8 => "" => 7,
     pilot_rank_speed_powf: f64 => "" => 1.2,

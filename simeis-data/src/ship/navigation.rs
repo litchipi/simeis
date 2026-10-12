@@ -21,6 +21,7 @@ impl Travel {
         &self,
         origin: &SpaceCoord,
         stats: &ShipStats,
+        slowing_ratio: f64,
     ) -> Result<TravelCost, Errcode> {
         if stats.speed <= 0.0 {
             return Err(Errcode::InvalidArgument("speed <= 0"));
@@ -36,13 +37,14 @@ impl Travel {
             return Err(Errcode::NullDistance);
         }
         let direction = get_direction(origin, &self.destination);
-        let time_secs = distance / stats.speed;
-        let fuel_consumption = stats.fuel_consumption * time_secs;
+        assert!(slowing_ratio < 1.0);
+        let duration = distance / (stats.speed * (1.0 - slowing_ratio));
+        let fuel_consumption = stats.fuel_consumption * duration;
         let hull_usage = stats.hull_usage_rate * distance;
         Ok(TravelCost {
             direction,
             distance,
-            duration: time_secs,
+            duration,
             fuel_consumption,
             hull_usage,
         })
@@ -52,7 +54,8 @@ impl Travel {
         if ship.pilot.is_none() {
             return Err(Errcode::NoPilotAssigned);
         }
-        self.compute_from_stats(&ship.position, &ship.stats)
+        let sr = ship.cargo.slowing_ratio();
+        self.compute_from_stats(&ship.position, &ship.stats, sr)
     }
 }
 
@@ -81,6 +84,7 @@ pub struct FlightData {
     pub direction: (f64, f64, f64),
     pub dist_done: f64,
     pub dist_tot: f64,
+    pub speed: f64,
 }
 
 impl FlightData {
@@ -92,6 +96,7 @@ impl FlightData {
             delta: get_delta(&start, &travel.destination),
             destination: travel.destination,
             start,
+            speed: cost.distance / cost.duration,
         }
     }
 }

@@ -11,7 +11,7 @@
     "player_init_money": 72000.0,
     "sector_size": 2000,
     "planets_per_sector": 12,
-    "station_fplanet_dist": 300.0
+    "station_fplanet_dist": 200.0
   },
   "resources": {
     "tier1_price": 6.0,
@@ -70,7 +70,7 @@
     "module_exrate_fact": 0.6,
     "module_rank_weight": 2.0,
     "hull_usage_rate": 0.03,
-    "reactor_speed_rate": 30.0,
+    "reactor_speed_rate": 56.0,
     "shield_rank_log": 4.0,
     "pilot_fuel_share": 7,
     "pilot_rank_speed_powf": 1.2

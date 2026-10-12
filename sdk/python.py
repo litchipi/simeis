@@ -144,11 +144,12 @@ class SimeisSDK:
     def assign_trader_to_station(self, sta, trader_id):
         return self.post(f"/station/{sta}/crew/assign/{trader_id}/trading")
 
-    def compute_travel_cost(self, origin, destination, ship_stats):
+    def compute_travel_cost(self, origin, destination, ship_stats, cargo_usage_perc):
         return self.post(f"/calc/navigation", body={
             "origin": origin,
             "dest": destination,
             "ship_stats":  ship_stats,
+            "cargo_usage_perc": cargo_usage_perc,
         })
 
     def travel(self, ship_id, position, wait_end=True):

@@ -455,12 +455,14 @@ class Tester:
             "origin": shippos,
             "dest": shippos,
             "ship_stats": ship["stats"],
+            "cargo_usage_perc": 0,
         })
 
         close = self.post_ok("/calc/navigation", body={
             "origin": shippos,
             "dest": (shippos[0]+1,shippos[1]+1, shippos[2]+1),
             "ship_stats": ship["stats"],
+            "cargo_usage_perc": 0,
         })["costs"]
         dist = self.assert_got(close, "distance", None)
         assert dist is not None
@@ -470,6 +472,7 @@ class Tester:
             "origin": shippos,
             "dest": (shippos[0]+2,shippos[1]+2, shippos[2]+2),
             "ship_stats": ship["stats"],
+            "cargo_usage_perc": 0,
         })["costs"]
 
         self.assert_got(far, "distance", 2 * self.assert_got(close, "distance", None))
@@ -562,6 +565,7 @@ class Tester:
             "ship_stats": ship["stats"],
             "origin": pos,
             "dest": dst,
+            "cargo_usage_perc": 0,
         })["costs"]
         done = (cost["duration"] - self.assert_got(costmid, "duration", None)) / cost["duration"]
         for key in ["fuel_consumption", "hull_usage", "distance", "duration"]:
@@ -967,6 +971,7 @@ class Tester:
             "ship_stats": ship["stats"],
             "origin": ship["position"],
             "dest": dest,
+            "cargo_usage_perc": 0,
         })["costs"]
         oldt = self.assert_got(cost, "duration", None)
 
@@ -1112,6 +1117,7 @@ class Tester:
              },
              "origin": (0, 0, 0),
              "dest": (1, 1, 1),
+             "cargo_usage_perc": 0,
          })["costs"]
         dcosts = self.post_ok("/calc/navigation", body={
              "ship_stats": {
@@ -1121,6 +1127,17 @@ class Tester:
              },
              "origin": (0, 0, 0),
              "dest": (1, 1, 1),
+             "cargo_usage_perc": 0,
+         })["costs"]
+        heavy = self.post_ok("/calc/navigation", body={
+             "ship_stats": {
+                 "speed": 2.0,
+                 "fuel_consumption": 2.0,
+                 "hull_usage_rate": 2.0,
+             },
+             "origin": (0, 0, 0),
+             "dest": (1, 1, 1),
+             "cargo_usage_perc": 100,
          })["costs"]
         fcosts = self.post_ok("/calc/navigation", body={
              "ship_stats": {
@@ -1130,6 +1147,7 @@ class Tester:
              },
              "origin": (0, 0, 0),
              "dest": (2, 2, 2),
+             "cargo_usage_perc": 0,
          })["costs"]
         self.assert_got(scosts, "direction", dcosts["direction"])
         self.assert_got(dcosts, "direction", fcosts["direction"])
@@ -1138,7 +1156,7 @@ class Tester:
         self.assert_got(dcosts, "distance", fcosts["distance"] / 2)
 
         self.assert_got(scosts, "duration", dcosts["duration"] * 2)
-        self.assert_got(dcosts, "duration", fcosts["duration"] / 2)
+        initdur = self.assert_got(dcosts, "duration", fcosts["duration"] / 2)
 
         # 2x more consumption, but 2x faster = same
         self.assert_got(scosts, "fuel_consumption", dcosts["fuel_consumption"])
@@ -1147,6 +1165,10 @@ class Tester:
         # Hull usage is based on distance
         self.assert_got(scosts, "hull_usage", dcosts["hull_usage"] / 2)
         self.assert_got(dcosts, "hull_usage", fcosts["hull_usage"] / 2)
+
+        heavydur = self.assert_got(heavy, "duration", None)
+        self.addtrace("Heavy duration", heavydur, "init duration", initdur)
+        assert heavydur > (initdur*1.05)
 
     @functest
     def test_compute_mining_rate(self):
