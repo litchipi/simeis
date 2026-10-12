@@ -63,7 +63,9 @@ async fn main() -> std::io::Result<()> {
         return Err(std::io::ErrorKind::InvalidData.into());
     };
     let cfg_file = PathBuf::from(cfg_file);
+
     let config = init_config(&cfg_file).expect("Unable to initialize configuration");
+    config.validation_tests();
     let port = config.server.port;
 
     env_logger::builder()

@@ -91,7 +91,7 @@ impl Ship {
     }
 
     fn light(id: ShipId, position: SpaceCoord) -> Ship {
-        Ship {
+        let s = Ship {
             id,
             position,
             reactor_rank: 1,
@@ -100,7 +100,9 @@ impl Ship {
             hull_resistance: 3000.0,
             shield_rank: 0,
             ..Default::default()
-        }
+        };
+        log::info!("Init light ship price: {}", s.compute_price());
+        s
     }
 
     fn medium(id: ShipId, position: SpaceCoord) -> Ship {

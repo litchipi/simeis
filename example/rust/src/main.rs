@@ -194,6 +194,7 @@ impl Game {
 
             // Rebelotte
             println!("Total this cycle: {cycletot}");
+            assert!(cycletot > 0.0);
             println!();
         }
         Ok(())

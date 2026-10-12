@@ -94,6 +94,7 @@ impl Market {
         let cfg = get_config();
         let rel_price = *price / r.base_price();
         let pratio = cfg.market.influence_buy(cost, rel_price);
+        log::debug!("Influence BUY: {pratio}");
         *price *= pratio;
         assert!(*price > 0.0);
 
@@ -122,6 +123,7 @@ impl Market {
         let cfg = get_config();
         let rel_price = *price / r.base_price();
         let pratio = cfg.market.influence_sell(cost, rel_price);
+        log::debug!("Influence SELL: {pratio}");
         *price *= pratio;
         assert!(*price > 0.0);
 

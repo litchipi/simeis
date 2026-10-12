@@ -123,11 +123,12 @@ config_fields!(SimeisServerConfig;
     token_file: String => "SIMEIS_TOKEN_FILE" => ".simeis-admin-token".to_string(),
 );
 
+const INIT_MONEY_AFTER_BUY_SHIP: f64 = 12000.0;
 config_fields!(SimeisGameConfig;
     shards: usize => "SIMEIS_LOCKS_SHARDS" => 5,
-    player_init_money: f64 => "SIMEIS_PLAYER_INIT_MONEY" => 72000.0,
+    player_init_money: f64 => "SIMEIS_PLAYER_INIT_MONEY" => 86000.0 + INIT_MONEY_AFTER_BUY_SHIP,
     sector_size: u32 => "" => 2000,
-    planets_per_sector: usize => "" => 12,
+    planets_per_sector: usize => "" => 6,
     station_fplanet_dist: f64 => "" => 200.0,
 );
 
@@ -137,24 +138,24 @@ config_fields!(SimeisUpgradeConfig;
 );
 
 config_fields!(SimeisShipConfig;
-    fuel_tank_cap_price: f64 => "" => 30.0,
-    cargo_cap_price: f64 => "" => 20.0,
-    hull_resis_price: f64 => "" => 9.0,
-    reactor_rank_price: f64 => "" => 5000.0,
-    shield_price: f64 => "" => 3500.0,
+    fuel_tank_cap_price: f64 => "" => 50.0,
+    cargo_cap_price: f64 => "" => 40.0,
+    hull_resis_price: f64 => "" => 8.0,
+    reactor_rank_price: f64 => "" => 4000.0,
+    shield_price: f64 => "" => 1400.0,
     default_pow_attr: u8 => "" => 128,
 
-    module_base_price: f64 => "" => 4500.0,
+    module_base_price: f64 => "" => 4000.0,
     module_base_extraction_mult: f64 => "" => 50.0,
-    module_exrate_diff_fact: f64 => "" => 1.5,
+    module_exrate_diff_fact: f64 => "" => 1.3,
     module_exrate_fact: f64 => "" => 0.6,
-    module_rank_weight: f64 => "" => 2.0,
+    module_rank_weight: f64 => "" => 2.5,
 
-    hull_usage_rate: f64 => "" => 30.0 / 1000.0,
-    reactor_speed_rate: f64 => "" => 56.0,
-    shield_rank_log: f64 => "" => 4.0,
-    pilot_fuel_share: u8 => "" => 7,
-    pilot_rank_speed_powf: f64 => "" => 1.2,
+    hull_usage_rate: f64 => "" => 230.0 / 1000.0,
+    reactor_speed_rate: f64 => "" => 55.0,
+    shield_rank_log: f64 => "" => 3.0,
+    pilot_fuel_share: u8 => "" => 9,
+    pilot_rank_speed_powf: f64 => "" => 1.0,
 );
 config_fields!(SimeisStationConfig;
     cargo_base_price: f64 => "" => 20.0,
@@ -166,9 +167,9 @@ config_fields!(SimeisCrewConfig;
     wage_next_rank_powf: f64 => "" => 0.9,
     wage_next_rank_mult: f64 => "" => 1100.0,
 
-    base_op_wage: f64 => "" => 1.0,
-    pilot_wage_mult: f64 => "" => 3.5,
-    trader_wage_mult: f64 => "" => 5.0,
+    base_op_wage: f64 => "" => 0.5,
+    pilot_wage_mult: f64 => "" => 3.7,
+    trader_wage_mult: f64 => "" => 3.5,
     solider_wage_mult: f64 => "" => 2.5,
 );
 
@@ -180,13 +181,21 @@ config_fields!(SimeisMarketConfig;
     fee_rate_dev_powf: f64 => "" => 0.93,
     upd_price_proba: f64 => "" => 0.15,
 
-    buy_influence_param_a: f64 => "" => 0.58705952,
-    buy_influence_param_b: f64 => "" => 2.02534317,
-    buy_influence_param_c: f64 => "" => 0.91719239,
+    influence_max: f64 => "" => 0.3,
 
-    sell_influence_param_a: f64 => "" => 0.58705814,
-    sell_influence_param_b: f64 => "" => 2.07278340,
-    sell_influence_param_c: f64 => "" => 26.7850901,
+    buy_influence_param_a: f64 => "" => 0.012016306907210268,
+    buy_influence_param_b: f64 => "" => 0.6237236148551031,
+    buy_influence_param_c: f64 => "" => 1.5387935484111805,
+    buy_influence_param_d: f64 => "" => 0.083936408655154,
+    buy_influence_param_e: f64 => "" => 0.023142091704532564,
+    buy_influence_param_f: f64 => "" => 0.0341811445383504,
+
+    sell_influence_param_a: f64 => "" => 0.02578237202951275,
+    sell_influence_param_b: f64 => "" => 0.5554258819004403,
+    sell_influence_param_c: f64 => "" => 1.9919988458913422,
+    sell_influence_param_d: f64 => "" => 0.0018077576687068689,
+    sell_influence_param_e: f64 => "" => 0.010908391555243003,
+    sell_influence_param_f: f64 => "" => 0.002494236546541542,
 );
 
 config_fields!(SimeisIndustryConfig;
@@ -205,23 +214,23 @@ config_fields!(SimeisIndustryConfig;
     advanced_res3rq: f64 => "" => 0.2,
 );
 config_fields!(SimeisResourcesConfig;
-    tier1_price: f64 => "" => 6.3,
+    tier1_price: f64 => "" => 7.0,
     tier2_price_mult: f64 => "" => 2.0,
-    tier3_price_mult: f64 => "" => 5.0,
-    tier4_price_mult: f64 => "" => 8.0,
+    tier3_price_mult: f64 => "" => 5.3,
+    tier4_price_mult: f64 => "" => 8.2,
 
-    tier1_volume: f64 => "" => 2.4,
-    tier2_volume: f64 => "" => 1.8,
+    tier1_volume: f64 => "" => 2.3,
+    tier2_volume: f64 => "" => 1.7,
     tier3_volume: f64 => "" => 1.15,
     tier4_volume: f64 => "" => 0.8,
 
-    fuel_price: f64 => "" => 12.0,
-    hull_price: f64 => "" => 1.0,
-    fuel_volume: f64 => "" => 6.0,
-    hull_volume: f64 => "" => 0.75,
+    fuel_price: f64 => "" => 8.0,
+    hull_price: f64 => "" => 5.3,
+    fuel_volume: f64 => "" => 5.5,
+    hull_volume: f64 => "" => 0.65,
 
-    tier1_difficulty: f64 => "" => 2.0,
-    tier2_difficulty_mult: f64 => "" => 2.0,
+    tier1_difficulty: f64 => "" => 1.9,
+    tier2_difficulty_mult: f64 => "" => 2.1,
     tier3_difficulty_mult: f64 => "" => 5.0,
     tier4_difficulty_mult: f64 => "" => 8.0,
 
@@ -244,17 +253,42 @@ main_config!(SimeisConfig;
 
 impl SimeisMarketConfig {
     #[inline]
-    pub fn influence_buy(&self, sold_val: f64, rel_price: f64) -> f64 {
-        let resa = sold_val.powf(self.buy_influence_param_a);
-        let resb = rel_price.powf(self.buy_influence_param_b);
-        1.0 + ((self.buy_influence_param_c * resa) / resb)
+    pub fn influence_buy(&self, sold_val: f64, price: f64) -> f64 {
+        let amnt = (sold_val / 1000.0).max(1e-6);
+        let base = self.buy_influence_param_a * (amnt.powf(self.buy_influence_param_b))
+            / (price.powf(self.buy_influence_param_c));
+        let mult = 1.0
+            + (self.buy_influence_param_d * (amnt.powf(self.buy_influence_param_e))
+                / (price.powf(self.buy_influence_param_f)));
+        let infl = base * mult;
+        debug_assert!(infl >= 0.0);
+        1.0 + infl.min(self.influence_max)
     }
 
     #[inline]
-    pub fn influence_sell(&self, sold_val: f64, rel_price: f64) -> f64 {
-        let resa = sold_val.powf(self.sell_influence_param_a);
-        let resb = rel_price.powf(self.sell_influence_param_b);
-        let resc = 1.0 / (2.0f64.powf(self.sell_influence_param_c));
-        1.0 - (resc * resa * resb)
+    pub fn influence_sell(&self, sold_val: f64, price: f64) -> f64 {
+        let amnt = (sold_val / 1000.0).max(1e-6);
+        let base = self.sell_influence_param_a
+            * amnt.powf(self.sell_influence_param_b)
+            * price.powf(self.sell_influence_param_c);
+        let mult = 1.0
+            + (self.sell_influence_param_d
+                * amnt.powf(self.sell_influence_param_e)
+                * price.powf(self.sell_influence_param_f));
+        let infl = base * mult;
+        debug_assert!(infl >= 0.0);
+        1.0 - infl.min(self.influence_max)
+    }
+}
+
+impl SimeisConfig {
+    pub fn validation_tests(&self) {
+        // Market influence
+        let inflb = self.market.influence_buy(100.0, 1.0);
+        println!("Influence BUY for 100 at 100%: {inflb}");
+        assert!(inflb < 1.01);
+        let infls = self.market.influence_sell(100.0, 1.0);
+        println!("Influence SELL for 100 at 100%: {infls}");
+        assert!(infls > 0.99);
     }
 }
