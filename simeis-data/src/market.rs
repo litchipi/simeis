@@ -59,8 +59,8 @@ impl Market {
     fn get_new_price<R: Rng>(&self, rng: &mut R, r: &Resource, old: f64) -> f64 {
         let distr = self.rand_distrib(r, old);
         let change = distr.sample(rng).clamp(-0.3, 0.3); // 30% change max in one tick
-        let new = old * (1.0 + change);
-        new
+
+        old * (1.0 + change)
     }
 
     pub async fn update_prices<R: Rng>(&self, rng: &mut R) {
