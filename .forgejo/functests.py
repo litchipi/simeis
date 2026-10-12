@@ -792,11 +792,18 @@ class Tester:
         )
 
         amnt = 40
+        price = self.assert_got(self.get_ok("/market/prices"), "iron", None)
+        assert price > 0
+        cost = amnt * price
         fee = self.get_ok(f"/market/{self.station}/fee_rate")
-        feerate = self.assert_got(fee, "fee_rate", 0.25)
-        iron_tot = 30 / (1 - feerate)
-        tx = self.post_ok(f"/market/{self.station}/buy/{resname}/{iron_tot}")
-        assert self.assert_got(tx, "removed_money", None) > 0
+        feerate = self.assert_got(fee, "fee_rate", None)
+        tx = self.post_ok(f"/market/{self.station}/buy/{resname}/{amnt}")
+        cost_base = self.assert_cmpf(
+            self.assert_got(tx, "removed_money", None),
+            cost * (1.0 + feerate),
+            eps = 0.00001,
+        )
+        fee = self.assert_got(tx, "fees", cost * feerate)
         self.assert_got(tx, "added_cargo", [resname, amnt])
 
         cargo = self.get_ok(f"/station/{self.station}")["cargo"]
@@ -810,6 +817,11 @@ class Tester:
         cargobefore = self.get_ok(f"/station/{self.station}")["cargo"]
         tx = self.post_ok(f"/market/{self.station}/buy/iron/5000")
         assert self.assert_got(tx, "added_cargo", None)[1] < 5000
+
+        got = self.post_ok(f"/station/{self.station}/crew/upgrade/{traderid}")
+        fee = self.get_ok(f"/market/{self.station}/fee_rate")
+        upg_feerate = self.assert_got(fee, "fee_rate", None)
+        assert upg_feerate < feerate
 
     # Uses environment of previous test
     @functest

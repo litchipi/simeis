@@ -196,6 +196,7 @@ impl Game {
                             if ship.hull_decay >= ship.hull_resistance {
                                 deadship.push(*id);
                             } else {
+                                log::debug!("Ship flight finished {id}: fuel {:.2}/{:.2}, hull {:.2}/{:.2}", ship.fuel_tank, ship.fuel_tank_capacity, ship.hull_decay, ship.hull_resistance);
                                 syslog
                                     .event(player_id, SyslogEvent::ShipFlightFinished(*id))
                                     .await;

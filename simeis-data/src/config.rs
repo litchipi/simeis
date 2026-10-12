@@ -205,15 +205,15 @@ config_fields!(SimeisIndustryConfig;
     advanced_res3rq: f64 => "" => 0.2,
 );
 config_fields!(SimeisResourcesConfig;
-    tier1_price: f64 => "" => 6.0,
+    tier1_price: f64 => "" => 6.3,
     tier2_price_mult: f64 => "" => 2.0,
     tier3_price_mult: f64 => "" => 5.0,
     tier4_price_mult: f64 => "" => 8.0,
 
-    tier1_volume: f64 => "" => 2.5,
-    tier2_volume: f64 => "" => 1.9,
-    tier3_volume: f64 => "" => 1.2,
-    tier4_volume: f64 => "" => 0.85,
+    tier1_volume: f64 => "" => 2.4,
+    tier2_volume: f64 => "" => 1.8,
+    tier3_volume: f64 => "" => 1.15,
+    tier4_volume: f64 => "" => 0.8,
 
     fuel_price: f64 => "" => 12.0,
     hull_price: f64 => "" => 1.0,
