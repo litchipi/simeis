@@ -188,7 +188,7 @@ impl ExtractionInfo {
     }
 }
 
-// TODO Parametric test, whatever the resource distr, should never have nan or infinite vals
+// TODO (#13) Parametric test, whatever the resource distr, should never have nan or infinite vals
 pub fn apply_power_attribution(attrs: &BTreeMap<Resource, u8>, r: &mut BTreeMap<Resource, f64>) {
     let cfg = get_config();
     let powtot: u16 = r
