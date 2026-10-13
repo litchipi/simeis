@@ -90,8 +90,14 @@ async fn shipyard_list_upgrades(
     let pkey = get_player_key!(req);
 
     let data = srv
-        .map_ship_in_station(&pkey, &station_id, &ship_id, |_, _, station, ship| {
+        .map_player(&pkey, |player| {
             Box::pin(async move {
+                let Some(station) = player.stations.get(&station_id) else {
+                    return Err(Errcode::NoSuchStation(station_id));
+                };
+                let Some(ship) = player.ships.get(&ship_id) else {
+                    return Err(Errcode::ShipNotFound(ship_id));
+                };
                 let mut res = BTreeMap::new();
                 for upgr in ShipUpgrade::iter() {
                     let price = station.get_ship_upgrade_price(ship, &upgr);
