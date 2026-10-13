@@ -4,6 +4,9 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::errors::Errcode;
 
+const INIT_MODULE_PRICE: f64 = 4000.0;
+const INIT_MONEY_AFTER_FIRST_SETUP: f64 = 3000.0;
+
 static CONFIG: OnceLock<SimeisConfig> = OnceLock::new();
 
 pub fn get_config<'a>() -> &'a SimeisConfig {
@@ -123,13 +126,12 @@ config_fields!(SimeisServerConfig;
     token_file: String => "SIMEIS_TOKEN_FILE" => ".simeis-admin-token".to_string(),
 );
 
-const INIT_MONEY_AFTER_BUY_SHIP: f64 = 12000.0;
 config_fields!(SimeisGameConfig;
     shards: usize => "SIMEIS_LOCKS_SHARDS" => 5,
-    player_init_money: f64 => "SIMEIS_PLAYER_INIT_MONEY" => 86000.0 + INIT_MONEY_AFTER_BUY_SHIP,
+    player_init_money: f64 => "SIMEIS_PLAYER_INIT_MONEY" => 86000.0 + INIT_MONEY_AFTER_FIRST_SETUP + INIT_MODULE_PRICE,
     sector_size: u32 => "" => 2000,
     planets_per_sector: usize => "" => 6,
-    station_fplanet_dist: f64 => "" => 200.0,
+    station_fplanet_dist: f64 => "" => 220.0,
 );
 
 config_fields!(SimeisUpgradeConfig;
@@ -145,29 +147,29 @@ config_fields!(SimeisShipConfig;
     shield_price: f64 => "" => 1400.0,
     default_pow_attr: u8 => "" => 128,
 
-    module_base_price: f64 => "" => 4000.0,
-    module_base_extraction_mult: f64 => "" => 50.0,
+    module_base_price: f64 => "" => INIT_MODULE_PRICE,
+    module_base_extraction_mult: f64 => "" => 45.0,
     module_exrate_diff_fact: f64 => "" => 1.3,
     module_exrate_fact: f64 => "" => 0.6,
     module_rank_weight: f64 => "" => 2.5,
 
-    hull_usage_rate: f64 => "" => 230.0 / 1000.0,
+    hull_usage_rate: f64 => "" => 200.0 / 1000.0,
     reactor_speed_rate: f64 => "" => 55.0,
     shield_rank_log: f64 => "" => 3.0,
     pilot_fuel_share: u8 => "" => 9,
     pilot_rank_speed_powf: f64 => "" => 1.0,
 );
 config_fields!(SimeisStationConfig;
-    cargo_base_price: f64 => "" => 20.0,
+    cargo_base_price: f64 => "" => 80.0,
     cargo_price_incdiv: f64 => "" => 100.0,
-    init_cargo: f64 => "" => 2000.0,
+    init_cargo: f64 => "" => 10000.0,
 );
 config_fields!(SimeisCrewConfig;
     wage_rank_powf: f64 => "" => 2.2,
     wage_next_rank_powf: f64 => "" => 0.9,
     wage_next_rank_mult: f64 => "" => 1100.0,
 
-    base_op_wage: f64 => "" => 0.5,
+    base_op_wage: f64 => "" => 0.85,
     pilot_wage_mult: f64 => "" => 3.7,
     trader_wage_mult: f64 => "" => 3.5,
     solider_wage_mult: f64 => "" => 2.5,
@@ -214,7 +216,7 @@ config_fields!(SimeisIndustryConfig;
     advanced_res3rq: f64 => "" => 0.2,
 );
 config_fields!(SimeisResourcesConfig;
-    tier1_price: f64 => "" => 7.0,
+    tier1_price: f64 => "" => 7.5,
     tier2_price_mult: f64 => "" => 2.0,
     tier3_price_mult: f64 => "" => 5.3,
     tier4_price_mult: f64 => "" => 8.2,
@@ -224,9 +226,9 @@ config_fields!(SimeisResourcesConfig;
     tier3_volume: f64 => "" => 1.15,
     tier4_volume: f64 => "" => 0.8,
 
-    fuel_price: f64 => "" => 8.0,
-    hull_price: f64 => "" => 5.3,
-    fuel_volume: f64 => "" => 5.5,
+    fuel_price: f64 => "" => 6.0,
+    hull_price: f64 => "" => 0.35,
+    fuel_volume: f64 => "" => 5.0,
     hull_volume: f64 => "" => 0.65,
 
     tier1_difficulty: f64 => "" => 1.9,
