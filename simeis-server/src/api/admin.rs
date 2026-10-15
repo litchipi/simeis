@@ -13,6 +13,9 @@ use simeis_data::syslog::SyslogEvent;
 use crate::api::build_response;
 use crate::{AdminToken, GameState};
 
+// @summary Know if we are admin or not
+// @returns the boolean flag if we are admin or not
+// @noswagger
 #[web::get("")]
 async fn is_admin(req: HttpRequest, tok: AdminToken) -> impl web::Responder {
     let is_admin = got_admin_token!(req, tok);

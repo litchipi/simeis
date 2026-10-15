@@ -856,6 +856,10 @@ impl SimeisSDK {
         self.get("/player/wages")
     }
 
+    pub fn get_station_wages(&self, sta: u64) -> ApiResult {
+        self.get(format!("/station/{sta}/wages"))
+    }
+
     pub fn unassign_crew(&self, sta: u64, cid: u64) -> ApiResult {
         self.post(format!("/station/{sta}/crew/unassign/{cid}"))
     }
@@ -886,5 +890,14 @@ impl SimeisSDK {
             )
         };
         got.map(|v| json_get_float("total_wages", &v).unwrap())
+    }
+
+    pub fn get_player_history(&self) -> Result<Vec<Value>, Value> {
+        let mut got = self.get("/player/history")?;
+        let got = got.as_object_mut().unwrap();
+        let Some(serde_json::Value::Array(data)) = got.remove("history") else {
+            unreachable!();
+        };
+        Ok(data)
     }
 }

@@ -10,3 +10,4 @@ __pycache__
 !default_config.json
 supply-chain
 .simeis-admin-token
+*methods

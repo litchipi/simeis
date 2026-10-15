@@ -403,6 +403,9 @@ class SimeisSDK:
     def set_extraction_power_attribution(self, ship_id, res, pow):
         return self.post(f"/ship/{ship_id}/extraction/power_attribution/{res}/{pow}")
 
+    def get_station_wages(self, sta):
+        return self.get(f"/station/{sta}/wages")
+
     def get_all_wages(self):
         return self.get("/player/wages")
 
@@ -420,3 +423,6 @@ class SimeisSDK:
                 "operator_ranks": opranks,
                 "pilot_rank": pilot_rank,
             })
+
+    def get_player_history(self):
+        return self.get("/player/history")

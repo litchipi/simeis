@@ -7,6 +7,7 @@ use ntex::web::ServiceConfig;
 
 use serde_json::json;
 use serde_json::to_value;
+use serde_json::Value;
 
 use simeis_data::errors::Errcode;
 use simeis_data::galaxy::station::StationId;
@@ -69,6 +70,57 @@ async fn scan(id: Path<StationId>, srv: GameState, req: HttpRequest) -> impl web
         .scan_galaxy(&pkey, &station_id)
         .await
         .map(|v| to_value(v).unwrap());
+    build_response(data)
+}
+
+// @summary List the wages for all the crew assigned on this station
+// @returns List of the wages by crew assigned
+#[web::get("/wages")]
+async fn get_station_wages(
+    srv: GameState,
+    args: Path<StationId>,
+    req: HttpRequest,
+) -> impl web::Responder {
+    let pkey = get_player_key!(req);
+    let station_id = *args;
+
+    let data = srv
+        .map_station(&pkey, &station_id, |pid, _, station| {
+            Box::pin(async move {
+                let Some(pd) = station.player_data.clone_val(&pid).await else {
+                    return Ok(json!({}));
+                };
+                let pd = pd.read().await;
+                let mut data = serde_json::Map::new();
+                if let Some(id) = pd.trader {
+                    let wage = pd.crew.0.get(&id).unwrap().wage();
+                    data.insert(
+                        "trader".into(),
+                        json!({
+                            "id": id,
+                            "wage": wage,
+                        }),
+                    );
+                }
+                let mut industry_data = serde_json::Map::new();
+                for (id, unit) in pd.industry.iter() {
+                    let Some(op) = unit.operator else {
+                        continue;
+                    };
+                    let wage = pd.crew.0.get(&op).unwrap().wage();
+                    industry_data.insert(
+                        id.to_string(),
+                        json!({
+                            "operator": op,
+                            "wage": wage,
+                        }),
+                    );
+                }
+                data.insert("industry".into(), Value::Object(industry_data));
+                Ok(Value::Object(data))
+            })
+        })
+        .await;
     build_response(data)
 }
 
@@ -166,6 +218,7 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
             .configure(|srv| crate::api::industry::configure("/industry", srv))
             .service(scan)
             .service(get_station_status)
+            .service(get_station_wages)
             .service(get_station_upgrades)
             .service(refuel_ship)
             .service(repair_ship),
