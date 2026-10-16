@@ -332,20 +332,24 @@ class SimeisSDK:
             "power_attribution": power_attr,
         })
 
-    def compute_upgrade_ship(self, start_reactor, start_shield, start_pilot, end_reactor=None, end_shield=None, end_pilot=None):
+    def compute_upgrade_ship(self, start_reactor, start_shield, start_pilot, start_cargo_capacity, end_reactor=None, end_shield=None, end_pilot=None, end_cargo_capacity=None):
         if end_reactor is None:
             end_reactor = start_reactor
         if end_shield is None:
             end_shield = start_shield
         if end_pilot is None:
             end_pilot = start_pilot
+        if end_cargo_capacity is None:
+            end_cargo_capacity = start_cargo_capacity
         return self.post("/calc/upgrade/ship", body={
             "start_reactor_rank": start_reactor,
             "end_reactor_rank": end_reactor,
             "start_shield_rank": start_shield,
             "end_shield_rank": end_shield,
-            "pilot_start_rank": start_pilot,
-            "pilot_end_rank": end_pilot,
+            "start_pilot_rank": start_pilot,
+            "end_pilot_rank": end_pilot,
+            "start_cargo_capacity": start_cargo_capacity,
+            "end_cargo_capacity": end_cargo_capacity,
         })
 
     def compute_upgrade_module(self, modtype, mod_start_rank, crew_start_rank, mod_end_rank=None, crew_end_rank=None):
