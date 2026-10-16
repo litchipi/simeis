@@ -5,7 +5,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use crate::errors::Errcode;
 
 const INIT_MODULE_PRICE: f64 = 4000.0;
-const INIT_MONEY_AFTER_FIRST_SETUP: f64 = 3000.0;
+const INIT_MONEY_AFTER_FIRST_SETUP: f64 = 10000.0;
 
 static CONFIG: OnceLock<SimeisConfig> = OnceLock::new();
 
@@ -141,11 +141,11 @@ config_fields!(SimeisUpgradeConfig;
 
 config_fields!(SimeisShipConfig;
     fuel_tank_cap_price: f64 => "" => 50.0,
-    fuel_consumption_mult: f64 => "" => 10.0,
+    fuel_consumption_mult: f64 => "" => 9.0,
     cargo_cap_price: f64 => "" => 40.0,
     hull_resis_price: f64 => "" => 8.0,
     reactor_rank_price: f64 => "" => 4000.0,
-    shield_price: f64 => "" => 1400.0,
+    shield_price: f64 => "" => 1000.0,
     default_pow_attr: u8 => "" => 128,
 
     module_base_price: f64 => "" => INIT_MODULE_PRICE,
@@ -154,7 +154,7 @@ config_fields!(SimeisShipConfig;
     module_exrate_fact: f64 => "" => 0.6,
     module_rank_weight: f64 => "" => 2.5,
 
-    hull_usage_rate: f64 => "" => 200.0 / 1000.0,
+    hull_usage_rate: f64 => "" => 30.0 / 1000.0,
     reactor_speed_rate: f64 => "" => 55.0,
     shield_rank_log: f64 => "" => 3.0,
     pilot_fuel_share: u8 => "" => 9,
@@ -177,14 +177,14 @@ config_fields!(SimeisCrewConfig;
 );
 
 config_fields!(SimeisMarketConfig;
-    max_avg_ampl: f64 => "" => 7.5 / 100.0,
-    std_div: f64 => "" => 1.25,
-    change_sec: f64 => "" => 3.0,
-    base_fee_rate: f64 => "" => 30.0 / 100.0,
-    fee_rate_dev_powf: f64 => "" => 0.93,
-    upd_price_proba: f64 => "" => 0.15,
+    max_avg_ampl: f64 => "" => 2.0 / 100.0,
+    std_div: f64 => "" => 1.5,
+    change_sec: f64 => "" => 4.0,
+    base_fee_rate: f64 => "" => 28.0 / 100.0,
+    fee_rate_dev_powf: f64 => "" => 0.92,
+    upd_price_proba: f64 => "" => 0.5,
 
-    influence_max: f64 => "" => 0.3,
+    influence_max: f64 => "" => 0.35,
 
     buy_influence_param_a: f64 => "" => 0.012016306907210268,
     buy_influence_param_b: f64 => "" => 0.6237236148551031,
