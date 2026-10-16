@@ -54,6 +54,9 @@ async fn get_ship_status(
     build_response(data)
 }
 
+// TODO API to re-assign an operator from 1 module to the other, without needing a station
+
+// TODO Modify this API so that it returns also a bit of detailled inside (pilot / operators)
 // @summary Compute how much wages cost per second for this ship
 // @returns The amount of credits consumed each second by the crew of this ship
 #[web::get("/wages")]

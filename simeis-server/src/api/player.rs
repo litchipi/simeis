@@ -74,6 +74,7 @@ async fn get_all_wages(srv: GameState, req: HttpRequest) -> impl web::Responder 
                                 "assigned_on": "station",
                                 "assigned_id": sid,
                                 "wage": cm.wage(),
+                                "rank": cm.rank,
                             }),
                         );
                     }
@@ -88,6 +89,7 @@ async fn get_all_wages(srv: GameState, req: HttpRequest) -> impl web::Responder 
                                 "assigned_on": "ship",
                                 "assigned_id": sid,
                                 "wage": cm.wage(),
+                                "rank": cm.rank,
                             }),
                         );
                     }

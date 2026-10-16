@@ -93,12 +93,13 @@ async fn get_station_wages(
                 let pd = pd.read().await;
                 let mut data = serde_json::Map::new();
                 if let Some(id) = pd.trader {
-                    let wage = pd.crew.0.get(&id).unwrap().wage();
+                    let cm = pd.crew.0.get(&id).unwrap();
                     data.insert(
                         "trader".into(),
                         json!({
                             "id": id,
-                            "wage": wage,
+                            "wage": cm.wage(),
+                            "rank": cm.rank,
                         }),
                     );
                 }
@@ -107,12 +108,13 @@ async fn get_station_wages(
                     let Some(op) = unit.operator else {
                         continue;
                     };
-                    let wage = pd.crew.0.get(&op).unwrap().wage();
+                    let cm = pd.crew.0.get(&op).unwrap();
                     industry_data.insert(
                         id.to_string(),
                         json!({
                             "operator": op,
-                            "wage": wage,
+                            "wage": cm.wage(),
+                            "rank": cm.rank,
                         }),
                     );
                 }
