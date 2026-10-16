@@ -720,6 +720,7 @@ impl SimeisSDK {
         Ok(result)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn compute_upgrade_ship(
         &self,
         start_reactor: u8,
