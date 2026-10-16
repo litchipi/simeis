@@ -167,6 +167,7 @@ impl Ship {
         self.stats = ShipStats::new(
             self.reactor_rank,
             self.shield_rank,
+            self.cargo.capacity,
             self.pilot.map(|id| self.crew.0.get(&id).unwrap()),
         );
     }
