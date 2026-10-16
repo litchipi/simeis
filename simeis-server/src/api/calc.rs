@@ -9,7 +9,7 @@ use simeis_data::market::fee_rate;
 use simeis_data::ship::cargo::calc_slowing_ratio;
 use simeis_data::ship::module::{calc_extraction_rate, ShipModule, ShipModuleType};
 use simeis_data::ship::resources::{apply_power_attribution, Resource};
-use simeis_data::ship::upgrade::ShipUpgrade;
+use simeis_data::ship::upgrade::{ShipExpandUpgrade, ShipUpgrade};
 use simeis_data::ship::ShipId;
 use strum::IntoEnumIterator;
 
@@ -278,6 +278,8 @@ async fn compute_upgrade_ship(body: Json<UpgradeShip>) -> impl web::Responder {
         spow_upgrade_price += ShipUpgrade::Shield.get_price();
     }
 
+    let cargo_upgrade_price =
+        ShipExpandUpgrade::Cargo(end_cargo_capacity - start_cargo_capacity).get_price();
     let mut crew_upgrade_price = 0.0;
     for r in start_pilot_rank..end_pilot_rank {
         pilot.rank = r;
@@ -296,6 +298,7 @@ async fn compute_upgrade_ship(body: Json<UpgradeShip>) -> impl web::Responder {
         "pilot_upgrade_price": crew_upgrade_price,
         "reactor_upgrade_price": rpow_upgrade_price,
         "shield_upgrade_price": spow_upgrade_price,
+        "cargo_upgrade_price": cargo_upgrade_price,
         "stats_before": start_stats,
         "stats_after": end_stats,
     })))

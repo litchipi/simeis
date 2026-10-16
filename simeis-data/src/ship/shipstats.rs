@@ -17,7 +17,7 @@ impl ShipStats {
     pub fn new(rpow: u16, spow: u16, cargosz: f64, pilot: Option<&CrewMember>) -> ShipStats {
         let cfg = get_config();
         let hull_usage_rate = compute_hull_usage_ratio(cfg, cargosz, spow as f64);
-        let mut fuel_consumption = rpow as f64;
+        let mut fuel_consumption = (rpow as f64) * cfg.ship.fuel_consumption_mult;
         let mut speed = 0.0;
         if let Some(pilot) = pilot {
             debug_assert!(matches!(pilot.member_type, CrewMemberType::Pilot));
