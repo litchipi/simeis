@@ -25,6 +25,8 @@ use shipstats::ShipStats;
 
 pub type ShipId = u64;
 
+pub const LIGHT_SHIP_INIT_CARGO: f64 = 200.0;
+
 #[derive(strum::Display, Debug, Clone, Deserialize, Serialize, Default)]
 #[strum(serialize_all = "snake_case")]
 pub enum ShipState {
@@ -96,7 +98,7 @@ impl Ship {
             position,
             reactor_rank: 1,
             fuel_tank_capacity: 1000.0,
-            cargo: ShipCargo::with_capacity(200.0),
+            cargo: ShipCargo::with_capacity(LIGHT_SHIP_INIT_CARGO),
             hull_resistance: 3000.0,
             shield_rank: 0,
             ..Default::default()
