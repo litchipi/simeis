@@ -24,19 +24,19 @@ pub fn generate_random_token(len: usize) -> String {
         .collect()
 }
 
-#[cfg(feature = "compio")]
-fn start_game_thread(
-    stop: BoundedReceiver<GameSignal>,
-    sysrecv: SyslogRecv,
-    data: Game,
-) -> JoinHandle<()> {
-    log::debug!("Starting the game thread on compio runtime");
-    std::thread::spawn(move || {
-        let rt = compio::runtime::Runtime::new().unwrap();
-        rt.block_on(data.start(stop, sysrecv, compio::runtime::time::sleep));
-        rt.run();
-    })
-}
+// #[cfg(feature = "compio")]
+// fn start_game_thread(
+//     stop: BoundedReceiver<GameSignal>,
+//     sysrecv: SyslogRecv,
+//     data: Game,
+// ) -> JoinHandle<()> {
+//     log::debug!("Starting the game thread on compio runtime");
+//     std::thread::spawn(move || {
+//         let rt = compio::runtime::Runtime::new().unwrap();
+//         rt.block_on(data.start(stop, sysrecv, compio::runtime::time::sleep));
+//         rt.run();
+//     })
+// }
 
 #[cfg(feature = "tokio")]
 fn start_game_thread(
@@ -63,7 +63,9 @@ async fn main() -> std::io::Result<()> {
         return Err(std::io::ErrorKind::InvalidData.into());
     };
     let cfg_file = PathBuf::from(cfg_file);
+
     let config = init_config(&cfg_file).expect("Unable to initialize configuration");
+    config.validation_tests();
     let port = config.server.port;
 
     env_logger::builder()
@@ -74,7 +76,7 @@ async fn main() -> std::io::Result<()> {
         .filter_module("ntex_rt", log::LevelFilter::Warn)
         .filter_module("ntex_service::cfg", log::LevelFilter::Warn)
         .filter_module("ntex::http::h1", log::LevelFilter::Warn)
-        .filter_module("ntex_net::compio", log::LevelFilter::Warn)
+        // .filter_module("ntex_net::compio", log::LevelFilter::Warn)
         .filter_module("ntex_net::tokio", log::LevelFilter::Warn)
         .init();
 
@@ -89,7 +91,12 @@ async fn main() -> std::io::Result<()> {
 
     let admin_token =
         std::env::var("SIMEIS_ADMIN_TOKEN").unwrap_or_else(|_| generate_random_token(32));
-    println!("SIMEIS_ADMIN_TOKEN={admin_token}");
+
+    #[cfg(not(feature = "testing"))]
+    {
+        std::fs::write(config.server.token_file.clone(), &admin_token)?;
+        println!("SIMEIS_ADMIN_TOKEN={admin_token}");
+    }
 
     let res = web::HttpServer::new(async move || {
         let game_state = state.clone();

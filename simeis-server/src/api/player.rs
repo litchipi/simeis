@@ -14,6 +14,7 @@ use simeis_data::errors::Errcode;
 
 use crate::api::build_response;
 use crate::api::GameState;
+use crate::utils::get_query_string_element;
 use crate::AdminToken;
 
 // @summary Creates a new player in the game
@@ -98,9 +99,42 @@ async fn get_all_wages(srv: GameState, req: HttpRequest) -> impl web::Responder 
     build_response(data)
 }
 
+// @summary Get the history of the last 100 actions performed by the player
+// @returns List of the actions, with associated timestamps
+#[web::get("/history")]
+async fn get_history(srv: GameState, tok: AdminToken, req: HttpRequest) -> impl web::Responder {
+    let data = if got_admin_token!(req, tok) {
+        let qry = req.query_string();
+        let Some(player_id) = get_query_string_element(qry, "player") else {
+            return build_response(Err(Errcode::MissingQueryArgument("player")));
+        };
+        let Ok(player_id) = player_id.parse() else {
+            return build_response(Err(Errcode::InvalidArgument("player_id")));
+        };
+        srv.map_player_by_id(&player_id, |player| {
+            Box::pin(async move {
+                let hist = player.history.export().await;
+                Ok(json!({ "history": hist }))
+            })
+        })
+        .await
+    } else {
+        let pkey = get_player_key!(req);
+        srv.map_player(&pkey, |player| {
+            Box::pin(async move {
+                let hist = player.history.export().await;
+                Ok(json!({ "history": hist }))
+            })
+        })
+        .await
+    };
+    build_response(data)
+}
+
 pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
     srv.service(
         scope(base)
+            .service(get_history)
             .service(get_all_wages)
             .service(new_player)
             .service(get_player),

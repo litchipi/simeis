@@ -11,30 +11,12 @@ use crate::galaxy::planet::{Planet, PlanetId};
 use crate::galaxy::station::{Station, StationId};
 use crate::galaxy::{Galaxy, SpaceCoord, SpaceObject};
 use crate::game::Game;
+use crate::history::PlayerHistory;
 use crate::player::{Player, PlayerId, PlayerKey};
 use crate::ship::{Ship, ShipId};
 use crate::utils::BoxFuture;
 
 impl Game {
-    #[inline]
-    pub async fn map_station<F, T>(
-        &self,
-        pkey: &PlayerKey,
-        id: &StationId,
-        f: F,
-    ) -> Result<T, Errcode>
-    where
-        F: for<'a> FnOnce(&'a PlayerId, &'a Station) -> BoxFuture<'a, Result<T, Errcode>>,
-    {
-        let (pid, player) = self.get_player(pkey).await?;
-        let player = player.read().await;
-        let Some(station) = player.stations.get(id) else {
-            return Err(Errcode::NoSuchStation(*id));
-        };
-        let data = f(&pid, station).await;
-        data
-    }
-
     #[inline]
     pub async fn map_galaxy_coord<F, T>(&self, coord: &SpaceCoord, f: F) -> Result<T, Errcode>
     where
@@ -62,14 +44,41 @@ impl Game {
     }
 
     #[inline]
+    pub async fn map_station<F, T>(
+        &self,
+        pkey: &PlayerKey,
+        id: &StationId,
+        f: F,
+    ) -> Result<T, Errcode>
+    where
+        F: for<'a> FnOnce(
+            PlayerId,
+            &'a PlayerHistory,
+            &'a Station,
+        ) -> BoxFuture<'a, Result<T, Errcode>>,
+    {
+        let (pid, player) = self.get_player(pkey).await?;
+        let player = player.read().await;
+        let Some(station) = player.stations.get(id) else {
+            return Err(Errcode::NoSuchStation(*id));
+        };
+        let data = f(pid, &player.history, station).await;
+        data
+    }
+
+    #[inline]
     pub async fn map_ship<F, T>(&self, pkey: &PlayerKey, id: &ShipId, f: F) -> Result<T, Errcode>
     where
-        F: for<'a> FnOnce(PlayerId, &'a Ship) -> BoxFuture<'a, Result<T, Errcode>>,
+        F: for<'a> FnOnce(
+            PlayerId,
+            &'a PlayerHistory,
+            &'a Ship,
+        ) -> BoxFuture<'a, Result<T, Errcode>>,
     {
         let (pid, player) = self.get_player(pkey).await?;
         let player = player.read().await;
         let ship = player.get_ship(id)?;
-        let data = f(pid, ship).await;
+        let data = f(pid, &player.history, ship).await;
         data
     }
 
@@ -81,12 +90,17 @@ impl Game {
         f: F,
     ) -> Result<T, Errcode>
     where
-        F: for<'a> FnOnce(PlayerId, &'a mut Ship) -> BoxFuture<'a, Result<T, Errcode>>,
+        F: for<'a> FnOnce(
+            PlayerId,
+            &'a PlayerHistory,
+            &'a mut Ship,
+        ) -> BoxFuture<'a, Result<T, Errcode>>,
     {
         let (pid, player) = self.get_player(pkey).await?;
         let mut player = player.write().await;
+        let history = player.history.clone();
         let ship = player.get_ship_mut(id)?;
-        let data = f(pid, ship).await;
+        let data = f(pid, &history, ship).await;
         data
     }
 
@@ -99,7 +113,12 @@ impl Game {
         f: F,
     ) -> Result<T, Errcode>
     where
-        F: for<'a> FnOnce(PlayerId, &'a Station, &'a Ship) -> BoxFuture<'a, Result<T, Errcode>>,
+        F: for<'a> FnOnce(
+            PlayerId,
+            &'a PlayerHistory,
+            &'a Station,
+            &'a Ship,
+        ) -> BoxFuture<'a, Result<T, Errcode>>,
     {
         let (pid, player) = self.get_player(pkey).await?;
         let player = player.read().await;
@@ -109,7 +128,7 @@ impl Game {
         // SAFETY Checked in function above
         let ship = player.ships.get(ship_id).unwrap();
         let station = player.stations.get(station_id).unwrap();
-        let data = f(pid, station, ship).await;
+        let data = f(pid, &player.history, station, ship).await;
         data
     }
 
@@ -122,7 +141,12 @@ impl Game {
         f: F,
     ) -> Result<T, Errcode>
     where
-        F: for<'a> FnOnce(PlayerId, &'a Station, &'a mut Ship) -> BoxFuture<'a, Result<T, Errcode>>,
+        F: for<'a> FnOnce(
+            PlayerId,
+            &'a PlayerHistory,
+            &'a Station,
+            &'a mut Ship,
+        ) -> BoxFuture<'a, Result<T, Errcode>>,
     {
         let (pid, player) = self.get_player(pkey).await?;
         let mut player = player.write().await;
@@ -131,22 +155,22 @@ impl Game {
         }
         // SAFETY Checked in function above
         let station = player.stations.get(station_id).unwrap().clone();
+        let history = player.history.clone();
         let ship = player.ships.get_mut(ship_id).unwrap();
-        let data = f(pid, &station, ship).await;
+        let data = f(pid, &history, &station, ship).await;
         data
     }
 
     #[inline]
     pub async fn sync_map_player_by_id<F, T>(&self, pid: &PlayerId, f: F) -> Result<T, Errcode>
     where
-        F: for<'a> FnOnce(&'a Player) -> Result<T, Errcode>,
+        F: for<'a> FnOnce(&'a Player, &'a PlayerHistory) -> Result<T, Errcode>,
     {
         let Some(player) = self.players.clone_val(pid).await else {
             return Err(Errcode::PlayerNotFound(*pid));
         };
         let player = player.read().await;
-
-        f(&player)
+        f(&player, &player.history)
     }
 
     #[inline]

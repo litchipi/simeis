@@ -333,7 +333,7 @@ impl Station {
         player: &PlayerId,
         resource: &Resource,
         amnt: f64,
-    ) -> Result<MarketTx, Errcode> {
+    ) -> Result<(MarketTx, f64), Errcode> {
         self.ensure_has_player_data(player).await;
         let pd = self.player_data.clone_val(player).await.unwrap();
         let mut pd = pd.write().await;
@@ -346,10 +346,10 @@ impl Station {
         if amnt == 0.0 {
             return Err(Errcode::BuyNothing);
         }
-        let tx = market.buy(cm, resource, amnt).await;
+        let (tx, price) = market.buy(cm, resource, amnt).await;
         let (r, a) = tx.added_cargo.unwrap();
         pd.cargo.add_resource(&r, a);
-        Ok(tx)
+        Ok((tx, price))
     }
 
     pub async fn sell_resource(
@@ -358,7 +358,7 @@ impl Station {
         player: &PlayerId,
         resource: &Resource,
         amnt: f64,
-    ) -> Result<MarketTx, Errcode> {
+    ) -> Result<(MarketTx, f64), Errcode> {
         self.ensure_has_player_data(player).await;
         let pd = self.player_data.clone_val(player).await.unwrap();
         let mut pd = pd.write().await;
@@ -373,11 +373,11 @@ impl Station {
         if amnt <= 0.0 {
             return Err(Errcode::SellNothing);
         }
-        let tx = market.sell(cm, resource, amnt).await;
+        let (tx, price) = market.sell(cm, resource, amnt).await;
         let (r, a) = tx.removed_cargo.unwrap();
         let unloaded = pd.cargo.unload(&r, a);
         debug_assert_eq!(unloaded, a);
-        Ok(tx)
+        Ok((tx, price))
     }
 
     pub async fn refuel_ship(&self, ship: &mut Ship) -> Result<f64, Errcode> {
@@ -596,6 +596,31 @@ impl Station {
             "cargo": data.cargo,
             "idle_crew": data.idle_crew,
             "trader": data.trader,
+            "industry": data.industry,
+        })
+    }
+
+    pub async fn to_json_all_players(&self) -> serde_json::Value {
+        let mut players_data = BTreeMap::new();
+        let all_players = self.player_data.get_all_keys().await;
+        for pid in all_players {
+            let pd = self.player_data.clone_val(&pid).await.unwrap();
+            let pd = pd.read().await;
+            players_data.insert(
+                pid,
+                serde_json::json!({
+                    "crew": pd.crew,
+                    "cargo": pd.cargo,
+                    "idle_crew": pd.idle_crew,
+                    "trader": pd.trader,
+                    "industry": pd.industry,
+                }),
+            );
+        }
+        serde_json::json!({
+            "id": self.id,
+            "position": self.position,
+            "players_data": players_data,
         })
     }
 

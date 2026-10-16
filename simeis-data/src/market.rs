@@ -55,9 +55,11 @@ impl Market {
         rand_distr::Normal::new(avg, std).unwrap()
     }
 
+    #[inline]
     fn get_new_price<R: Rng>(&self, rng: &mut R, r: &Resource, old: f64) -> f64 {
         let distr = self.rand_distrib(r, old);
-        let change = distr.sample(rng);
+        let change = distr.sample(rng).clamp(-0.3, 0.3); // 30% change max in one tick
+
         old * (1.0 + change)
     }
 
@@ -78,54 +80,62 @@ impl Market {
         }
     }
 
-    pub async fn buy(&self, trader: &CrewMember, r: &Resource, amnt: f64) -> MarketTx {
+    pub async fn buy(&self, trader: &CrewMember, r: &Resource, amnt: f64) -> (MarketTx, f64) {
         assert!(amnt > 0.0);
         let fee_rate = fee_rate(trader.rank);
 
         let price = self.prices.get(r).unwrap();
-        let price = price.read().await;
+        let mut price = price.write().await;
         assert!(*price > 0.0);
         let cost = amnt * *price;
         let fees = cost * fee_rate;
+        let got_price = *price;
 
-        // TODO (#15) Fixup influence on market price
-        // let price_inc_max = (cost / PRICE_INC_CAP).max(1.0) * PRICE_INC_RANGE_MAX;
-        // let price_inc_min = (cost / PRICE_INC_CAP).max(1.0) * PRICE_INC_RANGE_MIN;
-        // let mut rng = rand::rng();
-        // let inc = rng.random_range(price_inc_min..=price_inc_max);
-        // *self.prices.get_mut(r).unwrap() *= 1.0 + inc;
+        let cfg = get_config();
+        let rel_price = *price / r.base_price();
+        let pratio = cfg.market.influence_buy(cost, rel_price);
+        log::debug!("Influence BUY: {pratio}");
+        *price *= pratio;
+        assert!(*price > 0.0);
 
-        MarketTx {
-            added_cargo: Some((*r, amnt)),
-            removed_money: Some(cost + fees),
-            fees,
-            ..Default::default()
-        }
+        (
+            MarketTx {
+                added_cargo: Some((*r, amnt)),
+                removed_money: Some(cost + fees),
+                fees,
+                ..Default::default()
+            },
+            got_price,
+        )
     }
 
-    pub async fn sell(&self, trader: &CrewMember, r: &Resource, amnt: f64) -> MarketTx {
+    pub async fn sell(&self, trader: &CrewMember, r: &Resource, amnt: f64) -> (MarketTx, f64) {
         assert!(amnt > 0.0);
         let fee_rate = fee_rate(trader.rank);
 
         let price = self.prices.get(r).unwrap();
-        let price = price.read().await;
+        let mut price = price.write().await;
         assert!(*price > 0.0);
         let cost = amnt * *price;
         let fees = cost * fee_rate;
+        let got_price = *price;
 
-        // TODO (#15) Fixup influence on market price
-        // let price_dec_max = (cost / PRICE_INC_CAP).max(1.0) * PRICE_INC_RANGE_MAX;
-        // let price_dec_min = (cost / PRICE_INC_CAP).max(1.0) * PRICE_INC_RANGE_MIN;
-        // let mut rng = rand::rng();
-        // let dec = rng.random_range(price_dec_min..=price_dec_max);
-        // *self.prices.get_mut(r).unwrap() *= 1.0 - dec;
+        let cfg = get_config();
+        let rel_price = *price / r.base_price();
+        let pratio = cfg.market.influence_sell(cost, rel_price);
+        log::debug!("Influence SELL: {pratio}");
+        *price *= pratio;
+        assert!(*price > 0.0);
 
-        MarketTx {
-            removed_cargo: Some((*r, amnt)),
-            added_money: Some(cost - fees),
-            fees,
-            ..Default::default()
-        }
+        (
+            MarketTx {
+                removed_cargo: Some((*r, amnt)),
+                added_money: Some(cost - fees),
+                fees,
+                ..Default::default()
+            },
+            got_price,
+        )
     }
 }
 

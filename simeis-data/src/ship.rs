@@ -91,7 +91,7 @@ impl Ship {
     }
 
     fn light(id: ShipId, position: SpaceCoord) -> Ship {
-        Ship {
+        let s = Ship {
             id,
             position,
             reactor_rank: 1,
@@ -100,7 +100,9 @@ impl Ship {
             hull_resistance: 3000.0,
             shield_rank: 0,
             ..Default::default()
-        }
+        };
+        log::info!("Init light ship price: {}", s.compute_price());
+        s
     }
 
     fn medium(id: ShipId, position: SpaceCoord) -> Ship {
@@ -165,7 +167,6 @@ impl Ship {
             self.shield_rank,
             self.pilot.map(|id| self.crew.0.get(&id).unwrap()),
         );
-        self.stats.speed *= 1.0 - self.cargo.slowing_ratio();
     }
 
     pub fn compute_travel_costs(&self, destination: SpaceCoord) -> Result<TravelCost, Errcode> {
@@ -194,7 +195,7 @@ impl Ship {
         };
 
         let mut finished = false;
-        let mut dist_delta = self.stats.speed * tdelta;
+        let mut dist_delta = data.speed * tdelta;
         data.dist_done += dist_delta;
         if data.dist_done >= data.dist_tot {
             finished = true;
@@ -202,9 +203,9 @@ impl Ship {
             data.dist_done -= doverflow;
             dist_delta -= doverflow;
 
-            let toverflow = doverflow / self.stats.speed;
+            let toverflow = doverflow / data.speed;
             tdelta -= toverflow;
-            debug_assert!(((tdelta * self.stats.speed) - dist_delta).abs() < 1e-7);
+            debug_assert!(((tdelta * data.speed) - dist_delta).abs() < 1e-7);
         }
 
         self.position = translation(data.start, data.direction, data.dist_done);

@@ -2,6 +2,7 @@
 // - Taken names
 // - Player index
 // - Player list
+// - Station index
 // - Ship owners
 // - Player
 // - Station
@@ -29,6 +30,7 @@ use crate::errors::Errcode;
 use crate::galaxy::scan::ScanResult;
 use crate::galaxy::station::{Station, StationId};
 use crate::galaxy::Galaxy;
+use crate::history::PlayerHistoryEvent;
 use crate::market::{Market, MarketTx};
 use crate::player::{Player, PlayerId, PlayerKey};
 use crate::ship::resources::{ExtractionInfo, Resource};
@@ -61,6 +63,7 @@ pub struct Game {
     pub taken_names: Arc<ShardedLockedData<String, PlayerId>>,
     pub galaxy: Arc<RwLock<Galaxy>>,
 
+    pub stations: Arc<RwLock<BTreeMap<StationId, Arc<Station>>>>,
     pub init_station: Arc<RwLock<(StationId, Arc<Station>)>>,
     pub market: Arc<Market>,
     pub syslog: SyslogSend,
@@ -78,7 +81,10 @@ impl Game {
         fifo_events: SyslogFifo,
     ) -> Game {
         let mut galaxy = Galaxy::init();
-        let init_station = Arc::new(RwLock::new(galaxy.init_new_station().await));
+        let init_station = galaxy.init_new_station().await;
+        let mut stations = BTreeMap::new();
+        stations.insert(init_station.0, init_station.1.clone());
+        let init_station = Arc::new(RwLock::new(init_station));
         let cfg = get_config();
         Game {
             send_sig: send_stop,
@@ -89,6 +95,7 @@ impl Game {
             player_index: Arc::new(ShardedLockedData::new(cfg.game.shards)),
             syslog,
             fifo_events,
+            stations: Arc::new(RwLock::new(stations)),
             init_station,
             ship_owners: Arc::new(RwLock::new(BTreeMap::new())),
         }
@@ -106,7 +113,7 @@ impl Game {
         (thread, data)
     }
 
-    #[allow(unused_mut, unused_variables)]
+    #[allow(unused_mut)]
     pub async fn start<F, Fut>(
         &self,
         mut stop: BoundedReceiver<GameSignal>,
@@ -189,6 +196,13 @@ impl Game {
                             if ship.hull_decay >= ship.hull_resistance {
                                 deadship.push(*id);
                             } else {
+                                log::debug!(
+                                    "Ship flight finished {id}: fuel {:.2}/{:.2}, hull {:.2}/{:.2}",
+                                    ship.fuel_tank,
+                                    ship.fuel_tank_capacity,
+                                    ship.hull_decay,
+                                    ship.hull_resistance
+                                );
                                 syslog
                                     .event(player_id, SyslogEvent::ShipFlightFinished(*id))
                                     .await;
@@ -292,12 +306,21 @@ impl Game {
     ) -> Result<ExtractionInfo, Errcode> {
         let (_, player) = self.get_player(pkey).await?;
         let mut player = player.write().await;
+        let hist = player.history.clone();
         let ship = player.get_ship_mut(ship_id)?;
         let galaxy = self.galaxy.read().await;
         let Some(planet) = galaxy.get_planet(&ship.position) else {
             return Err(Errcode::CannotExtractWithoutPlanet);
         };
-        ship.start_extraction(&planet).await
+        let info = ship.start_extraction(&planet).await?;
+        hist.add(PlayerHistoryEvent::StartExtraction {
+            ship: *ship_id,
+            planet: planet.id,
+            power_attr: ship.power_attribution.clone(),
+            secs_before_cargo_full: info.time_fill_cargo,
+        })
+        .await;
+        Ok(info)
     }
 
     pub async fn player_market_buy(
@@ -312,11 +335,22 @@ impl Game {
         let Some(station) = player.stations.get(station_id) else {
             return Err(Errcode::NoSuchStation(*station_id));
         };
-        let tx = station
+        let (tx, price) = station
             .buy_resource(&self.market, &player.id, resource, amnt)
             .await?;
         player.money -= tx.removed_money.unwrap();
         player.score -= tx.removed_money.unwrap();
+        player
+            .history
+            .add(PlayerHistoryEvent::BuyResource {
+                station: *station_id,
+                resource: *resource,
+                price,
+                fees: tx.fees,
+                bought: tx.added_cargo.unwrap().1,
+                spent: tx.removed_money.unwrap(),
+            })
+            .await;
         Ok(tx)
     }
 
@@ -332,11 +366,22 @@ impl Game {
         let Some(station) = player.stations.get(station_id) else {
             return Err(Errcode::NoSuchStation(*station_id));
         };
-        let tx = station
+        let (tx, price) = station
             .sell_resource(&self.market, &player.id, resource, amnt)
             .await?;
         player.money += tx.added_money.unwrap();
         player.score += tx.added_money.unwrap();
+        player
+            .history
+            .add(PlayerHistoryEvent::SellResource {
+                station: *station_id,
+                resource: *resource,
+                price,
+                fees: tx.fees,
+                sold: tx.removed_cargo.unwrap().1,
+                earned: tx.added_money.unwrap(),
+            })
+            .await;
         Ok(tx)
     }
 

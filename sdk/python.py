@@ -144,11 +144,12 @@ class SimeisSDK:
     def assign_trader_to_station(self, sta, trader_id):
         return self.post(f"/station/{sta}/crew/assign/{trader_id}/trading")
 
-    def compute_travel_cost(self, origin, destination, ship_stats):
+    def compute_travel_cost(self, origin, destination, ship_stats, cargo_usage_perc):
         return self.post(f"/calc/navigation", body={
             "origin": origin,
             "dest": destination,
             "ship_stats":  ship_stats,
+            "cargo_usage_perc": cargo_usage_perc,
         })
 
     def travel(self, ship_id, position, wait_end=True):
@@ -402,6 +403,9 @@ class SimeisSDK:
     def set_extraction_power_attribution(self, ship_id, res, pow):
         return self.post(f"/ship/{ship_id}/extraction/power_attribution/{res}/{pow}")
 
+    def get_station_wages(self, sta):
+        return self.get(f"/station/{sta}/wages")
+
     def get_all_wages(self):
         return self.get("/player/wages")
 
@@ -419,3 +423,6 @@ class SimeisSDK:
                 "operator_ranks": opranks,
                 "pilot_rank": pilot_rank,
             })
+
+    def get_player_history(self):
+        return self.get("/player/history")

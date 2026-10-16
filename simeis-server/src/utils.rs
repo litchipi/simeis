@@ -6,11 +6,11 @@ pub async fn sleep(dur: Duration) {
     tokio::time::sleep(dur).await
 }
 
-#[cfg(feature = "compio")]
-#[inline]
-pub async fn sleep(dur: Duration) {
-    compio::runtime::time::sleep(dur).await
-}
+// #[cfg(feature = "compio")]
+// #[inline]
+// pub async fn sleep(dur: Duration) {
+//     compio::runtime::time::sleep(dur).await
+// }
 
 pub fn get_query_string_element<'a>(qry: &'a str, key: &'static str) -> Option<&'a str> {
     for el in qry.split("&") {

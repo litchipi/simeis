@@ -188,6 +188,7 @@ impl ExtractionInfo {
     }
 }
 
+// TODO (#13) Parametric test, whatever the resource distr, should never have nan or infinite vals
 pub fn apply_power_attribution(attrs: &BTreeMap<Resource, u8>, r: &mut BTreeMap<Resource, f64>) {
     let cfg = get_config();
     let powtot: u16 = r
@@ -196,7 +197,11 @@ pub fn apply_power_attribution(attrs: &BTreeMap<Resource, u8>, r: &mut BTreeMap<
         .sum();
     r.iter_mut().for_each(|(res, rate)| {
         let power = attrs.get(res).unwrap_or(&cfg.ship.default_pow_attr);
-        let power_f = (*power as f64) / (powtot as f64);
-        *rate *= power_f;
+        if power == &0 {
+            *rate = 0.0;
+        } else {
+            let power_f = (*power as f64) / (powtot as f64);
+            *rate *= power_f;
+        }
     });
 }

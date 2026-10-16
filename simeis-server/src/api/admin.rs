@@ -6,11 +6,21 @@ use ntex::web::{self, scope, HttpRequest, ServiceConfig};
 use serde_json::json;
 use simeis_data::errors::Errcode;
 use simeis_data::galaxy::planet::{PlanetId, PlanetInfo};
+use simeis_data::galaxy::station::StationId;
 use simeis_data::player::PlayerId;
 use simeis_data::syslog::SyslogEvent;
 
 use crate::api::build_response;
 use crate::{AdminToken, GameState};
+
+// @summary Know if we are admin or not
+// @returns the boolean flag if we are admin or not
+// @noswagger
+#[web::get("")]
+async fn is_admin(req: HttpRequest, tok: AdminToken) -> impl web::Responder {
+    let is_admin = got_admin_token!(req, tok);
+    build_response(Ok(json!({"is_admin": is_admin})))
+}
 
 // @summary Get the informations about a planet from its ID
 // @returns Planet informations
@@ -29,6 +39,70 @@ async fn get_planet(
             })
             .await;
         build_response(data)
+    } else {
+        build_response(Err(Errcode::NotAnAdmin))
+    }
+}
+
+// @summary Get the list of all stations created on the server
+// @returns List of station IDs
+// @noswagger
+#[web::get("/station/list")]
+async fn get_station_list(
+    srv: GameState,
+    req: HttpRequest,
+    tok: AdminToken,
+) -> impl web::Responder {
+    if got_admin_token!(req, tok) {
+        let all_stations = srv.stations.read().await;
+        let all_ids = all_stations.keys().cloned().collect::<Vec<StationId>>();
+        build_response(Ok(json!({ "stations": all_ids })))
+    } else {
+        build_response(Err(Errcode::NotAnAdmin))
+    }
+}
+
+// @summary Get the informations about a station and all its player data
+// @returns Station informations
+// @noswagger
+#[web::get("/station/{id}")]
+async fn get_station_admin(
+    srv: GameState,
+    id: Path<StationId>,
+    req: HttpRequest,
+    tok: AdminToken,
+) -> impl web::Responder {
+    if got_admin_token!(req, tok) {
+        let all_stations = srv.stations.read().await;
+        let id = *id;
+        let Some(station) = all_stations.get(&id) else {
+            return build_response(Err(Errcode::NoSuchStation(id)));
+        };
+        build_response(Ok(station.to_json_all_players().await))
+    } else {
+        build_response(Err(Errcode::NotAnAdmin))
+    }
+}
+
+// @summary Get all the space objects in the sector of a specific station
+// @returns Space objects
+// @noswagger
+#[web::get("/station/{id}/around")]
+async fn get_space_objects_around_station(
+    srv: GameState,
+    id: Path<StationId>,
+    req: HttpRequest,
+    tok: AdminToken,
+) -> impl web::Responder {
+    if got_admin_token!(req, tok) {
+        let all_stations = srv.stations.read().await;
+        let id = *id;
+        let Some(station) = all_stations.get(&id) else {
+            return build_response(Err(Errcode::NoSuchStation(id)));
+        };
+        let galaxy = srv.galaxy.read().await;
+        let objects = station.scan(&galaxy);
+        build_response(Ok(serde_json::to_value(objects).unwrap()))
     } else {
         build_response(Err(Errcode::NotAnAdmin))
     }
@@ -100,7 +174,11 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
         scope(base)
             .service(get_planet)
             .service(remove_player)
+            .service(get_station_list)
+            .service(get_station_admin)
+            .service(get_space_objects_around_station)
             .service(reset_game)
+            .service(is_admin)
             .service(reset_game_cooldown),
     );
 }

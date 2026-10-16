@@ -32,7 +32,7 @@ async fn list_shipyard_ships(
     let id = id.as_ref();
     let key = get_player_key!(req);
     let data = srv
-        .map_station(&key, id, |_, station| {
+        .map_station(&key, id, |_, _, station| {
             Box::pin(async {
                 let mut ships = vec![];
                 let shipyard = station.shipyard.read().await;
@@ -90,8 +90,14 @@ async fn shipyard_list_upgrades(
     let pkey = get_player_key!(req);
 
     let data = srv
-        .map_ship_in_station(&pkey, &station_id, &ship_id, |_, station, ship| {
+        .map_player(&pkey, |player| {
             Box::pin(async move {
+                let Some(station) = player.stations.get(&station_id) else {
+                    return Err(Errcode::NoSuchStation(station_id));
+                };
+                let Some(ship) = player.ships.get(&ship_id) else {
+                    return Err(Errcode::ShipNotFound(ship_id));
+                };
                 let mut res = BTreeMap::new();
                 for upgr in ShipUpgrade::iter() {
                     let price = station.get_ship_upgrade_price(ship, &upgr);
@@ -103,7 +109,7 @@ async fn shipyard_list_upgrades(
                     );
                 }
                 for exp in ShipExpandUpgrade::iter() {
-                    let mut exp = exp.clone();
+                    let mut exp = exp;
                     exp.set_amount(1.0);
                     let price = exp.get_price() * station.get_inflation_ratio();
                     res.insert(exp.to_string(), json!({ "price": price, }));

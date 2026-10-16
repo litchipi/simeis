@@ -6,6 +6,7 @@ use ntex::web::{self, scope, HttpRequest, ServiceConfig};
 use simeis_data::crew::{CrewMember, CrewMemberType};
 use simeis_data::errors::Errcode;
 use simeis_data::market::fee_rate;
+use simeis_data::ship::cargo::calc_slowing_ratio;
 use simeis_data::ship::module::{calc_extraction_rate, ShipModule, ShipModuleType};
 use simeis_data::ship::resources::{apply_power_attribution, Resource};
 use simeis_data::ship::upgrade::ShipUpgrade;
@@ -25,6 +26,7 @@ pub struct NavigationComputation {
     ship_stats: ShipStats,
     origin: SpaceCoord,
     dest: SpaceCoord,
+    cargo_usage_perc: u8,
 }
 
 // @summary Compute how much will cost a travel to a specific position (X, Y, Z)
@@ -35,9 +37,14 @@ async fn compute_travel_costs(body: Json<NavigationComputation>) -> impl web::Re
         ship_stats,
         origin,
         dest,
+        cargo_usage_perc,
     } = body.0;
+    if cargo_usage_perc > 100 {
+        return build_response(Err(Errcode::InvalidArgument("cargo_usage_perc > 100")));
+    }
+    let slowing_ratio = calc_slowing_ratio((cargo_usage_perc as f64) / (u8::MAX as f64));
     let travel = Travel::new(dest);
-    let cost = travel.compute_from_stats(&origin, &ship_stats);
+    let cost = travel.compute_from_stats(&origin, &ship_stats, slowing_ratio);
     build_response(cost.map(|v| json!({"costs": v})))
 }
 
@@ -64,7 +71,7 @@ async fn compute_ship_mining_rate(
     } = body.0;
 
     let ship_data = srv
-        .map_ship(&pkey, &ship_id, |_, ship| {
+        .map_ship(&pkey, &ship_id, |_, _, ship| {
             Box::pin(async move {
                 let mut result = vec![];
                 for (_, m) in ship.modules.iter() {

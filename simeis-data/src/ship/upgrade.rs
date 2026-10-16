@@ -24,7 +24,7 @@ impl ShipUpgrade {
     }
 }
 
-#[derive(strum::EnumString, strum::Display, strum::EnumIter, Clone)]
+#[derive(strum::EnumString, strum::Display, strum::EnumIter, Debug, Copy, Clone, Serialize)]
 #[strum(serialize_all = "snake_case")]
 pub enum ShipExpandUpgrade {
     Cargo(f64),

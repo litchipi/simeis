@@ -12,6 +12,7 @@ use serde_json::to_value;
 
 use simeis_data::errors::Errcode;
 use simeis_data::galaxy::station::StationId;
+use simeis_data::history::PlayerHistoryEvent;
 use simeis_data::industry::IndustryUnitId;
 use simeis_data::industry::IndustryUnitType;
 use strum::IntoEnumIterator;
@@ -110,10 +111,12 @@ async fn start_industry(
     let (station_id, id) = *args;
 
     let data = srv
-        .map_station(&pkey, &station_id, |pid, station| {
+        .map_station(&pkey, &station_id, |pid, hist, station| {
             Box::pin(async move {
-                station.start_industry(pid, &id).await?;
-                Ok(to_value(()).unwrap())
+                station.start_industry(&pid, &id).await?;
+                hist.add(PlayerHistoryEvent::StartIndustry { unit: id })
+                    .await;
+                Ok(json!({}))
             })
         })
         .await;
@@ -132,10 +135,12 @@ async fn stop_industry(
     let (station_id, id) = *args;
 
     let data = srv
-        .map_station(&pkey, &station_id, |pid, station| {
+        .map_station(&pkey, &station_id, |pid, hist, station| {
             Box::pin(async move {
-                station.stop_industry(pid, &id).await?;
-                Ok(to_value(()).unwrap())
+                station.stop_industry(&pid, &id).await?;
+                hist.add(PlayerHistoryEvent::StopIndustry { unit: id })
+                    .await;
+                Ok(json!({}))
             })
         })
         .await;
@@ -154,9 +159,9 @@ async fn show_production(
     let (station_id, id) = *args;
 
     let data = srv
-        .map_station(&pkey, &station_id, |pid, station| {
+        .map_station(&pkey, &station_id, |pid, _, station| {
             Box::pin(async move {
-                let (inputs, outputs) = station.get_industry_production(pid, id).await?;
+                let (inputs, outputs) = station.get_industry_production(&pid, id).await?;
                 Ok(json!({
                     "inputs": to_value(inputs).unwrap(),
                     "outputs": to_value(outputs).unwrap(),

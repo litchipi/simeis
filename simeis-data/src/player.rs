@@ -7,9 +7,10 @@ use std::time::Instant;
 use rand::Rng;
 
 use crate::config::get_config;
-use crate::crew::CrewId;
+use crate::crew::{CrewId, CrewMemberType};
 use crate::errors::Errcode;
 use crate::galaxy::station::{Station, StationId};
+use crate::history::{AssignedCrew, PlayerHistory, PlayerHistoryEvent};
 use crate::ship::cargo::ShipCargo;
 use crate::ship::module::{ShipModuleId, ShipModuleType};
 use crate::ship::upgrade::{ShipExpandUpgrade, ShipUpgrade};
@@ -33,6 +34,7 @@ pub struct Player {
 
     pub stations: BTreeMap<StationId, Arc<Station>>,
     pub ships: BTreeMap<ShipId, Ship>,
+    pub history: PlayerHistory,
 }
 
 impl Player {
@@ -66,6 +68,7 @@ impl Player {
             name,
             stations,
             ships: BTreeMap::new(),
+            history: PlayerHistory::empty(),
         }
     }
 
@@ -151,6 +154,13 @@ impl Player {
         ship.owner = self.id;
         self.money -= price;
         self.ships.insert(ship_id, ship);
+        self.history
+            .add(PlayerHistoryEvent::BuyShip {
+                ship: ship_id,
+                station: station.id,
+                price,
+            })
+            .await;
         Ok(ship_id)
     }
 
@@ -172,6 +182,17 @@ impl Player {
         self.money -= price;
         let id = (ship.modules.len() + 1) as ShipModuleId;
         ship.modules.insert(id, modtype.new_module());
+
+        let ship_id = ship.id;
+        self.history
+            .add(PlayerHistoryEvent::BuyShipModule {
+                ship: ship_id,
+                module: id,
+                modtype,
+                price,
+                station: *station_id,
+            })
+            .await;
         Ok(id)
     }
 
@@ -196,6 +217,14 @@ impl Player {
 
         self.money -= price;
         upgrade.install(ship);
+        self.history
+            .add(PlayerHistoryEvent::UpgradeShip {
+                station: station.id,
+                ship: *ship_id,
+                upgrade: *upgrade,
+                price,
+            })
+            .await;
         Ok(price)
     }
 
@@ -220,6 +249,14 @@ impl Player {
 
         self.money -= price;
         expansion.install(ship);
+        self.history
+            .add(PlayerHistoryEvent::ExpandShip {
+                station: station.id,
+                ship: *ship_id,
+                price,
+                expansion: *expansion,
+            })
+            .await;
         Ok(price)
     }
 
@@ -245,7 +282,17 @@ impl Player {
         self.money -= price;
         module.rank += 1;
 
-        Ok((price, module.rank))
+        let newrank = module.rank;
+        self.history
+            .add(PlayerHistoryEvent::UpgradeModule {
+                ship: *ship_id,
+                station: *station_id,
+                module: *mod_id,
+                newrank,
+                price,
+            })
+            .await;
+        Ok((price, newrank))
     }
 
     pub async fn upgrade_ship_crew(
@@ -259,9 +306,26 @@ impl Player {
         };
         // SAFETY Checked in function above
         let ship = self.ships.get_mut(ship_id).unwrap();
+        let assignation;
         let res = {
             let Some(ref mut cm) = ship.crew.0.get_mut(crew_id) else {
                 return Err(Errcode::CrewMemberNotFound(*crew_id));
+            };
+            assignation = match cm.member_type {
+                CrewMemberType::Pilot => AssignedCrew::Pilot { ship: *ship_id },
+                CrewMemberType::Operator => {
+                    let matchmod = ship
+                        .modules
+                        .iter()
+                        .filter(|(_, m)| m.operator.map(|v| &v == crew_id).unwrap_or(false))
+                        .nth(0)
+                        .unwrap();
+                    AssignedCrew::ShipModule {
+                        ship: *ship_id,
+                        module: *matchmod.0,
+                    }
+                }
+                CrewMemberType::Trader | CrewMemberType::Soldier => unreachable!(),
             };
 
             let price = cm.price_next_rank();
@@ -274,6 +338,15 @@ impl Player {
             (price, cm.rank)
         };
         ship.update_perf_stats();
+        self.history
+            .add(PlayerHistoryEvent::UpgradeCrew {
+                assignation,
+                crew: *crew_id,
+                price: res.0,
+                newrank: res.1,
+                station: *station_id,
+            })
+            .await;
         Ok(res)
     }
 
@@ -289,9 +362,20 @@ impl Player {
             .upgrade_station_crew(&self.id, &mut self.money, crew_id)
             .await;
         match res {
-            Ok(v) => {
+            Ok((price, newrank)) => {
                 self.update_costs().await;
-                Ok(v)
+                self.history
+                    .add(PlayerHistoryEvent::UpgradeCrew {
+                        assignation: AssignedCrew::Trader {
+                            station: *station_id,
+                        },
+                        crew: *crew_id,
+                        price,
+                        newrank,
+                        station: *station_id,
+                    })
+                    .await;
+                Ok((price, newrank))
             }
             Err(e) => Err(e),
         }
@@ -310,7 +394,15 @@ impl Player {
             return Err(Errcode::NotEnoughMoney(self.money, cost));
         }
         self.money -= cost;
-        Ok(station.add_cargo_cap(&self.id, amnt).await)
+        let newcargo = station.add_cargo_cap(&self.id, amnt).await;
+        self.history
+            .add(PlayerHistoryEvent::BuyStationCargo {
+                station: *station_id,
+                amnt,
+                total_price: cost,
+            })
+            .await;
+        Ok(newcargo)
     }
 
     pub async fn unassign_crew(
@@ -334,23 +426,38 @@ impl Player {
                 }
 
                 let c = ship.crew.0.remove(&crew_id).unwrap();
-                match c.member_type {
-                    crate::crew::CrewMemberType::Pilot => ship.pilot = None,
+                let old = match c.member_type {
+                    crate::crew::CrewMemberType::Pilot => {
+                        ship.pilot = None;
+                        AssignedCrew::Pilot { ship: ship.id }
+                    }
                     crate::crew::CrewMemberType::Operator => {
-                        let mut found = false;
-                        for (_, module) in ship.modules.iter_mut() {
+                        let mut mod_id = None;
+                        for (mid, module) in ship.modules.iter_mut() {
                             if let Some(id) = module.operator {
                                 if id == crew_id {
                                     module.operator = None;
-                                    found = true;
+                                    mod_id = Some(*mid);
+                                    break;
                                 }
                             }
                         }
-                        assert!(found);
+                        let mod_id = mod_id.unwrap();
+                        AssignedCrew::ShipModule {
+                            ship: ship.id,
+                            module: mod_id,
+                        }
                     }
                     _ => unreachable!(),
-                }
+                };
                 pd.idle_crew.0.insert(crew_id, c);
+                self.history
+                    .add(PlayerHistoryEvent::UnassignCrew {
+                        old_assignation: old,
+                        crew: crew_id,
+                        station: station_id,
+                    })
+                    .await;
                 return Ok(());
             }
         }

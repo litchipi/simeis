@@ -127,6 +127,7 @@ class Game:
 
             # Rebelotte
             print("Total this cycle:", cycletot)
+            assert cycletot > 0
             print("")
 
 if __name__ == "__main__":

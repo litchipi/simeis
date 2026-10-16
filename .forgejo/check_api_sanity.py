@@ -483,6 +483,7 @@ class ApiChecker:
             "ship_stats": { "speed": 3.0, "fuel_consumption": 2.0, "hull_usage_rate": 1.0 },
             "origin": [0, 0, 0],
             "dest": [1, 2, 3],
+            "cargo_usage_perc": 100,
         })
         cost = self.prepare_post("/ship/{ship_id}/navigate", body={
             "x": target[0],
