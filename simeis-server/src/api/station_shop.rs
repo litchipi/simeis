@@ -82,7 +82,8 @@ async fn get_ship_module_upgrade_prices(
     let pkey = get_player_key!(req);
     let (_, ship_id) = *args;
 
-    let data = srv.map_ship(&pkey, &ship_id, |_, _, ship| {
+    let data = srv
+        .map_ship(&pkey, &ship_id, |_, _, ship| {
             Box::pin(async move {
                 let mut res = BTreeMap::new();
                 for (id, module) in ship.modules.iter() {
