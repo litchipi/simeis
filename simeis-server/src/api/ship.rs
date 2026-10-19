@@ -78,7 +78,6 @@ async fn reassign_operator(
     build_response(data)
 }
 
-// TODO Modify this API so that it returns also a bit of detailled inside (pilot / operators)
 // @summary Compute how much wages cost per second for this ship
 // @returns The amount of credits consumed each second by the crew of this ship
 #[web::get("/wages")]
@@ -92,7 +91,23 @@ async fn get_wages_cost(
 
     let data = srv
         .map_ship(&pkey, &ship_id, |_, _, ship| {
-            Box::pin(async move { Ok(json!({ "wages": ship.crew.sum_wages() })) })
+            Box::pin(async move {
+                let mut s = 0.0;
+                let mut pilot = None;
+                let mut operators = serde_json::Map::new();
+                for (id, cm) in ship.crew.0.iter() {
+                    let w = cm.wage();
+                    s += w;
+                    if cm.member_type == CrewMemberType::Pilot {
+                        pilot = Some(w);
+                    } else if cm.member_type == CrewMemberType::Operator {
+                        operators.insert(id.to_string(), serde_json::to_value(w).unwrap());
+                    } else {
+                        unreachable!()
+                    }
+                }
+                Ok(json!({ "total": s, "pilot": pilot, "operators": operators }))
+            })
         })
         .await;
     build_response(data)
