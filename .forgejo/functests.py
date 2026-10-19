@@ -1483,6 +1483,8 @@ class Tester:
             time.sleep(0.15)
         self.get_err(f"/player/{self.id}", errtype="NoPlayerWithKey")
 
+# TODO Functest reassign operator between 2 modules
+
 def compute_distance(a, b):
     sum = 0
     sum += (b[0] - a[0]) ** 2

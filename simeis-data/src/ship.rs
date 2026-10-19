@@ -311,6 +311,38 @@ impl Ship {
         }
     }
 
+    pub fn reassign_operator(&mut self, op: CrewId, module: ShipModuleId) -> Result<(), Errcode> {
+        if !self.crew.0.contains_key(&op) {
+            return Err(Errcode::CrewMemberNotFound(op));
+        };
+        let mut got_empty = false;
+        let mut got_module = false;
+        let mut got_op = false;
+        for (mid, m) in self.modules.iter_mut() {
+            got_module = got_module || (mid == &module);
+            let Some(ref id) = m.operator else {
+                got_empty = true;
+                continue;
+            };
+            got_op = got_op || (id == &op);
+        }
+        assert!(got_op);
+        if !got_module {
+            return Err(Errcode::NoSuchModule(module));
+        }
+        if !got_empty {
+            return Err(Errcode::AllModulesTaken);
+        }
+        for (mid, m) in self.modules.iter_mut() {
+            if mid == &module {
+                m.operator = Some(op);
+            } else if m.operator.map(|id| id == op).unwrap_or(false) {
+                m.operator = None;
+            }
+        }
+        Ok(())
+    }
+
     pub fn export_json(&self, full: bool) -> serde_json::Value {
         if full {
             serde_json::to_value(self).unwrap()

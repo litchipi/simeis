@@ -9,8 +9,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::to_value;
 use simeis_data::config::get_config;
+use simeis_data::crew::{CrewId, CrewMemberType};
 use simeis_data::galaxy::SpaceUnit;
 use simeis_data::history::PlayerHistoryEvent;
+use simeis_data::ship::module::ShipModuleId;
 use simeis_data::ship::resources::Resource;
 use simeis_data::syslog::SyslogEvent;
 
@@ -54,7 +56,27 @@ async fn get_ship_status(
     build_response(data)
 }
 
-// TODO API to re-assign an operator from 1 module to the other, without needing a station
+// @summary Reassigns an operator from one module to another
+// @returns Nothing
+#[web::post("/reassign/{operator}/{module}")]
+async fn reassign_operator(
+    srv: GameState,
+    args: Path<(ShipId, CrewId, ShipModuleId)>,
+    req: HttpRequest,
+) -> impl web::Responder {
+    let pkey = get_player_key!(req);
+    let (ship_id, crew_id, module_id) = *args;
+
+    let data = srv
+        .map_ship_mut(&pkey, &ship_id, |_, _, ship| {
+            Box::pin(async move {
+                ship.reassign_operator(crew_id, module_id)
+                    .map(|_| json!({}))
+            })
+        })
+        .await;
+    build_response(data)
+}
 
 // TODO Modify this API so that it returns also a bit of detailled inside (pilot / operators)
 // @summary Compute how much wages cost per second for this ship

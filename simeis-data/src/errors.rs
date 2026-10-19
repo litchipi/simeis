@@ -17,6 +17,7 @@ pub enum Errcode {
     NullDistance,
     NoSuchStation(crate::galaxy::station::StationId),
     NoSuchModule(crate::ship::module::ShipModuleId),
+    AllModulesTaken,
     CannotExtractWithoutPlanet,
     CannotExtractWithoutModule,
     ShipNotInStation,
@@ -66,6 +67,7 @@ impl Errcode {
             Errcode::NullDistance => "You already are on this coordinates".to_string(),
             Errcode::NoSuchStation(id) => format!("You don't own any station of id {id}"),
             Errcode::NoSuchModule(id) => format!("Ship module of id {id} doesn't exist"),
+            Errcode::AllModulesTaken => format!("All modules already have an operator assigned"),
             Errcode::CannotExtractWithoutPlanet => {
                 "Cannot extract resources, this ship is not on a planet".to_string()
             }
