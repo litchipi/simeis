@@ -104,16 +104,14 @@ async fn get_crew_upgrades(
     args: Path<(StationId, ShipId)>,
     req: HttpRequest,
 ) -> impl web::Responder {
-    let (station_id, ship_id) = *args;
+    let (_, ship_id) = *args;
     let pkey = get_player_key!(req);
     let data = srv
         .map_player(&pkey, |player| {
             Box::pin(async move {
-                if !player.ship_in_station(&ship_id, &station_id)? {
-                    return Err(Errcode::ShipNotInStation);
-                }
-                // SAFETY Checked on the ship_in_station function
-                let ship = player.ships.get(&ship_id).unwrap();
+                let Some(ship) = player.ships.get(&ship_id) else {
+                    return Err(Errcode::ShipNotFound(ship_id));
+                };
 
                 let mut res = BTreeMap::new();
                 for (cid, cm) in ship.crew.0.iter() {

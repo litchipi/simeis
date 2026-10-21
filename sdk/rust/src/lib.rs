@@ -720,6 +720,7 @@ impl SimeisSDK {
         Ok(result)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn compute_upgrade_ship(
         &self,
         start_reactor: u8,
@@ -728,16 +729,20 @@ impl SimeisSDK {
         end_shield: u8,
         start_pilot: u8,
         end_pilot: u8,
+        start_cargo_capacity: f64,
+        end_cargo_capacity: f64,
     ) -> ApiResult {
         self.post_with_body(
             "/calc/upgrade/ship",
             json!({
-                "pilot_start_rank": start_pilot,
-                "pilot_end_rank": end_pilot,
+                "start_pilot_rank": start_pilot,
+                "end_pilot_rank": end_pilot,
                 "start_reactor_rank": start_reactor,
                 "end_reactor_rank": end_reactor,
                 "start_shield_rank": start_shield,
                 "end_shield_rank": end_shield,
+                "start_cargo_capacity": start_cargo_capacity,
+                "end_cargo_capacity": end_cargo_capacity,
             }),
         )
     }

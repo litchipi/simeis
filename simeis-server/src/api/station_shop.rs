@@ -80,10 +80,10 @@ async fn get_ship_module_upgrade_prices(
     req: HttpRequest,
 ) -> impl web::Responder {
     let pkey = get_player_key!(req);
-    let (station_id, ship_id) = *args;
+    let (_, ship_id) = *args;
 
     let data = srv
-        .map_ship_in_station(&pkey, &station_id, &ship_id, |_, _, _, ship| {
+        .map_ship(&pkey, &ship_id, |_, _, ship| {
             Box::pin(async move {
                 let mut res = BTreeMap::new();
                 for (id, module) in ship.modules.iter() {

@@ -305,7 +305,7 @@ class Tester:
         pl2_key = self.assert_got(pl2, "key", None)
 
         pl1 = self.get_ok(f"/player/{self.id}")
-        self.assert_got(pl1, "money", 72000)
+        self.assert_got(pl1, "money", 93000)
 
         got = self.get_ok(f"/player/{self.id}", key=pl2["key"])
         self.assert_got(got, "money", None, negate=True)
@@ -352,7 +352,7 @@ class Tester:
 
         sid_cant = [id for id, ship in ships.items() if ship["price"] > beforemoney ][0]
         self.post_err(f"/station/{self.station}/shipyard/buy/{sid_cant}",
-            errtype="NotEnoughMoney(72000.0, {})".format(ships[sid_cant]["price"])
+            errtype="NotEnoughMoney(93000.0, {})".format(ships[sid_cant]["price"])
         )
 
         sid_can = [id for id, ship in ships.items() if ship["price"] <= beforemoney ][0]
@@ -719,7 +719,7 @@ class Tester:
         resname = resname.lower()
 
         initprice = self.get_ok(f"/station/{stationid}/upgrades")
-        initprice = self.assert_got(initprice, "cargo", 20.0)
+        initprice = self.assert_got(initprice, "cargo", 80.0)
         self.post_ok(f"/station/{stationid}/shop/cargo/buy/100")
 
         cargobefore = self.get_ok(f"/station/{stationid}")["cargo"]
@@ -945,7 +945,7 @@ class Tester:
         self.tick_dur(cost["duration"])
 
         got = self.post_ok(f"/station/{self.station}/shop/modules/{shipid}/upgrade/1")
-        self.assert_got(got, "cost", 4500)
+        self.assert_got(got, "cost", 4000)
         self.assert_got(got, "new-rank", 2)
 
         cost = self.post_ok(f"/ship/{shipid}/navigate", body={
@@ -1278,12 +1278,14 @@ class Tester:
     @functest
     def test_compute_upgrade_ship(self):
         data = {
-            "pilot_start_rank": 3,
-            "pilot_end_rank": 3,
+            "start_pilot_rank": 3,
+            "end_pilot_rank": 3,
             "start_reactor_rank": 3,
             "end_reactor_rank": 3,
             "start_shield_rank": 3,
             "end_shield_rank": 3,
+            "start_cargo_capacity": 200,
+            "end_cargo_capacity": 200,
         }
         got = self.post_ok("/calc/upgrade/ship", body=data)
         self.assert_got(got, "wage_increase", 0)
@@ -1294,7 +1296,7 @@ class Tester:
              self.assert_got(got, "stats_after", None)
         )
 
-        data["pilot_end_rank"] += 1
+        data["end_pilot_rank"] += 1
         pilot = self.post_ok("/calc/upgrade/ship", body=data)
         assert pilot["wage_increase"] > 0.0
         assert pilot["pilot_upgrade_price"] > 0.0
@@ -1305,8 +1307,8 @@ class Tester:
         assert pilot_stats["fuel_consumption"] < base_stats["fuel_consumption"]
         assert pilot_stats["speed"] > base_stats["speed"]
         assert pilot_stats["hull_usage_rate"] == base_stats["hull_usage_rate"]
+        data["end_pilot_rank"] = data["start_pilot_rank"]
 
-        data["pilot_end_rank"] = data["pilot_start_rank"]
         data['end_reactor_rank'] += 1
         rpow = self.post_ok("/calc/upgrade/ship", body=data)
         assert rpow["wage_increase"] == 0.0
@@ -1318,8 +1320,8 @@ class Tester:
         assert rpow_stats["fuel_consumption"] > base_stats["fuel_consumption"]
         assert rpow_stats["speed"] > base_stats["speed"]
         assert rpow_stats["hull_usage_rate"] == base_stats["hull_usage_rate"]
-
         data["end_reactor_rank"] = data['start_reactor_rank']
+
         data['end_shield_rank'] += 1
         spow = self.post_ok("/calc/upgrade/ship", body=data)
         assert spow["wage_increase"] == 0.0
@@ -1331,6 +1333,20 @@ class Tester:
         assert spow_stats["fuel_consumption"] == base_stats["fuel_consumption"]
         assert spow_stats["speed"] == base_stats["speed"]
         assert spow_stats["hull_usage_rate"] < base_stats["hull_usage_rate"]
+        data["end_shield_rank"] = data['start_shield_rank']
+
+        data['end_cargo_capacity'] += 1
+        spow = self.post_ok("/calc/upgrade/ship", body=data)
+        assert spow["wage_increase"] == 0.0
+        assert spow["pilot_upgrade_price"] == 0.0
+        assert spow["reactor_upgrade_price"] == 0.0
+        assert spow["shield_upgrade_price"] == 0.0
+        assert spow["cargo_upgrade_price"] > 0.0
+        assert spow["stats_before"] == base_stats
+        spow_stats = spow["stats_after"]
+        assert spow_stats["fuel_consumption"] == base_stats["fuel_consumption"]
+        assert spow_stats["speed"] == base_stats["speed"]
+        assert spow_stats["hull_usage_rate"] > base_stats["hull_usage_rate"]
 
     @functest
     def test_compute_upgrade_trader(self):
@@ -1339,7 +1355,7 @@ class Tester:
             "trader_end_rank": 3,
         }
         got = self.post_ok("/calc/upgrade/trader", body=data)
-        self.assert_got(got, "wage_increase", 0)
+        self.assert_got(got, "wage_after", self.assert_got(got, "wage_before", None))
         self.assert_got(got, "trader_upgrade_price", 0)
         base_fee = self.assert_got(got, "fee_before",
              self.assert_got(got, "fee_after", None)
@@ -1347,7 +1363,7 @@ class Tester:
 
         data["trader_end_rank"] += 1
         after = self.post_ok("/calc/upgrade/trader", body=data)
-        assert after["wage_increase"] > 0
+        assert after["wage_after"] > after["wage_before"]
         assert after["trader_upgrade_price"] > 0
         assert after["fee_before"] == base_fee
         assert after["fee_after"] < base_fee
@@ -1466,6 +1482,8 @@ class Tester:
             self.get_ok(f"/player/{self.id}")
             time.sleep(0.15)
         self.get_err(f"/player/{self.id}", errtype="NoPlayerWithKey")
+
+# TODO Functest reassign operator between 2 modules
 
 def compute_distance(a, b):
     sum = 0

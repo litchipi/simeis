@@ -9,7 +9,7 @@ use simeis_data::market::fee_rate;
 use simeis_data::ship::cargo::calc_slowing_ratio;
 use simeis_data::ship::module::{calc_extraction_rate, ShipModule, ShipModuleType};
 use simeis_data::ship::resources::{apply_power_attribution, Resource};
-use simeis_data::ship::upgrade::ShipUpgrade;
+use simeis_data::ship::upgrade::{ShipExpandUpgrade, ShipUpgrade};
 use simeis_data::ship::ShipId;
 use strum::IntoEnumIterator;
 
@@ -238,8 +238,11 @@ pub struct UpgradeShip {
     start_shield_rank: u16,
     end_shield_rank: u16,
 
-    pilot_start_rank: u8,
-    pilot_end_rank: u8,
+    start_pilot_rank: u8,
+    end_pilot_rank: u8,
+
+    start_cargo_capacity: f64,
+    end_cargo_capacity: f64,
 }
 
 // @summary Computes the costs of upgrading a ship, and its benefits on the ship's statistics
@@ -247,17 +250,24 @@ pub struct UpgradeShip {
 #[web::post("/upgrade/ship")]
 async fn compute_upgrade_ship(body: Json<UpgradeShip>) -> impl web::Responder {
     let UpgradeShip {
-        pilot_start_rank,
-        pilot_end_rank,
+        start_pilot_rank,
+        end_pilot_rank,
         start_reactor_rank,
         end_reactor_rank,
         start_shield_rank,
         end_shield_rank,
+        start_cargo_capacity,
+        end_cargo_capacity,
     } = body.0;
     let mut pilot = CrewMember::from(CrewMemberType::Pilot);
-    pilot.rank = pilot_start_rank;
+    pilot.rank = start_pilot_rank;
     let start_wage = pilot.wage();
-    let start_stats = ShipStats::new(start_reactor_rank, start_shield_rank, Some(&pilot));
+    let start_stats = ShipStats::new(
+        start_reactor_rank,
+        start_shield_rank,
+        start_cargo_capacity,
+        Some(&pilot),
+    );
 
     let mut rpow_upgrade_price = 0.0;
     for _ in start_reactor_rank..end_reactor_rank {
@@ -268,19 +278,27 @@ async fn compute_upgrade_ship(body: Json<UpgradeShip>) -> impl web::Responder {
         spow_upgrade_price += ShipUpgrade::Shield.get_price();
     }
 
+    let cargo_upgrade_price =
+        ShipExpandUpgrade::Cargo(end_cargo_capacity - start_cargo_capacity).get_price();
     let mut crew_upgrade_price = 0.0;
-    for r in pilot_start_rank..pilot_end_rank {
+    for r in start_pilot_rank..end_pilot_rank {
         pilot.rank = r;
         crew_upgrade_price += pilot.price_next_rank();
     }
-    pilot.rank = pilot_end_rank;
+    pilot.rank = end_pilot_rank;
     let end_wage = pilot.wage();
-    let end_stats = ShipStats::new(end_reactor_rank, end_shield_rank, Some(&pilot));
+    let end_stats = ShipStats::new(
+        end_reactor_rank,
+        end_shield_rank,
+        end_cargo_capacity,
+        Some(&pilot),
+    );
     build_response(Ok(json!({
         "wage_increase": end_wage - start_wage,
         "pilot_upgrade_price": crew_upgrade_price,
         "reactor_upgrade_price": rpow_upgrade_price,
         "shield_upgrade_price": spow_upgrade_price,
+        "cargo_upgrade_price": cargo_upgrade_price,
         "stats_before": start_stats,
         "stats_after": end_stats,
     })))
@@ -314,10 +332,11 @@ async fn compute_upgrade_trader(body: Json<UpgradeTrader>) -> impl web::Responde
     let end_wage = trader.wage();
 
     build_response(Ok(json!({
-        "wage_increase": end_wage - start_wage,
-        "trader_upgrade_price": crew_upgrade_price,
+        "wage_before": start_wage,
         "fee_before": start_fee,
+        "wage_after": end_wage,
         "fee_after": end_fee,
+        "trader_upgrade_price": crew_upgrade_price,
     })))
 }
 

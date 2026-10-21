@@ -533,8 +533,10 @@ class ApiChecker:
             "end_reactor_rank": 6,
             "start_shield_rank": 5,
             "end_shield_rank": 6,
-            "pilot_start_rank": 4,
-            "pilot_end_rank": 5,
+            "start_pilot_rank": 4,
+            "end_pilot_rank": 5,
+            "start_cargo_capacity": 200,
+            "end_cargo_capacity": 300,
         })
 
         self.prepare_post("/calc/upgrade/trader", body={

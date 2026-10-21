@@ -9,8 +9,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::to_value;
 use simeis_data::config::get_config;
+use simeis_data::crew::{CrewId, CrewMemberType};
 use simeis_data::galaxy::SpaceUnit;
 use simeis_data::history::PlayerHistoryEvent;
+use simeis_data::ship::module::ShipModuleId;
 use simeis_data::ship::resources::Resource;
 use simeis_data::syslog::SyslogEvent;
 
@@ -54,6 +56,28 @@ async fn get_ship_status(
     build_response(data)
 }
 
+// @summary Reassigns an operator from one module to another
+// @returns Nothing
+#[web::post("/reassign/{operator}/{module}")]
+async fn reassign_operator(
+    srv: GameState,
+    args: Path<(ShipId, CrewId, ShipModuleId)>,
+    req: HttpRequest,
+) -> impl web::Responder {
+    let pkey = get_player_key!(req);
+    let (ship_id, crew_id, module_id) = *args;
+
+    let data = srv
+        .map_ship_mut(&pkey, &ship_id, |_, _, ship| {
+            Box::pin(async move {
+                ship.reassign_operator(crew_id, module_id)
+                    .map(|_| json!({}))
+            })
+        })
+        .await;
+    build_response(data)
+}
+
 // @summary Compute how much wages cost per second for this ship
 // @returns The amount of credits consumed each second by the crew of this ship
 #[web::get("/wages")]
@@ -67,7 +91,23 @@ async fn get_wages_cost(
 
     let data = srv
         .map_ship(&pkey, &ship_id, |_, _, ship| {
-            Box::pin(async move { Ok(json!({ "wages": ship.crew.sum_wages() })) })
+            Box::pin(async move {
+                let mut s = 0.0;
+                let mut pilot = None;
+                let mut operators = serde_json::Map::new();
+                for (id, cm) in ship.crew.0.iter() {
+                    let w = cm.wage();
+                    s += w;
+                    if cm.member_type == CrewMemberType::Pilot {
+                        pilot = Some(w);
+                    } else if cm.member_type == CrewMemberType::Operator {
+                        operators.insert(id.to_string(), serde_json::to_value(w).unwrap());
+                    } else {
+                        unreachable!()
+                    }
+                }
+                Ok(json!({ "total": s, "pilot": pilot, "operators": operators }))
+            })
         })
         .await;
     build_response(data)
