@@ -11,6 +11,7 @@ TESTS = []
 
 FAILFAST=os.getenv("CI") is None
 
+INIT_MONEY=100_000
 ITER_PERIOD = 20 / 1000
 
 SOLID=["iron", "copper", "titanium", "uranium"]
@@ -305,7 +306,7 @@ class Tester:
         pl2_key = self.assert_got(pl2, "key", None)
 
         pl1 = self.get_ok(f"/player/{self.id}")
-        self.assert_got(pl1, "money", 93000)
+        self.assert_got(pl1, "money", INIT_MONEY)
 
         got = self.get_ok(f"/player/{self.id}", key=pl2["key"])
         self.assert_got(got, "money", None, negate=True)
@@ -352,7 +353,7 @@ class Tester:
 
         sid_cant = [id for id, ship in ships.items() if ship["price"] > beforemoney ][0]
         self.post_err(f"/station/{self.station}/shipyard/buy/{sid_cant}",
-            errtype="NotEnoughMoney(93000.0, {})".format(ships[sid_cant]["price"])
+            errtype=f"NotEnoughMoney({INIT_MONEY}.0, {ships[sid_cant]["price"]})"
         )
 
         sid_can = [id for id, ship in ships.items() if ship["price"] <= beforemoney ][0]

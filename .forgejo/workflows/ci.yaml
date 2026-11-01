@@ -20,7 +20,10 @@ jobs:
           srcdir: simeis-data simeis-server
 
       - name: "Check the sanity of the Rust code"
-        run: nix run .#check_rust_code
+        run: nix run .#check_rust_code -L --show-trace
+
+      - name: "Functional tests"
+        run: nix run .#functional_tests -L --show-trace
 
   quick-sanity-check:
     runs-on: nix
