@@ -430,3 +430,6 @@ class SimeisSDK:
 
     def get_player_history(self):
         return self.get("/player/history")
+
+    def reassign_operator(self, ship_id, opid, mid):
+        return self.post(f"/ship/{ship_id}/reassign/{opid}/{mid}")

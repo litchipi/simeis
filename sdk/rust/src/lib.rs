@@ -905,4 +905,10 @@ impl SimeisSDK {
         };
         Ok(data)
     }
+
+    pub fn reassign_operator(&self, ship_id: u64, operator_id: u64, module_id: u64) -> ApiResult {
+        self.post(format!(
+            "/ship/{ship_id}/reassign/{operator_id}/{module_id}"
+        ))
+    }
 }

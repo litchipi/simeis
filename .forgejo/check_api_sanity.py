@@ -471,13 +471,15 @@ class ApiChecker:
         self.prepare_post("/station/{station_id}/shop/cargo/buy/{amount}", amount=1)
         pilot = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="pilot")
         self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/pilot", crew_id=pilot["id"])
+        module2 = self.prepare_post("/station/{station_id}/shop/modules/{ship_id}/buy/{modtype}", modtype="Pump")
         mod_type = "Miner"
         resource = "iron"
         module = self.prepare_post("/station/{station_id}/shop/modules/{ship_id}/buy/{modtype}", modtype=mod_type)
         operator = self.prepare_post("/station/{station_id}/crew/hire/{crewtype}", crewtype="operator")
-        self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/{mod_id}", crew_id=operator["id"], mod_id=module["id"])
+        self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/{mod_id}", crew_id=operator["id"], mod_id=module2["id"])
+        self.prepare_post("/ship/{ship_id}/reassign/{operator}/{module}", operator=operator["id"], module=module["id"])
         self.prepare_post("/station/{station_id}/crew/unassign/{crew_id}")
-        self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/{mod_id}", crew_id=operator["id"], mod_id=module["id"])
+        self.prepare_post("/station/{station_id}/crew/assign/{crew_id}/ship/{ship_id}/{mod_id}", mod_id=module["id"])
 
         self.prepare_post("/calc/navigation", body={
             "ship_stats": { "speed": 3.0, "fuel_consumption": 2.0, "hull_usage_rate": 1.0 },

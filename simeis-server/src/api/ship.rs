@@ -381,6 +381,7 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
         scope(base)
             .service(get_wages_cost)
             .service(get_ship_status)
+            .service(reassign_operator)
             .service(ask_navigate)
             .service(stop_navigation)
             .service(start_extraction)
