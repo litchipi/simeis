@@ -163,7 +163,7 @@ impl ExtractionInfo {
     pub fn create(ship: &Ship, planet: &Planet) -> Self {
         let mut extraction = BTreeMap::new();
         let mut cap_per_sec = 0.0;
-        for (_, smod) in ship.modules.iter() {
+        for smod in ship.modules.values() {
             for (res, rate) in smod.can_extract(&ship.crew, planet) {
                 cap_per_sec += rate * res.volume();
                 if let Some(rrate) = extraction.get_mut(&res) {

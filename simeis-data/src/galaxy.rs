@@ -92,7 +92,7 @@ impl Galaxy {
 
     pub fn is_discovered(&self, coord: &SpaceCoord) -> bool {
         let (x, y, z) = coord;
-        for (_, ((sx, ex), (sy, ey), (sz, ez))) in self.discovered.iter() {
+        for ((sx, ex), (sy, ey), (sz, ez)) in self.discovered.values() {
             if (x < sx) || (x > ex) || (y < sy) || (y > ey) || (z < sz) || (z > ez) {
                 continue;
             }
@@ -103,7 +103,7 @@ impl Galaxy {
 
     fn list_planets_in_sector(&self, sector: &GalaxySector) -> Vec<&Arc<Planet>> {
         let mut objects = vec![];
-        for (_, planet) in self.planets.iter() {
+        for planet in self.planets.values() {
             let (x, y, z) = planet.position;
             if (x < sector.0 .0) || (x > sector.0 .1) {
                 continue;
@@ -189,14 +189,14 @@ impl Galaxy {
     pub fn scan_sector(&self, rank: u8, center: &SpaceCoord) -> ScanResult {
         let sector = compute_sector(center.0, center.1, center.2);
         let mut results = ScanResult::empty();
-        for (_, pla) in self.planets.iter() {
+        for pla in self.planets.values() {
             if !is_in_sector(&pla.position, &sector) {
                 continue;
             }
             results.add_planet(rank, pla);
         }
 
-        for (_, sta) in self.stations.iter() {
+        for sta in self.stations.values() {
             if !is_in_sector(&sta.position, &sector) {
                 continue;
             }

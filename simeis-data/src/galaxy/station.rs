@@ -265,7 +265,7 @@ impl Station {
             match c.member_type {
                 CrewMemberType::Operator => {
                     let mut found = false;
-                    for (_, unit) in pd.industry.iter_mut() {
+                    for unit in pd.industry.values_mut() {
                         if let Some(ref id) = unit.operator {
                             if id == crew_id {
                                 unit.operator = None;

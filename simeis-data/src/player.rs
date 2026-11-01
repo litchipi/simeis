@@ -419,7 +419,7 @@ impl Player {
         let pd = station.player_data.clone_val(&self.id).await.unwrap();
         let mut pd = pd.write().await;
 
-        for (_, ship) in self.ships.iter_mut() {
+        for ship in self.ships.values_mut() {
             if ship.crew.0.contains_key(&crew_id) {
                 if ship.position != station.position {
                     return Err(Errcode::ShipNotInStation);

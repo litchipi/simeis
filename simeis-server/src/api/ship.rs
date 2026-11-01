@@ -247,7 +247,7 @@ async fn get_extraction_power_attribution(
                 let ship = player.get_ship(&ship_id)?;
                 let mut result = BTreeMap::new();
                 for res in Resource::iter() {
-                    for (_, smod) in ship.modules.iter() {
+                    for smod in ship.modules.values() {
                         let Some(opid) = smod.operator else {
                             continue;
                         };

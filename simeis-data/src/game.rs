@@ -180,7 +180,7 @@ impl Game {
             let mut player = player.write().await;
             player.update_money(syslog, ITER_PERIOD.as_secs_f64()).await;
 
-            for (_, station) in player.stations.iter() {
+            for station in player.stations.values() {
                 station
                     .update_crafting(syslog, ITER_PERIOD.as_secs_f64(), &player_id)
                     .await;
@@ -389,7 +389,7 @@ impl Game {
         let (pid, player) = self.get_player(pkey).await?;
         let player = player.read().await;
         let mut ships = self.ship_owners.write().await;
-        for (shipid, _) in player.ships.iter() {
+        for shipid in player.ships.keys() {
             ships.insert(*shipid, pid);
         }
         Ok(())

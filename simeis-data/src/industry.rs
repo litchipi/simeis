@@ -207,11 +207,10 @@ impl IndustryUnit {
         self.operator?;
         let mut max_ratio: f64 = 1.0;
         for (res, amnt) in self.resources_required.iter() {
-            if let Some(incargo) = resources.get(res) {
+            {
+                let incargo = resources.get(res)?;
                 let max = amnt * tdelta;
                 max_ratio = max_ratio.min((incargo / max).min(1.0));
-            } else {
-                return None;
             }
         }
         log::warn!("Max ratio: {max_ratio:?}");

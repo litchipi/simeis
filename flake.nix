@@ -12,7 +12,7 @@
       overlays = [ rust-overlay.overlays.default ];
     };
 
-    rust_version = "1.93.0";
+    rust_version = "1.99.1";
     rustpkg = pkgs.rust-bin.stable.${rust_version}.default.override {
       extensions = [ "rust-src" ];
     };

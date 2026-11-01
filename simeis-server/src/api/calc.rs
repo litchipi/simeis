@@ -74,7 +74,7 @@ async fn compute_ship_mining_rate(
         .map_ship(&pkey, &ship_id, |_, _, ship| {
             Box::pin(async move {
                 let mut result = vec![];
-                for (_, m) in ship.modules.iter() {
+                for m in ship.modules.values() {
                     let Some(ref opid) = m.operator else {
                         continue;
                     };
