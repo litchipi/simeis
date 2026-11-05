@@ -577,9 +577,8 @@ impl SimeisSDK {
         Ok(result)
     }
 
-    pub fn get_ship_wages_cost(&self, ship_id: u64) -> Result<f64, Value> {
-        let got = self.get(format!("/ship/{ship_id}/wages"))?;
-        Ok(json_get_float("wages", &got).unwrap())
+    pub fn get_ship_wages(&self, ship_id: u64) -> ApiResult {
+        self.get(format!("/ship/{ship_id}/wages"))
     }
 
     pub fn upgrade_station_crew(&self, station_id: u64, crew_id: u64) -> ApiResult {
