@@ -183,6 +183,7 @@ async fn gamestats(srv: GameState) -> impl web::Responder {
                 "age": age,
                 "lost": player.lost,
                 "money": player.money,
+                "costs": player.costs,
                 "stations": all_stations,
             }),
         );
