@@ -281,8 +281,8 @@ class SimeisSDK:
     def get_resources_info(self):
         return self.get("/resources")
 
-    def get_ship_wages_cost(self, ship_id):
-        return self.get(f"/ship/{ship_id}/wages")["wages"]
+    def get_ship_wages(self, ship_id):
+        return self.get(f"/ship/{ship_id}/wages")
 
     def list_ship_crew_upgrades(self, sta, ship_id):
         return self.get(f"/station/{sta}/crew/upgrade/ship/{ship_id}")
