@@ -240,6 +240,10 @@ impl Game {
     }
 
     pub async fn new_player(&self, name: String) -> Result<(PlayerId, String), Errcode> {
+        let name = name
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || c == &'_' || c == &'-')
+            .collect();
         if self.taken_names.contains_key(&name).await {
             return Err(Errcode::PlayerAlreadyExists(name));
         }
